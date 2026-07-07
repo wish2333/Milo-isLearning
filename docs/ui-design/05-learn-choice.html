@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0E1311" />
+  <title>AI Learning Compiler · 学习页 / Choice 题</title>
+
+  <!--
+    Phase 2 · P0 原型 · 学习页（Choice 题，含反馈态）
+    =================================================
+    对应 DESIGN-SPEC.md §5.5 学习页 + §5.6 反馈态 + §6.1 反馈动效
+
+    状态机（5 态）：
+      1. unanswered       — 所有选项默认，提交按钮 disabled
+      2. selected         — 选项 --selected，提交按钮启用
+      3. correct          — 选项 --correct + 细线划过 + 解释展开，按钮变「下一题」
+      4. wrong            — 用户选项 --wrong + 正确选项 --correct，解释展开，按钮变「再看一题」
+      5. wrong-3rd        — 第 3 次答错追加「我们继续下一个吧」+ 按钮变「进入下一题」
+
+    时序（§6.1.1 答对 / §6.1.2 答错）：
+      T+0     按钮下沉
+      T+200ms 选项颜色渐入（240ms）
+      T+280ms 反馈短语淡入 + 上移 4px（400ms）
+      T+440ms 解释面板 grid-template-rows 展开（400ms）
+      T+840ms 按钮文案变化（240ms 渐变交叉）
+      T+1080ms 就绪
+
+    反馈延迟感：提交后等 200ms 再触发反馈（模拟 Feedback Agent）
+    错峰：border-color 先反应（80ms），细线随后（240ms）—— styles.css 已内置
+
+    演示控件：
+      - 直接点击选项 + 提交按钮体验完整流程
+      - 右下角浮动「演示状态」面板可一键切换 5 个状态供视觉评审
+      - 浮动面板在 prefers-reduced-motion 下不影响功能
+  -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+
+  <link rel="stylesheet" href="./styles.css" />
+
+  <style>
+    /* ===========================================================
+       Page-specific styles
+       =========================================================== */
+
+    .learn-page {
+      max-width: 720px;
+      padding-top: var(--space-7);  /* 48px · less than home (no hero) */
+    }
+
+    /* ---- Module staircase wrapper (§5.5.2 顶部) ---- */
+    .staircase-wrap {
+      padding: var(--space-5) var(--space-6);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-7);
+    }
+
+    .staircase-legend {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: var(--space-4);
+      padding-top: var(--space-3);
+      border-top: 1px solid var(--border-subtle);
+
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-tertiary);
+    }
+
+    .staircase-legend__lighthouse {
+      color: var(--accent-primary);
+      letter-spacing: var(--tracking-mono);
+    }
+
+    /* ---- Concept meta + thin progress ---- */
+    .concept-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      margin-bottom: var(--space-1);
+    }
+
+    .concept-meta__step {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-tertiary);
+    }
+
+    .concept-meta__lighthouse {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-tertiary);
+    }
+
+    .concept-meta__lighthouse strong {
+      color: var(--accent-primary);
+      font-weight: var(--weight-medium);
+    }
+
+    .concept-name {
+      font-family: var(--font-serif);
+      font-size: var(--text-2xl);  /* 36px */
+      font-weight: var(--weight-medium);
+      line-height: var(--leading-snug);
+      color: var(--fg-primary);
+      letter-spacing: var(--tracking-tight);
+      margin-top: var(--space-4);
+      margin-bottom: var(--space-5);
+    }
+
+    /* ---- Quiz stem ---- */
+    .quiz-stem {
+      font-family: var(--font-serif);
+      font-size: var(--text-xl);  /* 28px · P4-UI-1 题干字号 */
+      font-weight: var(--weight-regular);
+      line-height: var(--leading-normal);
+      color: var(--fg-primary);
+      margin-top: var(--space-5);
+      margin-bottom: var(--space-6);
+    }
+
+    /* ---- Options list ---- */
+    .option-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);  /* 12px · §2.3.2 选项间垂直间距 */
+    }
+
+    /* ---- Feedback + explanation block ---- */
+    .feedback-block {
+      margin-top: var(--space-6);
+    }
+
+    /* Override default text-feedback to be hidden until state machine triggers */
+    .feedback-block .text-feedback {
+      animation: none;
+      opacity: 0;
+      transform: translateY(4px);
+      margin-bottom: var(--space-4);
+    }
+
+    .feedback-block .text-feedback.is-visible {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 80ms;
+    }
+
+    /* Wrong-on-3rd温和 message (§6.1.3) */
+    .feedback-continue {
+      margin-top: var(--space-5);
+      padding-top: var(--space-4);
+      border-top: 1px solid var(--border-subtle);
+
+      font-family: var(--font-serif);
+      font-size: var(--text-base);
+      line-height: var(--leading-normal);
+      color: var(--fg-secondary);
+
+      opacity: 0;
+      transform: translateY(4px);
+    }
+
+    .feedback-continue.is-visible {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 200ms;
+    }
+
+    /* ---- Submit area · right-bottom on desktop / sticky on mobile ---- */
+    .submit-area {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: var(--space-8);
+    }
+
+    .submit-area .btn-primary {
+      min-width: 160px;
+      transition: background var(--duration-instant) var(--ease-standard),
+                  transform var(--duration-fast) var(--ease-standard),
+                  opacity var(--duration-base) var(--ease-standard);
+    }
+
+    /* Button text crossfade */
+    .submit-area .btn-primary .btn-label {
+      display: inline-block;
+      transition: opacity var(--duration-base) var(--ease-standard);
+    }
+
+    .submit-area .btn-primary.is-transitioning .btn-label {
+      opacity: 0;
+    }
+
+    /* ---- Demo control panel (visual review only) ---- */
+    .demo-panel {
+      position: fixed;
+      right: var(--space-4);
+      bottom: var(--space-4);
+      z-index: 50;
+
+      padding: var(--space-3);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      min-width: 180px;
+    }
+
+    .demo-panel__title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+      margin-bottom: var(--space-1);
+    }
+
+    .demo-panel__btn {
+      padding: var(--space-2) var(--space-3);
+
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-secondary);
+
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: left;
+      transition: all var(--duration-instant) var(--ease-standard);
+    }
+
+    .demo-panel__btn:hover {
+      color: var(--fg-primary);
+      border-color: var(--border-strong);
+      background: var(--bg-elevated);
+    }
+
+    .demo-panel__btn.is-active {
+      color: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+
+    /* Mobile sticky bottom bar for submit button (§7.3.3) */
+    @media (max-width: 767px) {
+      .learn-page { padding-top: var(--space-5); }
+
+      .quiz-stem { font-size: var(--text-lg); }  /* 22px on mobile */
+
+      .submit-area {
+        position: sticky;
+        bottom: 0;
+        margin-top: var(--space-7);
+        margin-bottom: calc(-1 * var(--space-7));
+        margin-left: calc(-1 * var(--space-5));
+        margin-right: calc(-1 * var(--space-5));
+        padding: var(--space-4) var(--space-5);
+        background: var(--bg-base);
+        border-top: 1px solid var(--border-default);
+        justify-content: stretch;
+      }
+
+      .submit-area .btn-primary { width: 100%; min-width: 0; }
+
+      .demo-panel { display: none; }  /* hide on mobile · use real interaction */
+    }
+  </style>
+</head>
+
+<body>
+  <a href="#main-content" class="skip-link">跳到主要内容</a>
+
+  <div class="app-shell">
+
+    <!-- ============================================================
+         nav-top · §5.5.2 概念 · Challenge · 费曼 三阶段标签
+         ============================================================ -->
+    <header class="nav-top" role="banner">
+      <button type="button" class="nav-top__back">
+        <span aria-hidden="true">&larr;</span>
+        <span>概览</span>
+      </button>
+      <nav aria-label="学习阶段">
+        <span class="label-stage" style="color: var(--accent-primary);">概念</span>
+        <span style="color: var(--fg-quaternary); margin: 0 var(--space-2);">·</span>
+        <span class="label-stage">Challenge</span>
+        <span style="color: var(--fg-quaternary); margin: 0 var(--space-2);">·</span>
+        <span class="label-stage">费曼</span>
+      </nav>
+    </header>
+
+    <main id="main-content" class="page learn-page" role="main">
+
+      <!-- ========================================================
+           §3.2 Module staircase · Concept A 进行中
+           ======================================================== -->
+      <section class="staircase-wrap" aria-label="Module 学习路径">
+        <ol class="staircase"
+            role="progressbar"
+            aria-valuenow="12" aria-valuemin="0" aria-valuemax="100"
+            aria-label="Module 学习进度 · Concept A 第 3 步">
+
+          <!-- Concept A · 2 格 · 第一格已完成，第二格进行中 -->
+          <li class="stair stair--completed" aria-label="Concept A · 认知层 已完成">
+            <span class="stair__label">C1</span>
+          </li>
+          <li class="stair stair--active" aria-label="Concept A · 应用层 进行中">
+            <span class="stair__label">C1</span>
+          </li>
+
+          <!-- Concept B · 2 格 · 锁定 -->
+          <li class="stair stair--locked" aria-label="Concept B 待解锁">
+            <span class="stair__label">C2</span>
+          </li>
+          <li class="stair stair--locked" aria-label="Concept B 待解锁">
+            <span class="stair__label">C2</span>
+          </li>
+
+          <!-- Concept C · 2 格 · 锁定 -->
+          <li class="stair stair--locked" aria-label="Concept C 待解锁">
+            <span class="stair__label">C3</span>
+          </li>
+          <li class="stair stair--locked" aria-label="Concept C 待解锁">
+            <span class="stair__label">C3</span>
+          </li>
+
+          <!-- Challenge · 2 格 · 略高 -->
+          <li class="stair stair--locked staircase--challenge" aria-label="Challenge 待解锁">
+            <span class="stair__label">Chl</span>
+          </li>
+          <li class="stair stair--locked staircase--challenge" aria-label="Challenge 待解锁">
+            <span class="stair__label">Chl</span>
+          </li>
+
+          <!-- Feynman · 2 格 · 最高 · 灯塔 -->
+          <li class="stair stair--locked staircase--feynman" aria-label="Feynman 待解锁">
+            <span class="stair__label">Fey</span>
+          </li>
+          <li class="stair stair--locked staircase--feynman" aria-label="Feynman 待解锁">
+            <span class="stair__label">Fey</span>
+          </li>
+        </ol>
+
+        <div class="staircase-legend">
+          <span>你在 Concept A · 应用层</span>
+          <span class="staircase-legend__lighthouse">距离费曼还有 7 步</span>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           §5.5.2 Concept 名 + 细线进度 + 题干
+           ======================================================== -->
+      <div class="concept-meta">
+        <span class="concept-meta__step">Concept A · 第 3 步 / 共 8 步</span>
+        <span class="concept-meta__lighthouse">距离费曼还有 <strong>7 步</strong></span>
+      </div>
+
+      <!-- Concept-internal thin progress (§4.5.2) · 3/8 = 37.5% -->
+      <div class="progress-thin" role="presentation">
+        <div class="progress-thin__fill" style="width: 37.5%;"></div>
+      </div>
+
+      <h2 class="concept-name">什么是检索</h2>
+
+      <hr class="section-divider" />
+
+      <p class="quiz-stem" id="quiz-stem">
+        下面哪一个属于 Few-shot Prompting？
+      </p>
+
+      <!-- ========================================================
+           §4.2.1 Choice 选项 · 4 个
+           演示用：B 是正确答案；A/C/D 错误
+           ======================================================== -->
+      <ul class="option-list" role="group" aria-labelledby="quiz-stem">
+
+        <li>
+          <button type="button"
+                  class="option-choice"
+                  data-option="A"
+                  data-correct="false">
+            <span class="option-choice__letter">A</span>
+            <span class="option-choice__text">让模型自由生成，不提供任何示例</span>
+          </button>
+        </li>
+
+        <li>
+          <button type="button"
+                  class="option-choice"
+                  data-option="B"
+                  data-correct="true">
+            <span class="option-choice__letter">B</span>
+            <span class="option-choice__text">给模型一个示例：「将句子翻译为英文：你好 &rarr; Hello」</span>
+          </button>
+        </li>
+
+        <li>
+          <button type="button"
+                  class="option-choice"
+                  data-option="C"
+                  data-correct="false">
+            <span class="option-choice__letter">C</span>
+            <span class="option-choice__text">使用强化学习训练模型</span>
+          </button>
+        </li>
+
+        <li>
+          <button type="button"
+                  class="option-choice"
+                  data-option="D"
+                  data-correct="false">
+            <span class="option-choice__letter">D</span>
+            <span class="option-choice__text">调整模型参数以适应新任务</span>
+          </button>
+        </li>
+
+      </ul>
+
+      <!-- ========================================================
+           §5.6 反馈区 · 默认隐藏，提交后展开
+           ======================================================== -->
+      <div class="feedback-block" id="feedback-block" aria-live="polite" aria-atomic="true">
+
+        <p class="text-feedback" id="text-feedback">很好。</p>
+
+        <div class="panel-explanation-wrapper" id="panel-wrapper">
+          <div class="panel-explanation">
+            <div class="panel-explanation__inner" id="panel-content">
+              Few-shot 的核心是提供示例，让模型模仿输出格式。
+              其他选项：A 是 zero-shot（无示例），C 是 RLHF，D 是 fine-tuning。
+            </div>
+          </div>
+        </div>
+
+        <p class="feedback-continue" id="feedback-continue">
+          我们继续下一个吧。这个概念可以在费曼阶段再回来。
+        </p>
+
+      </div>
+
+      <!-- ========================================================
+           §4.1 提交按钮 · 文案随状态变化
+           ======================================================== -->
+      <div class="submit-area">
+        <button type="button"
+                id="submit-btn"
+                class="btn-primary"
+                disabled
+                aria-disabled="true">
+          <span class="btn-label">提交</span>
+        </button>
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- ============================================================
+       Demo state panel · visual review only
+       ============================================================ -->
+  <aside class="demo-panel" aria-hidden="true" aria-label="演示状态切换">
+    <span class="demo-panel__title">演示状态</span>
+    <button type="button" class="demo-panel__btn is-active" data-state="unanswered">未答</button>
+    <button type="button" class="demo-panel__btn" data-state="selected">已选未提交</button>
+    <button type="button" class="demo-panel__btn" data-state="correct">答对反馈</button>
+    <button type="button" class="demo-panel__btn" data-state="wrong">答错反馈</button>
+    <button type="button" class="demo-panel__btn" data-state="wrong-3rd">连续答错 3 次</button>
+  </aside>
+
+  <script>
+    'use strict';
+
+    /* ==============================================================
+       Phase 2 · 05-learn-choice · state machine
+       ============================================================== */
+
+    /**
+     * @typedef {'unanswered'|'selected'|'correct'|'wrong'|'wrong-3rd'} QuizState
+     */
+
+    /** @type {QuizState} */
+    let currentState = 'unanswered';
+
+    /** @type {string | null} */
+    let selectedOption = null;
+
+    /** Tracks wrong attempts within the same question for the 3-strike rule */
+    let wrongAttempts = 0;
+
+    /** Tracks whether the question has been answered (locks further submit) */
+    let isAnswered = false;
+
+    /* ---------- Element refs ---------- */
+
+    const submitBtn = document.getElementById('submit-btn');
+    const submitLabel = submitBtn.querySelector('.btn-label');
+
+    const textFeedback = document.getElementById('text-feedback');
+    const feedbackContinue = document.getElementById('feedback-continue');
+    const panelWrapper = document.getElementById('panel-wrapper');
+    const panelContent = document.getElementById('panel-content');
+
+    const options = /** @type {NodeListOf<HTMLButtonElement>} */ (
+      document.querySelectorAll('.option-choice')
+    );
+
+    const demoButtons = document.querySelectorAll('.demo-panel__btn');
+
+    /* ---------- Timing constants (§6.1.1) ---------- */
+
+    const T_FEEDBACK_DELAY = 200;     // 模拟 Feedback Agent 延迟
+    const T_OPTION_COLOR = 200;       // 选项开始变色
+    const T_FEEDBACK_PHRASE = 280;    // 反馈短语淡入
+    const T_PANEL_EXPAND = 440;       // 解释面板展开
+    const T_BUTTON_TEXT = 840;        // 按钮文案变化
+
+    /* ---------- Option click handler ---------- */
+
+    options.forEach(opt => {
+      opt.addEventListener('click', () => {
+        if (isAnswered) return;
+        const optionId = opt.getAttribute('data-option');
+        selectOption(/** @type {string} */ (optionId));
+      });
+    });
+
+    /**
+     * @param {string} optionId
+     */
+    function selectOption(optionId) {
+      selectedOption = optionId;
+      options.forEach(o => {
+        const id = o.getAttribute('data-option');
+        o.classList.toggle('option-choice--selected', id === optionId);
+      });
+      if (currentState === 'unanswered') {
+        setState('selected');
+      }
+    }
+
+    /* ---------- Submit handler ---------- */
+
+    submitBtn.addEventListener('click', () => {
+      if (isAnswered || !selectedOption) return;
+
+      const selectedEl = /** @type {HTMLButtonElement} */ (
+        document.querySelector(`.option-choice[data-option="${selectedOption}"]`)
+      );
+      const isCorrect = selectedEl.getAttribute('data-correct') === 'true';
+
+      // Button press feedback (instant per V1.1.1 audit-2)
+      submitBtn.style.transform = 'translateY(1px)';
+
+      isAnswered = true;
+      options.forEach(o => { o.disabled = true; o.setAttribute('aria-disabled', 'true'); });
+
+      // T+200ms 模拟 Feedback Agent 延迟 + 选项颜色反馈
+      window.setTimeout(() => {
+        if (isCorrect) {
+          applyCorrect(selectedEl);
+          wrongAttempts = 0;
+          // T+1080ms 按钮文案变「下一题」
+          window.setTimeout(() => {
+            setSubmitLabel('下一题');
+            setState('correct');
+          }, T_BUTTON_TEXT - T_OPTION_COLOR);
+        } else {
+          applyWrong(selectedEl);
+          wrongAttempts += 1;
+          const thirdStrike = wrongAttempts >= 3;
+
+          if (thirdStrike) {
+            // T+1280ms 温和强制 advance 文案
+            window.setTimeout(() => {
+              feedbackContinue.classList.add('is-visible');
+            }, T_PANEL_EXPAND + 400 - T_OPTION_COLOR);
+
+            // T+1680ms 按钮文案变「进入下一题」
+            window.setTimeout(() => {
+              setSubmitLabel('进入下一题');
+              setState('wrong-3rd');
+            }, T_BUTTON_TEXT + 600 - T_OPTION_COLOR);
+          } else {
+            // T+840ms 按钮文案变「再看一题」
+            window.setTimeout(() => {
+              setSubmitLabel('再看一题');
+              setState('wrong');
+            }, T_BUTTON_TEXT - T_OPTION_COLOR);
+          }
+        }
+
+        // Reset button transform after press
+        window.setTimeout(() => { submitBtn.style.transform = ''; }, 200);
+      }, T_FEEDBACK_DELAY);
+    });
+
+    /* ---------- Feedback application ---------- */
+
+    /**
+     * @param {HTMLButtonElement} selectedEl
+     */
+    function applyCorrect(selectedEl) {
+      // T+200ms: option border-color → success
+      selectedEl.classList.add('option-choice--correct');
+
+      // T+280ms (80ms later): 1px line draws via ::after
+      window.requestAnimationFrame(() => {
+        selectedEl.classList.add('is-line-drawn');
+      });
+
+      // T+280ms: feedback phrase
+      window.setTimeout(() => {
+        textFeedback.textContent = '很好。';
+        textFeedback.classList.add('is-visible');
+      }, T_FEEDBACK_PHRASE - T_OPTION_COLOR);
+
+      // T+440ms: panel expand
+      window.setTimeout(() => {
+        panelContent.textContent =
+          'Few-shot 的核心是提供示例，让模型模仿输出格式。' +
+          '其他选项：A 是 zero-shot（无示例），C 是 RLHF，D 是 fine-tuning。';
+        panelWrapper.classList.add('panel-explanation-wrapper--open');
+      }, T_PANEL_EXPAND - T_OPTION_COLOR);
+    }
+
+    /**
+     * @param {HTMLButtonElement} selectedEl - the option user picked (wrong)
+     */
+    function applyWrong(selectedEl) {
+      const correctEl = /** @type {HTMLButtonElement} */ (
+        document.querySelector('.option-choice[data-correct="true"]')
+      );
+
+      // T+200ms: simultaneously mark wrong + correct (§6.1.2)
+      selectedEl.classList.add('option-choice--wrong');
+      correctEl.classList.add('option-choice--correct');
+      window.requestAnimationFrame(() => {
+        correctEl.classList.add('is-line-drawn');
+      });
+
+      // T+280ms: feedback phrase · 鼓励性
+      window.setTimeout(() => {
+        textFeedback.textContent = '差一点。关键在于：Few-shot 必须提供示例。';
+        textFeedback.classList.add('is-visible');
+      }, T_FEEDBACK_PHRASE - T_OPTION_COLOR);
+
+      // T+440ms: panel expand · 含「为什么对 + 为什么错」(PRD FR-04)
+      window.setTimeout(() => {
+        panelContent.textContent =
+          'Few-shot 通过示例引导模型输出格式。' +
+          'A 选项是 zero-shot（无示例），不是 few-shot。' +
+          'C 是 RLHF（基于人类反馈的强化学习），D 是 fine-tuning（更新模型参数）。';
+        panelWrapper.classList.add('panel-explanation-wrapper--open');
+      }, T_PANEL_EXPAND - T_OPTION_COLOR);
+    }
+
+    /* ---------- Submit button label crossfade ---------- */
+
+    /**
+     * @param {string} newLabel
+     */
+    function setSubmitLabel(newLabel) {
+      submitBtn.classList.add('is-transitioning');
+      window.setTimeout(() => {
+        submitLabel.textContent = newLabel;
+        submitBtn.classList.remove('is-transitioning');
+      }, 240);  // half of 240ms crossfade
+    }
+
+    /* ---------- Submit button availability ---------- */
+
+    function updateSubmitAvailability() {
+      switch (currentState) {
+        case 'unanswered':
+          submitBtn.disabled = true;
+          submitBtn.setAttribute('aria-disabled', 'true');
+          setSubmitLabelInstant('提交');
+          break;
+        case 'selected':
+          submitBtn.disabled = false;
+          submitBtn.setAttribute('aria-disabled', 'false');
+          setSubmitLabelInstant('提交');
+          break;
+        case 'correct':
+        case 'wrong':
+        case 'wrong-3rd':
+          // Already changed via setSubmitLabel during feedback
+          submitBtn.disabled = false;
+          submitBtn.setAttribute('aria-disabled', 'false');
+          break;
+      }
+    }
+
+    function setSubmitLabelInstant(label) {
+      submitLabel.textContent = label;
+    }
+
+    /* ---------- Demo state switcher (visual review) ---------- */
+
+    /**
+     * @param {QuizState} state
+     */
+    function setState(state) {
+      currentState = state;
+      demoButtons.forEach(b => {
+        b.classList.toggle('is-active', b.getAttribute('data-state') === state);
+      });
+      updateSubmitAvailability();
+    }
+
+    demoButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const state = /** @type {QuizState} */ (btn.getAttribute('data-state'));
+        resetToState(state);
+      });
+    });
+
+    /**
+     * Reset the entire interaction to a specific demo state.
+     * @param {QuizState} state
+     */
+    function resetToState(state) {
+      // Clean all state classes
+      options.forEach(o => {
+        o.classList.remove(
+          'option-choice--selected',
+          'option-choice--correct',
+          'is-line-drawn',
+          'option-choice--wrong'
+        );
+        o.disabled = false;
+        o.removeAttribute('aria-disabled');
+      });
+
+      textFeedback.classList.remove('is-visible');
+      feedbackContinue.classList.remove('is-visible');
+      panelWrapper.classList.remove('panel-explanation-wrapper--open');
+
+      selectedOption = null;
+      isAnswered = false;
+      wrongAttempts = 0;
+
+      switch (state) {
+        case 'unanswered':
+          setState('unanswered');
+          break;
+
+        case 'selected':
+          selectOption('A');  // user picks A (wrong) for demo
+          setState('selected');
+          break;
+
+        case 'correct': {
+          // Pre-stage: user picked B (correct), already submitted
+          selectOption('B');
+          isAnswered = true;
+          options.forEach(o => { o.disabled = true; o.setAttribute('aria-disabled', 'true'); });
+          const correctEl = document.querySelector('.option-choice[data-option="B"]');
+          applyCorrect(/** @type {HTMLButtonElement} */ (correctEl));
+          setSubmitLabelInstant('下一题');
+          setState('correct');
+          break;
+        }
+
+        case 'wrong': {
+          selectOption('A');
+          isAnswered = true;
+          wrongAttempts = 1;
+          options.forEach(o => { o.disabled = true; o.setAttribute('aria-disabled', 'true'); });
+          const wrongEl = document.querySelector('.option-choice[data-option="A"]');
+          applyWrong(/** @type {HTMLButtonElement} */ (wrongEl));
+          setSubmitLabelInstant('再看一题');
+          setState('wrong');
+          break;
+        }
+
+        case 'wrong-3rd': {
+          selectOption('A');
+          isAnswered = true;
+          wrongAttempts = 3;
+          options.forEach(o => { o.disabled = true; o.setAttribute('aria-disabled', 'true'); });
+          const wrongEl = document.querySelector('.option-choice[data-option="A"]');
+          applyWrong(/** @type {HTMLButtonElement} */ (wrongEl));
+          // Show the continue message after panel expand
+          window.setTimeout(() => {
+            feedbackContinue.classList.add('is-visible');
+          }, T_PANEL_EXPAND - T_OPTION_COLOR + 400);
+          setSubmitLabelInstant('进入下一题');
+          setState('wrong-3rd');
+          break;
+        }
+      }
+    }
+
+    /* ---------- Keyboard shortcuts (§8.3.1) ---------- */
+
+    document.addEventListener('keydown', (e) => {
+      if (isAnswered) {
+        // After answer, Enter advances
+        if (e.key === 'Enter' && document.activeElement !== submitBtn) {
+          submitBtn.click();
+        }
+        return;
+      }
+      // 1-4 select options A-D
+      if (['1', '2', '3', '4'].includes(e.key)) {
+        const idx = parseInt(e.key, 10) - 1;
+        const opt = options[idx];
+        if (opt && !opt.disabled) opt.click();
+      }
+      // Enter submits if option is selected
+      if (e.key === 'Enter' && selectedOption && !submitBtn.disabled) {
+        submitBtn.click();
+      }
+    });
+
+    /* ---------- Initial state ---------- */
+
+    setState('unanswered');
+  </script>
+
+</body>
+</html>

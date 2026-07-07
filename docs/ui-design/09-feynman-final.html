@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0E1311" />
+  <title>AI Learning Compiler · 费曼 · Step 6</title>
+
+  <!--
+    Phase 2 · P0 原型 · Feynman 最终输出页（Step 6）
+    ================================================
+    对应 DESIGN-SPEC.md §5.9 Feynman 最终输出页 + §6.6 评分动效
+
+    状态机（3 态）：
+      1. input       — textarea 可输入，字数 < 100 时按钮禁用，100-500 启用
+      2. submitting  — 按钮 loading「评分中...」(800ms - 3s 模拟)
+      3. scored      — 评分结果展示（Rubric 错峰 / Gaps / 范文）
+
+    时序（§6.6.1）：
+      T+0      按钮 loading
+      T+~1500ms 评分完成
+      T+0 (after)  用户文字变只读 + 略灰
+      T+240ms  分数「80 / 100」淡入 + 上移（600ms --ease-ceremony）
+      T+840ms  Rubric 卡错峰展开（每条 200ms）
+      T+1840ms Gaps 卡淡入（600ms）
+      T+2440ms 示例范文淡入（600ms）
+      T+3040ms 按钮（重写一次 / 完成 Module）淡入（400ms）
+
+    重写一次：
+      - 第 1 次评分后保留「重写一次」按钮
+      - 第 2 次评分后隐藏「重写一次」(PRD §7.9 最多 2 次提交)
+
+    演示控件：
+      - 右下角浮动「演示状态」面板可一键切换 input / submitting / scored / scored-2nd
+  -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+
+  <link rel="stylesheet" href="./styles.css" />
+
+  <style>
+    /* ===========================================================
+       Page-specific styles
+       =========================================================== */
+
+    .feynman-page {
+      max-width: 720px;
+      padding-top: var(--space-7);
+    }
+
+    /* ---- Feynman-tinted staircase wrap (顶点提亮 · 微光晕) ---- */
+    .staircase-wrap {
+      position: relative;
+      padding: var(--space-5) var(--space-6);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-7);
+
+      /* §3.2.3 Feynman 顶点光晕 · 仅 0.06 opacity radial-gradient */
+      background-image: radial-gradient(
+        ellipse at 90% 0%,
+        rgba(232, 200, 148, 0.06),
+        transparent 60%
+      );
+    }
+
+    .staircase-legend {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: var(--space-4);
+      padding-top: var(--space-3);
+      border-top: 1px solid var(--border-subtle);
+
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-tertiary);
+    }
+
+    .staircase-legend__apex {
+      color: var(--stage-feynman);
+      letter-spacing: var(--tracking-mono);
+    }
+
+    /* ---- Feynman stepper (5/6) ---- */
+    .stepper-feynman-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: var(--space-5);
+    }
+
+    .stepper-feynman {
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .stepper-feynman__labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: var(--space-2);
+
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-tertiary);
+      letter-spacing: var(--tracking-mono);
+    }
+
+    /* ---- Step meta + stem ---- */
+    .step-meta {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-tertiary);
+      text-transform: uppercase;
+      margin-bottom: var(--space-5);
+      text-align: center;
+    }
+
+    .step-meta strong {
+      color: var(--stage-feynman);
+      font-weight: var(--weight-medium);
+    }
+
+    .quiz-stem {
+      font-family: var(--font-serif);
+      font-size: var(--text-xl);  /* 28px */
+      line-height: var(--leading-normal);
+      color: var(--fg-primary);
+      text-align: center;
+      max-width: 32ch;
+      margin: 0 auto var(--space-5);
+    }
+
+    /* ---- Textarea + counter wrapper ---- */
+    .textarea-wrapper--feynman {
+      margin-bottom: var(--space-3);
+    }
+
+    .textarea-hint {
+      font-family: var(--font-serif);
+      font-size: var(--text-sm);
+      color: var(--fg-tertiary);
+      margin-bottom: var(--space-6);
+    }
+
+    /* ---- Submit area · centered for ceremony ---- */
+    .submit-area {
+      display: flex;
+      justify-content: center;
+    }
+
+    .submit-area .btn-primary {
+      min-width: 200px;
+      transition: background var(--duration-instant) var(--ease-standard),
+                  transform var(--duration-fast) var(--ease-standard);
+    }
+
+    /* ============================================================
+       Scored state · §5.9.3 评分结果
+       ============================================================ */
+
+    .scored-view {
+      display: none;
+    }
+
+    .scored-view.is-active {
+      display: block;
+    }
+
+    .input-view.is-hidden {
+      display: none;
+    }
+
+    /* User original text (readonly, grayish) */
+    .user-text-original {
+      padding: var(--space-5) var(--space-6);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+
+      font-family: var(--font-serif);
+      font-size: var(--text-base);
+      line-height: var(--leading-relaxed);
+      color: var(--fg-secondary);  /* 略灰 */
+      white-space: pre-wrap;
+
+      opacity: 0;
+      transform: translateY(4px);
+    }
+
+    .scored-view.is-active .user-text-original {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 80ms;
+    }
+
+    .user-text-original__label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+      margin-bottom: var(--space-3);
+      display: block;
+    }
+
+    /* Score row */
+    .score-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--space-4);
+
+      margin-top: var(--space-7);
+      margin-bottom: var(--space-5);
+
+      opacity: 0;
+      transform: translateY(4px);
+    }
+
+    .scored-view.is-active .score-row {
+      animation: feedback-enter var(--duration-ceremony) var(--ease-standard) forwards;
+      animation-delay: 240ms;
+    }
+
+    .score-row__label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+    }
+
+    .score-row__value {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);  /* 36px · 大字号分数 */
+      font-weight: var(--weight-semibold);
+      color: var(--fg-primary);
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .score-row__value-max {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg-tertiary);
+      font-weight: var(--weight-regular);
+    }
+
+    /* Rubric items · §6.6.1 错峰展开 */
+    .rubric-stagger > * {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+
+    .scored-view.is-active .rubric-stagger > *:nth-child(1) {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 840ms;
+    }
+
+    .scored-view.is-active .rubric-stagger > *:nth-child(2) {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 1040ms;
+    }
+
+    .scored-view.is-active .rubric-stagger > *:nth-child(3) {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 1240ms;
+    }
+
+    .scored-view.is-active .rubric-stagger > *:nth-child(4) {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 1440ms;
+    }
+
+    /* Rubric card override — single card containing 4 rows */
+    .rubric-stagger {
+      margin-top: var(--space-4);
+    }
+
+    /* Gaps card stagger */
+    .scored-view.is-active .card-gaps {
+      opacity: 0;
+      transform: translateY(4px);
+      margin-top: var(--space-5);
+      animation: feedback-enter var(--duration-ceremony) var(--ease-standard) forwards;
+      animation-delay: 1840ms;
+    }
+
+    /* Sample explanation stagger */
+    .sample-section {
+      margin-top: var(--space-7);
+      opacity: 0;
+      transform: translateY(4px);
+    }
+
+    .scored-view.is-active .sample-section {
+      animation: feedback-enter var(--duration-ceremony) var(--ease-standard) forwards;
+      animation-delay: 2440ms;
+    }
+
+    .sample-section__label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+      margin-bottom: var(--space-3);
+    }
+
+    .sample-section__text {
+      padding: var(--space-5) var(--space-6);
+      background: var(--bg-surface);
+      border-left: 2px solid var(--success);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+
+      font-family: var(--font-serif);
+      font-size: var(--text-base);
+      line-height: var(--leading-relaxed);
+      color: var(--fg-secondary);
+    }
+
+    /* Scored action buttons (重写一次 / 完成 Module) */
+    .scored-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-4);
+      margin-top: var(--space-8);
+
+      opacity: 0;
+      transform: translateY(4px);
+    }
+
+    .scored-view.is-active .scored-actions {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 3040ms;
+    }
+
+    .scored-actions .btn-secondary { flex: 1; }
+    .scored-actions .btn-primary { flex: 2; }
+
+    /* ---- Demo control panel ---- */
+    .demo-panel {
+      position: fixed;
+      right: var(--space-4);
+      bottom: var(--space-4);
+      z-index: 50;
+
+      padding: var(--space-3);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      min-width: 180px;
+    }
+
+    .demo-panel__title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+      margin-bottom: var(--space-1);
+    }
+
+    .demo-panel__btn {
+      padding: var(--space-2) var(--space-3);
+
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-secondary);
+
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: left;
+      transition: all var(--duration-instant) var(--ease-standard);
+    }
+
+    .demo-panel__btn:hover {
+      color: var(--fg-primary);
+      border-color: var(--border-strong);
+      background: var(--bg-elevated);
+    }
+
+    .demo-panel__btn.is-active {
+      color: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .scored-view.is-active *,
+      .scored-view.is-active {
+        opacity: 1 !important;
+        transform: none !important;
+        animation: none !important;
+      }
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 767px) {
+      .feynman-page { padding-top: var(--space-5); }
+
+      .quiz-stem { font-size: var(--text-lg); }  /* 22px */
+
+      .submit-area .btn-primary { width: 100%; min-width: 0; }
+
+      .scored-actions {
+        flex-direction: column-reverse;
+      }
+
+      .demo-panel { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <a href="#main-content" class="skip-link">跳到主要内容</a>
+
+  <div class="app-shell">
+
+    <!-- ============================================================
+         nav-top · 费曼 阶段高亮
+         ============================================================ -->
+    <header class="nav-top" role="banner">
+      <button type="button" class="nav-top__back">
+        <span aria-hidden="true">&larr;</span>
+        <span>概览</span>
+      </button>
+      <nav aria-label="学习阶段">
+        <span class="label-stage">概念</span>
+        <span style="color: var(--fg-quaternary); margin: 0 var(--space-2);">·</span>
+        <span class="label-stage">Challenge</span>
+        <span style="color: var(--fg-quaternary); margin: 0 var(--space-2);">·</span>
+        <span class="label-stage" style="color: var(--stage-feynman);">费曼</span>
+      </nav>
+    </header>
+
+    <main id="main-content" class="page feynman-page" role="main">
+
+      <!-- ========================================================
+           §3.2 + §3.2.3 阶梯 · Feynman 顶点提亮
+           ======================================================== -->
+      <section class="staircase-wrap" aria-label="Module 学习路径">
+        <ol class="staircase"
+            role="progressbar"
+            aria-valuenow="92" aria-valuemin="0" aria-valuemax="100"
+            aria-label="Module 学习进度 · 费曼 Step 6">
+
+          <li class="stair stair--completed"><span class="stair__label">C1</span></li>
+          <li class="stair stair--completed"><span class="stair__label">C1</span></li>
+          <li class="stair stair--completed"><span class="stair__label">C2</span></li>
+          <li class="stair stair--completed"><span class="stair__label">C2</span></li>
+          <li class="stair stair--completed"><span class="stair__label">C3</span></li>
+          <li class="stair stair--completed"><span class="stair__label">C3</span></li>
+          <li class="stair stair--completed staircase--challenge"><span class="stair__label">Chl</span></li>
+          <li class="stair stair--completed staircase--challenge"><span class="stair__label">Chl</span></li>
+          <li class="stair stair--completed staircase--feynman"><span class="stair__label">Fey</span></li>
+          <li class="stair stair--active staircase--feynman"><span class="stair__label">Fey</span></li>
+        </ol>
+
+        <div class="staircase-legend">
+          <span>你已到达 Module 顶点</span>
+          <span class="staircase-legend__apex">Step 6 / 6 · 最终</span>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           §4.5.4 Feynman stepper · 5/6 active
+           ======================================================== -->
+      <div class="stepper-feynman-wrap">
+        <div>
+          <ul class="stepper-feynman" aria-label="Feynman 步骤">
+            <li class="stepper-feynman__step stepper-feynman__step--completed" aria-label="Step 1 已完成"></li>
+            <li class="stepper-feynman__connector" aria-hidden="true"></li>
+            <li class="stepper-feynman__step stepper-feynman__step--completed" aria-label="Step 2 已完成"></li>
+            <li class="stepper-feynman__connector" aria-hidden="true"></li>
+            <li class="stepper-feynman__step stepper-feynman__step--completed" aria-label="Step 3 已完成"></li>
+            <li class="stepper-feynman__connector" aria-hidden="true"></li>
+            <li class="stepper-feynman__step stepper-feynman__step--completed" aria-label="Step 4 已完成"></li>
+            <li class="stepper-feynman__connector" aria-hidden="true"></li>
+            <li class="stepper-feynman__step stepper-feynman__step--completed" aria-label="Step 5 已完成"></li>
+            <li class="stepper-feynman__connector" aria-hidden="true"></li>
+            <li class="stepper-feynman__step stepper-feynman__step--active" aria-label="Step 6 进行中"></li>
+          </ul>
+          <div class="stepper-feynman__labels" aria-hidden="true">
+            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="step-meta">费曼 · <strong>Step 6 / 6</strong> · 最终</p>
+
+      <h2 class="quiz-stem">
+        现在，请用你自己的话<br />
+        完整解释：<br />
+        RAG 是什么、为什么需要它。
+      </h2>
+
+      <hr class="section-divider section-divider--center" />
+
+      <!-- ========================================================
+           INPUT VIEW · §5.9.2 提交前
+           ======================================================== -->
+      <div class="input-view" id="input-view">
+
+        <div class="textarea-wrapper textarea-wrapper--feynman">
+          <label for="feynman-textarea" class="sr-only">在此写下你的解释</label>
+          <textarea id="feynman-textarea"
+                    class="textarea-feynman"
+                    placeholder="在此写下你的解释..."
+                    aria-describedby="feynman-counter"></textarea>
+          <span id="feynman-counter"
+                class="textarea-counter"
+                aria-live="polite">0 / 100-500</span>
+        </div>
+
+        <p class="textarea-hint">允许重写一次（最多 2 次提交）</p>
+
+        <div class="submit-area">
+          <button type="button"
+                  id="feynman-submit-btn"
+                  class="btn-primary"
+                  disabled
+                  aria-disabled="true">
+            写下我的解释
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================================
+           SCORED VIEW · §5.9.3 提交后评分结果
+           ======================================================== -->
+      <div class="scored-view" id="scored-view" aria-live="polite" aria-atomic="true">
+
+        <!-- User original text · readonly, grayish -->
+        <div>
+          <span class="user-text-original__label">你写下的解释</span>
+          <div class="user-text-original" id="user-text-display"></div>
+        </div>
+
+        <!-- Score row -->
+        <div class="score-row">
+          <span class="score-row__label">Rubric 评分</span>
+          <span>
+            <span class="score-row__value">80</span>
+            <span class="score-row__value-max"> / 100</span>
+          </span>
+        </div>
+
+        <!-- Rubric card (4 items, staggered) -->
+        <div class="rubric-stagger">
+          <div class="card-rubric">
+            <div class="card-rubric__header">
+              <span class="card-rubric__title">评分细则</span>
+              <span class="card-rubric__score">+ 80 / 100</span>
+            </div>
+
+            <div class="card-rubric__item">
+              <span class="card-rubric__marker card-rubric__marker--hit" aria-label="命中">●</span>
+              <div>
+                <div class="card-rubric__criterion">解释了 RAG 的定义</div>
+                <div class="card-rubric__comment">你提到「检索增强生成」，清晰准确。</div>
+              </div>
+              <span class="card-rubric__points">+25</span>
+            </div>
+
+            <div class="card-rubric__item">
+              <span class="card-rubric__marker card-rubric__marker--hit" aria-label="命中">●</span>
+              <div>
+                <div class="card-rubric__criterion">解释了为什么需要 RAG</div>
+                <div class="card-rubric__comment">提到减少幻觉与知识更新，准确。</div>
+              </div>
+              <span class="card-rubric__points">+25</span>
+            </div>
+
+            <div class="card-rubric__item">
+              <span class="card-rubric__marker card-rubric__marker--partial" aria-label="部分命中">◐</span>
+              <div>
+                <div class="card-rubric__criterion">解释了 RAG 与微调的区别</div>
+                <div class="card-rubric__comment">提到了「知识更新」但未深入。微调更新参数，RAG 只在推理时提供上下文。</div>
+              </div>
+              <span class="card-rubric__points">+15</span>
+            </div>
+
+            <div class="card-rubric__item">
+              <span class="card-rubric__marker card-rubric__marker--miss" aria-label="未提及">○</span>
+              <div>
+                <div class="card-rubric__criterion">解释了 RAG 的局限性</div>
+                <div class="card-rubric__comment">这是关键点：RAG 受检索质量限制，可能引入噪声。</div>
+              </div>
+              <span class="card-rubric__points">+15</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gaps card -->
+        <div class="card-gaps">
+          <h3 class="card-gaps__title">还可以补充</h3>
+          <ul class="card-gaps__list">
+            <li class="card-gaps__item">RAG 与微调的核心区别</li>
+            <li class="card-gaps__item">RAG 的检索延迟问题</li>
+            <li class="card-gaps__item">检索质量对最终答案的影响</li>
+          </ul>
+        </div>
+
+        <!-- Sample explanation -->
+        <div class="sample-section">
+          <p class="sample-section__label">示例范文</p>
+          <div class="sample-section__text">
+            RAG（Retrieval-Augmented Generation，检索增强生成）通过检索外部知识，把它和用户问题一起喂给模型。
+            这样模型在生成答案时既能引用最新或私有知识，又能避免凭空捏造（幻觉）。
+            与微调不同，RAG 不更新模型参数，只在推理时提供上下文，因此适合频繁更新的知识。
+            RAG 的局限在于检索质量：如果检索不到相关文档，模型生成的答案仍然会出现幻觉。
+          </div>
+        </div>
+
+        <!-- Action buttons · 重写一次 / 完成 Module -->
+        <div class="scored-actions">
+          <button type="button" id="rewrite-btn" class="btn-secondary">
+            重写一次
+          </button>
+          <button type="button" id="finish-btn" class="btn-primary">
+            完成 Module
+          </button>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- ============================================================
+       Demo state panel
+       ============================================================ -->
+  <aside class="demo-panel" aria-hidden="true" aria-label="演示状态切换">
+    <span class="demo-panel__title">演示状态</span>
+    <button type="button" class="demo-panel__btn is-active" data-state="input">输入中</button>
+    <button type="button" class="demo-panel__btn" data-state="submitting">评分中</button>
+    <button type="button" class="demo-panel__btn" data-state="scored">已评分（第 1 次）</button>
+    <button type="button" class="demo-panel__btn" data-state="scored-2nd">已评分（第 2 次 · 隐藏重写）</button>
+  </aside>
+
+  <script>
+    'use strict';
+
+    /* ==============================================================
+       Phase 2 · 09-feynman-final · state machine
+       ============================================================== */
+
+    /**
+     * @typedef {'input'|'submitting'|'scored'|'scored-2nd'} FeynmanState
+     */
+
+    const MIN_CHARS = 100;
+    const MAX_CHARS = 500;
+
+    const SAMPLE_USER_TEXT =
+      'RAG 是检索增强生成（Retrieval-Augmented Generation）。它通过检索相关文档，' +
+      '把上下文喂给模型，从而减少幻觉、引入最新知识。\n\n' +
+      '它解决了大模型知识截止时间的问题。与微调相比，RAG 不需要重新训练模型，' +
+      '只需要更新检索库，更灵活。';
+
+    /** @type {FeynmanState} */
+    let currentState = 'input';
+
+    /** Tracks submit count for "最多 2 次提交" rule */
+    let submitCount = 0;
+
+    /* ---------- Element refs ---------- */
+
+    const textarea = document.getElementById('feynman-textarea');
+    const counter = document.getElementById('feynman-counter');
+    const submitBtn = document.getElementById('feynman-submit-btn');
+    const rewriteBtn = document.getElementById('rewrite-btn');
+    const finishBtn = document.getElementById('finish-btn');
+
+    const inputView = document.getElementById('input-view');
+    const scoredView = document.getElementById('scored-view');
+    const userTextDisplay = document.getElementById('user-text-display');
+
+    const demoButtons = document.querySelectorAll('.demo-panel__btn');
+
+    /* ---------- Counter logic · §4.4.2 progressive (100-500) ---------- */
+
+    function updateCounter() {
+      const len = textarea.value.length;
+      counter.textContent = `${len} / ${MIN_CHARS}-${MAX_CHARS}`;
+
+      counter.classList.remove(
+        'textarea-counter--approaching-min',
+        'textarea-counter--approaching-max'
+      );
+
+      const inRange = len >= MIN_CHARS && len <= MAX_CHARS;
+
+      if (len >= MAX_CHARS * 0.9) {
+        counter.classList.add('textarea-counter--approaching-max');
+      } else if (len >= MIN_CHARS * 0.8 && len < MIN_CHARS) {
+        counter.classList.add('textarea-counter--approaching-min');
+      }
+
+      if (currentState === 'input') {
+        submitBtn.disabled = !inRange;
+        submitBtn.setAttribute('aria-disabled', String(!inRange));
+      }
+    }
+
+    textarea.addEventListener('input', updateCounter);
+
+    /* ---------- Submit flow ---------- */
+
+    submitBtn.addEventListener('click', () => {
+      if (submitBtn.disabled || currentState !== 'input') return;
+
+      // T+0 button → loading
+      submitBtn.classList.add('btn-primary--loading');
+      submitBtn.setAttribute('aria-busy', 'true');
+      submitBtn.disabled = true;
+      currentState = 'submitting';
+      setState('submitting');
+
+      // T+1500ms 模拟评分完成
+      window.setTimeout(() => {
+        submitCount += 1;
+        showScoredView(textarea.value);
+      }, 1500);
+    });
+
+    /**
+     * @param {string} userText
+     */
+    function showScoredView(userText) {
+      userTextDisplay.textContent = userText;
+
+      inputView.classList.add('is-hidden');
+      scoredView.classList.add('is-active');
+
+      // Hide "重写一次" button on 2nd submit
+      if (submitCount >= 2) {
+        rewriteBtn.style.display = 'none';
+        currentState = 'scored-2nd';
+        setState('scored-2nd');
+      } else {
+        rewriteBtn.style.display = '';
+        currentState = 'scored';
+        setState('scored');
+      }
+    }
+
+    /* ---------- Rewrite flow ---------- */
+
+    rewriteBtn.addEventListener('click', () => {
+      scoredView.classList.remove('is-active');
+      inputView.classList.remove('is-hidden');
+
+      submitBtn.classList.remove('btn-primary--loading');
+      submitBtn.removeAttribute('aria-busy');
+      submitBtn.disabled = false;
+      submitBtn.setAttribute('aria-disabled', 'false');
+
+      currentState = 'input';
+      setState('input');
+      textarea.focus();
+    });
+
+    /* ---------- Finish flow ---------- */
+
+    finishBtn.addEventListener('click', () => {
+      // eslint-disable-next-line no-console
+      console.log('[demo] 完成 Module，跳转 10-done.html');
+      // In Phase 3: window.location.href = './10-done.html';
+    });
+
+    /* ---------- Demo state switcher ---------- */
+
+    /**
+     * @param {FeynmanState} state
+     */
+    function setState(state) {
+      currentState = state;
+      demoButtons.forEach(b => {
+        b.classList.toggle('is-active', b.getAttribute('data-state') === state);
+      });
+    }
+
+    demoButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const state = /** @type {FeynmanState} */ (btn.getAttribute('data-state'));
+        resetToState(state);
+      });
+    });
+
+    /**
+     * @param {FeynmanState} state
+     */
+    function resetToState(state) {
+      // Clean
+      submitBtn.classList.remove('btn-primary--loading');
+      submitBtn.removeAttribute('aria-busy');
+      scoredView.classList.remove('is-active');
+      inputView.classList.remove('is-hidden');
+
+      switch (state) {
+        case 'input':
+          textarea.value = '';
+          submitCount = 0;
+          rewriteBtn.style.display = '';
+          updateCounter();
+          setState('input');
+          break;
+
+        case 'submitting':
+          textarea.value = SAMPLE_USER_TEXT;
+          submitCount = 0;
+          updateCounter();
+          submitBtn.classList.add('btn-primary--loading');
+          submitBtn.setAttribute('aria-busy', 'true');
+          submitBtn.disabled = true;
+          setState('submitting');
+          break;
+
+        case 'scored':
+          textarea.value = SAMPLE_USER_TEXT;
+          submitCount = 1;
+          rewriteBtn.style.display = '';
+          updateCounter();
+          showScoredView(SAMPLE_USER_TEXT);
+          break;
+
+        case 'scored-2nd':
+          textarea.value = SAMPLE_USER_TEXT;
+          submitCount = 2;
+          updateCounter();
+          showScoredView(SAMPLE_USER_TEXT);
+          break;
+      }
+    }
+
+    /* ---------- Keyboard shortcut: Cmd/Ctrl + Enter ---------- */
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        if (currentState === 'input' && !submitBtn.disabled) {
+          submitBtn.click();
+        } else if (currentState === 'scored' || currentState === 'scored-2nd') {
+          finishBtn.click();
+        }
+      }
+    });
+
+    /* ---------- Initial state ---------- */
+
+    updateCounter();
+    setState('input');
+  </script>
+
+</body>
+</html>

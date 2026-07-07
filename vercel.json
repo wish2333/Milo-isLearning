@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/vercel.json",
+  "functions": {
+    "app/api/compile/route.ts": { "maxDuration": 60 },
+    "app/api/feedback/route.ts": { "maxDuration": 10 },
+    "app/api/feynman-eval/route.ts": { "maxDuration": 15 }
+  }
+}

@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0E1311" />
+  <title>AI Learning Compiler · 完成</title>
+
+  <!--
+    Phase 2 · P0 原型 · 完成页
+    ==========================
+    对应 DESIGN-SPEC.md §5.10 完成页 + §6.7 仪式动效 + §5.10.5 复习入口
+
+    6 秒仪式时序（§5.10.3）：
+      0ms     页面淡入（400ms）
+      400ms   顶部细线从中心向两侧展开（800ms）
+      800ms   "你已经学会了" 标题字符 stagger 入场（每字符 80ms 延迟，共 800ms）
+      1600ms  副标题"从一道选择题..." 淡入（800ms）
+      2400ms  阶梯全点亮（从左到右每格 120ms 延迟，共 1200ms）
+      3600ms  掌握度卡片依次淡入（每张 200ms 延迟）
+      4400ms  按钮淡入（400ms）
+      5200ms  主观评分提示淡入（400ms）
+      6000ms  全部就绪
+
+    功能：
+      - 跳过仪式链接（LocalStorage 记忆，小字号低对比）
+      - 掌握度卡片：2x2 网格 + 大字号百分比 + 6 格小阶梯
+      - 被跳过概念的复习入口（仅当存在 skipped Concept 时显示）
+      - 主观掌握感评分（5 分制，可跳过）
+
+    演示控件：
+      - 右下角「演示：重播仪式」按钮
+      - URL 参数 ?skipped=1 显示被跳过概念卡
+  -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+
+  <link rel="stylesheet" href="./styles.css" />
+
+  <style>
+    /* ===========================================================
+       Page-specific styles · ceremony timing
+       =========================================================== */
+
+    .done-page {
+      max-width: 720px;
+      padding-top: var(--space-9);  /* 96px 仪式性间距 */
+      text-align: center;
+    }
+
+    /* ---- Ceremony wrapper · drives all reveal timings ---- */
+    .ceremony > * {
+      opacity: 0;
+    }
+
+    .ceremony.is-running > * {
+      animation-fill-mode: forwards;
+    }
+
+    /* ---- Top expanding line (T+400ms · from center outward · 800ms) ---- */
+    .ceremony-line {
+      width: 0;
+      height: 1px;
+      background: var(--accent-primary);
+      border: none;
+      margin: 0 auto var(--space-7);
+
+      transform: scaleX(0);
+      transform-origin: center;
+    }
+
+    .ceremony.is-running .ceremony-line {
+      animation: line-expand var(--duration-ceremony) var(--ease-ceremony) forwards;
+      animation-delay: 400ms;
+    }
+
+    @keyframes line-expand {
+      from { width: 0; transform: scaleX(0); }
+      to   { width: 48px; transform: scaleX(1); }
+    }
+
+    /* ---- Main title (T+800ms · char stagger · 80ms each) ---- */
+    .done-title {
+      font-family: var(--font-display);
+      font-size: var(--text-4xl);  /* 64px */
+      font-weight: var(--weight-semibold);
+      line-height: var(--leading-tight);
+      letter-spacing: var(--tracking-tight);
+      color: var(--fg-primary);
+      margin-bottom: var(--space-7);
+    }
+
+    .done-title__char {
+      display: inline-block;
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    .ceremony.is-running .done-title__char {
+      animation: char-enter var(--duration-base) var(--ease-ceremony) forwards;
+    }
+
+    @keyframes char-enter {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---- Subtitle (T+1600ms · fade in · 800ms) ---- */
+    .done-subtitle {
+      font-family: var(--font-serif);
+      font-size: var(--text-lg);  /* 22px */
+      line-height: var(--leading-normal);
+      color: var(--fg-secondary);
+      max-width: 28ch;
+      margin: 0 auto var(--space-7);
+    }
+
+    .ceremony.is-running .done-subtitle {
+      animation: feedback-enter var(--duration-ceremony) var(--ease-standard) forwards;
+      animation-delay: 1600ms;
+    }
+
+    /* ---- Staircase all-lit (T+2400ms · left-to-right · 120ms each) ---- */
+    .staircase-wrap {
+      padding: var(--space-5) var(--space-6);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      max-width: 540px;
+      margin: 0 auto var(--space-7);
+    }
+
+    .ceremony.is-running .staircase-wrap {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 2400ms;
+    }
+
+    .staircase-legend {
+      margin-top: var(--space-4);
+      padding-top: var(--space-3);
+      border-top: 1px solid var(--border-subtle);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-tertiary);
+    }
+
+    /* Stair-by-stair fill · each delays 120ms more */
+    .ceremony.is-running .done-stair {
+      opacity: 0;
+      transform: translateY(2px);
+      animation: stair-light var(--duration-base) var(--ease-emphasized) forwards;
+    }
+
+    .ceremony.is-running .done-stair:nth-child(1) { animation-delay: 2520ms; }
+    .ceremony.is-running .done-stair:nth-child(2) { animation-delay: 2640ms; }
+    .ceremony.is-running .done-stair:nth-child(3) { animation-delay: 2760ms; }
+    .ceremony.is-running .done-stair:nth-child(4) { animation-delay: 2880ms; }
+    .ceremony.is-running .done-stair:nth-child(5) { animation-delay: 3000ms; }
+    .ceremony.is-running .done-stair:nth-child(6) { animation-delay: 3120ms; }
+    .ceremony.is-running .done-stair:nth-child(7) { animation-delay: 3240ms; }
+    .ceremony.is-running .done-stair:nth-child(8) { animation-delay: 3360ms; }
+    .ceremony.is-running .done-stair:nth-child(9) { animation-delay: 3480ms; }
+    .ceremony.is-running .done-stair:nth-child(10) { animation-delay: 3600ms; }
+
+    @keyframes stair-light {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---- Mastery section (T+3600ms · cards stagger · 200ms each) ---- */
+    .mastery-section {
+      margin-bottom: var(--space-7);
+    }
+
+    .ceremony.is-running .mastery-section {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 3600ms;
+    }
+
+    .mastery-section__label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+      margin-bottom: var(--space-5);
+    }
+
+    .mastery-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+
+    .ceremony.is-running .mastery-grid .card-module {
+      opacity: 0;
+      transform: translateY(6px);
+      animation: feedback-enter var(--duration-ceremony) var(--ease-standard) forwards;
+    }
+
+    .ceremony.is-running .mastery-grid .card-module:nth-child(1) { animation-delay: 3600ms; }
+    .ceremony.is-running .mastery-grid .card-module:nth-child(2) { animation-delay: 3800ms; }
+    .ceremony.is-running .mastery-grid .card-module:nth-child(3) { animation-delay: 4000ms; }
+    .ceremony.is-running .mastery-grid .card-module:nth-child(4) { animation-delay: 4200ms; }
+
+    .mastery-card {
+      padding: var(--space-5);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      text-align: left;
+    }
+
+    .mastery-card__name {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+      margin-bottom: var(--space-1);
+    }
+
+    .mastery-card__title {
+      font-family: var(--font-serif);
+      font-size: var(--text-md);  /* 18px */
+      color: var(--fg-primary);
+      margin-bottom: var(--space-4);
+    }
+
+    .mastery-card__percent {
+      font-family: var(--font-display);
+      font-size: var(--text-3xl);  /* 48px · 大字号百分比 */
+      font-weight: var(--weight-medium);
+      color: var(--fg-primary);
+      line-height: 1;
+      margin-bottom: var(--space-3);
+    }
+
+    /* 6-cell mini staircase */
+    .mini-staircase {
+      display: flex;
+      gap: var(--space-1);
+      align-items: end;
+      height: 16px;
+    }
+
+    .mini-stair {
+      flex: 1;
+      height: 100%;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      background: transparent;
+    }
+
+    .mini-stair--filled {
+      background: var(--success-soft);
+      border-color: var(--success);
+    }
+
+    /* ---- Action buttons (T+4400ms · fade in · 400ms) ---- */
+    .done-actions {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-4);
+      margin-bottom: var(--space-7);
+      flex-wrap: wrap;
+    }
+
+    .ceremony.is-running .done-actions {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 4400ms;
+    }
+
+    /* ---- Subjective rating (T+5200ms · fade in · 400ms) ---- */
+    .subjective-rating {
+      font-family: var(--font-serif);
+      font-size: var(--text-sm);
+      color: var(--fg-secondary);
+      margin-bottom: var(--space-3);
+    }
+
+    .ceremony.is-running .subjective-rating {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 5200ms;
+    }
+
+    .rating-circles {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-7);
+    }
+
+    .ceremony.is-running .rating-circles {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 5200ms;
+    }
+
+    .rating-circle {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-strong);
+      background: transparent;
+      cursor: pointer;
+      padding: 0;
+      transition: background var(--duration-instant) var(--ease-standard),
+                  border-color var(--duration-instant) var(--ease-standard);
+    }
+
+    .rating-circle:hover {
+      border-color: var(--accent-primary);
+    }
+
+    .rating-circle.is-selected {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+
+    .rating-hint {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-tertiary);
+    }
+
+    .ceremony.is-running .rating-hint {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 5200ms;
+    }
+
+    /* ---- Skipped concept review card (§5.10.5) ---- */
+    .review-card {
+      max-width: 540px;
+      margin: 0 auto var(--space-7);
+      padding: var(--space-5) var(--space-6);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      text-align: left;
+    }
+
+    .review-card__title {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+      margin-bottom: var(--space-3);
+    }
+
+    .review-card__concept {
+      font-family: var(--font-serif);
+      font-size: var(--text-xl);  /* 28px */
+      color: var(--fg-primary);
+      margin-bottom: var(--space-3);
+    }
+
+    .review-card__reason {
+      font-family: var(--font-serif);
+      font-size: var(--text-base);
+      line-height: var(--leading-normal);
+      color: var(--fg-secondary);
+      margin-bottom: var(--space-5);
+    }
+
+    .review-card__action {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* ---- Skip ceremony link (very subtle) ---- */
+    .skip-ceremony {
+      position: fixed;
+      top: var(--space-5);
+      right: var(--space-8);
+
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-quaternary);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: var(--space-1) var(--space-2);
+      transition: color var(--duration-base) var(--ease-standard);
+      z-index: 30;
+    }
+
+    .skip-ceremony:hover {
+      color: var(--fg-secondary);
+    }
+
+    /* ---- Demo panel ---- */
+    .demo-panel {
+      position: fixed;
+      right: var(--space-4);
+      bottom: var(--space-4);
+      z-index: 50;
+
+      padding: var(--space-3);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      min-width: 180px;
+    }
+
+    .demo-panel__title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+      margin-bottom: var(--space-1);
+    }
+
+    .demo-panel__btn {
+      padding: var(--space-2) var(--space-3);
+
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-secondary);
+
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: left;
+      transition: all var(--duration-instant) var(--ease-standard);
+    }
+
+    .demo-panel__btn:hover {
+      color: var(--fg-primary);
+      border-color: var(--border-strong);
+      background: var(--bg-elevated);
+    }
+
+    /* prefers-reduced-motion · one-shot display */
+    @media (prefers-reduced-motion: reduce) {
+      .ceremony > *,
+      .ceremony.is-running > *,
+      .done-title__char,
+      .ceremony.is-running .done-title__char,
+      .ceremony.is-running .done-stair,
+      .ceremony.is-running .mastery-grid .card-module,
+      .ceremony.is-running .mastery-section,
+      .ceremony.is-running .done-actions,
+      .ceremony.is-running .subjective-rating,
+      .ceremony.is-running .rating-circles,
+      .ceremony.is-running .rating-hint {
+        opacity: 1 !important;
+        transform: none !important;
+        animation: none !important;
+        width: 48px;  /* ceremony-line */
+      }
+    }
+
+    /* Tablet / mobile adjustments (§7.5) */
+    @media (max-width: 1023px) {
+      .done-title { font-size: var(--text-3xl); }  /* 48px */
+    }
+
+    @media (max-width: 767px) {
+      .done-page { padding-top: var(--space-7); }
+      .done-title { font-size: var(--text-2xl); }  /* 36px */
+
+      .mastery-grid {
+        grid-template-columns: 1fr;  /* §7.5.3 纵向堆叠 */
+      }
+
+      .done-actions .btn-primary,
+      .done-actions .btn-secondary {
+        width: 100%;
+      }
+
+      .demo-panel { display: none; }
+      .skip-ceremony { display: none; }  /* mobile: no skip (ceremony shorter due to spacing) */
+    }
+  </style>
+</head>
+
+<body>
+  <a href="#main-content" class="skip-link">跳到主要内容</a>
+
+  <div class="app-shell">
+
+    <!-- ============================================================
+         nav-top · page-specific [清空进度]
+         ============================================================ -->
+    <header class="nav-top" role="banner">
+      <button type="button" class="nav-top__back">
+        <span aria-hidden="true">&larr;</span>
+        <span>概览</span>
+      </button>
+      <div class="nav-top__actions">
+        <button type="button" class="btn-text" id="clear-progress">清空进度</button>
+      </div>
+    </header>
+
+    <!-- Skip ceremony link · 极弱显示 -->
+    <button type="button" class="skip-ceremony" id="skip-ceremony">跳过仪式</button>
+
+    <main id="main-content" class="page done-page" role="main">
+
+      <div class="ceremony is-running" id="ceremony">
+
+        <!-- 顶部细线 · T+400ms -->
+        <hr class="ceremony-line" />
+
+        <!-- 主标题 · T+800ms · 字符 stagger · "你已经学会了。" -->
+        <h1 class="done-title" aria-label="你已经学会了。">
+          <span class="done-title__char">你</span><span
+            class="done-title__char">已</span><span
+            class="done-title__char">经</span><span
+            class="done-title__char">学</span><span
+            class="done-title__char">会</span><span
+            class="done-title__char">了</span><span
+            class="done-title__char">。</span>
+        </h1>
+
+        <hr class="ceremony-line" />
+
+        <!-- 副标题 · 表达自由度成长叙事 · T+1600ms -->
+        <p class="done-subtitle">
+          从一道选择题，<br />
+          到完整地解释<br />
+          理解 RAG。
+        </p>
+
+        <hr class="ceremony-line" />
+
+        <!-- 阶梯全部点亮 · T+2400ms · 从左到右每格 120ms 延迟 -->
+        <section class="staircase-wrap" aria-label="Module 学习路径">
+          <ol class="staircase"
+              role="progressbar"
+              aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"
+              aria-label="Module 已完成">
+
+            <li class="stair stair--completed done-stair"><span class="stair__label">C1</span></li>
+            <li class="stair stair--completed done-stair"><span class="stair__label">C1</span></li>
+            <li class="stair stair--completed done-stair"><span class="stair__label">C2</span></li>
+            <li class="stair stair--completed done-stair"><span class="stair__label">C2</span></li>
+            <li class="stair stair--completed done-stair"><span class="stair__label">C3</span></li>
+            <li class="stair stair--completed done-stair"><span class="stair__label">C3</span></li>
+            <li class="stair stair--completed staircase--challenge done-stair"><span class="stair__label">Chl</span></li>
+            <li class="stair stair--completed staircase--challenge done-stair"><span class="stair__label">Chl</span></li>
+            <li class="stair stair--completed staircase--feynman done-stair"><span class="stair__label">Fey</span></li>
+            <li class="stair stair--completed staircase--feynman done-stair"><span class="stair__label">Fey</span></li>
+          </ol>
+
+          <div class="staircase-legend">
+            <span>Concept A · B · C · Challenge · Feynman · 全部点亮</span>
+          </div>
+        </section>
+
+        <hr class="ceremony-line" />
+
+        <!-- 掌握度卡片 · T+3600ms · 依次 200ms 延迟 -->
+        <section class="mastery-section">
+          <p class="mastery-section__label">掌握度</p>
+
+          <div class="mastery-grid">
+
+            <article class="mastery-card card-module">
+              <p class="mastery-card__name">Concept A</p>
+              <p class="mastery-card__title">什么是检索</p>
+              <p class="mastery-card__percent">87%</p>
+              <div class="mini-staircase" aria-label="Concept A 掌握度 5/6">
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair"></span>
+              </div>
+            </article>
+
+            <article class="mastery-card card-module">
+              <p class="mastery-card__name">Concept B</p>
+              <p class="mastery-card__title">什么是 Embedding</p>
+              <p class="mastery-card__percent">75%</p>
+              <div class="mini-staircase" aria-label="Concept B 掌握度 4/6">
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair"></span>
+                <span class="mini-stair"></span>
+              </div>
+            </article>
+
+            <article class="mastery-card card-module">
+              <p class="mastery-card__name">Concept C</p>
+              <p class="mastery-card__title">RAG 完整流程</p>
+              <p class="mastery-card__percent">82%</p>
+              <div class="mini-staircase" aria-label="Concept C 掌握度 5/6">
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair"></span>
+              </div>
+            </article>
+
+            <article class="mastery-card card-module">
+              <p class="mastery-card__name">Feynman</p>
+              <p class="mastery-card__title">最终解释</p>
+              <p class="mastery-card__percent">80%</p>
+              <div class="mini-staircase" aria-label="Feynman 掌握度 4/6">
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair mini-stair--filled"></span>
+                <span class="mini-stair"></span>
+                <span class="mini-stair"></span>
+              </div>
+            </article>
+
+          </div>
+        </section>
+
+        <hr class="ceremony-line" />
+
+        <!-- 按钮区 · T+4400ms -->
+        <div class="done-actions">
+          <button type="button" class="btn-primary" id="restart-btn">
+            重新学习
+          </button>
+          <button type="button" class="btn-secondary" id="recompile-btn">
+            再编译一份
+          </button>
+        </div>
+
+        <hr class="ceremony-line" />
+
+        <!-- 主观评分 · T+5200ms -->
+        <p class="subjective-rating">你感觉掌握了吗？</p>
+        <div class="rating-circles" role="radiogroup" aria-label="主观掌握感 1 到 5">
+          <button type="button" class="rating-circle" role="radio" aria-checked="false" aria-label="1 = 完全没掌握" data-rating="1"></button>
+          <button type="button" class="rating-circle" role="radio" aria-checked="false" aria-label="2" data-rating="2"></button>
+          <button type="button" class="rating-circle" role="radio" aria-checked="false" aria-label="3" data-rating="3"></button>
+          <button type="button" class="rating-circle" role="radio" aria-checked="false" aria-label="4" data-rating="4"></button>
+          <button type="button" class="rating-circle" role="radio" aria-checked="false" aria-label="5 = 完全掌握" data-rating="5"></button>
+        </div>
+        <p class="rating-hint">（1 = 完全没掌握，5 = 完全掌握 · 可跳过）</p>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- ============================================================
+       Demo panel · replay ceremony
+       ============================================================ -->
+  <aside class="demo-panel" aria-hidden="true" aria-label="演示控制">
+    <span class="demo-panel__title">演示控制</span>
+    <button type="button" class="demo-panel__btn" id="replay-btn">重播仪式</button>
+    <button type="button" class="demo-panel__btn" id="toggle-skipped-btn">显示 / 隐藏复习卡</button>
+    <button type="button" class="demo-panel__btn" id="toggle-reduced-motion-btn">模拟 reduced-motion</button>
+  </aside>
+
+  <script>
+    'use strict';
+
+    /* ==============================================================
+       Phase 2 · 10-done · ceremony + interactions
+       ============================================================== */
+
+    const ceremony = document.getElementById('ceremony');
+    const titleChars = document.querySelectorAll('.done-title__char');
+
+    /* ---------- Stagger title chars · 80ms each · §5.10.3 ---------- */
+
+    titleChars.forEach((char, i) => {
+      // T+800ms base + i × 80ms · total 7 chars × 80ms = 560ms
+      char.style.animationDelay = `${800 + i * 80}ms`;
+    });
+
+    /* ---------- Skip ceremony ---------- */
+
+    const skipBtn = document.getElementById('skip-ceremony');
+    const STORAGE_KEY = 'milo-alc-skip-ceremony';
+
+    /**
+     * Check if user has previously skipped ceremony.
+     * If so, jump straight to final state on subsequent visits.
+     */
+    function checkSkipPreference() {
+      try {
+        if (window.localStorage.getItem(STORAGE_KEY) === '1') {
+          // Mark all ceremony children as visible immediately
+          ceremony.classList.remove('is-running');
+          forceFinalState();
+        }
+      } catch (_) {
+        // LocalStorage unavailable — proceed with ceremony
+      }
+    }
+
+    function forceFinalState() {
+      // Force final state for all animated elements
+      ceremony.querySelectorAll('*').forEach(el => {
+        el.style.animation = 'none';
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+      });
+      ceremony.querySelectorAll('.ceremony-line').forEach(el => {
+        el.style.width = '48px';
+      });
+      skipBtn.style.display = 'none';
+    }
+
+    skipBtn.addEventListener('click', () => {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, '1');
+      } catch (_) { /* ignore */ }
+      forceFinalState();
+    });
+
+    /* ---------- Subjective rating ---------- */
+
+    const ratingCircles = document.querySelectorAll('.rating-circle');
+    let currentRating = 0;
+
+    ratingCircles.forEach(circle => {
+      circle.addEventListener('click', () => {
+        const rating = parseInt(circle.getAttribute('data-rating') || '0', 10);
+        currentRating = rating;
+        ratingCircles.forEach((c, idx) => {
+          const selected = idx < rating;
+          c.classList.toggle('is-selected', selected);
+          c.setAttribute('aria-checked', selected ? 'true' : 'false');
+        });
+        // eslint-disable-next-line no-console
+        console.log(`[埋点] 主观掌握感评分：${rating} / 5`);
+      });
+    });
+
+    /* ---------- Action buttons ---------- */
+
+    document.getElementById('restart-btn').addEventListener('click', () => {
+      // eslint-disable-next-line no-console
+      console.log('[demo] 重新学习 · 跳转 03-overview.html');
+    });
+
+    document.getElementById('recompile-btn').addEventListener('click', () => {
+      // eslint-disable-next-line no-console
+      console.log('[demo] 再编译一份 · 跳转 01-home.html');
+    });
+
+    document.getElementById('clear-progress').addEventListener('click', () => {
+      const confirmed = window.confirm('确定清空所有学习进度吗？此操作不可撤销。');
+      if (confirmed) {
+        try {
+          window.localStorage.removeItem(STORAGE_KEY);
+        } catch (_) { /* ignore */ }
+        // eslint-disable-next-line no-console
+        console.log('[demo] 进度已清空 · 跳转 01-home.html');
+      }
+    });
+
+    /* ---------- Demo: replay ceremony ---------- */
+
+    document.getElementById('replay-btn').addEventListener('click', () => {
+      // Remove running class, force reflow, add back
+      ceremony.classList.remove('is-running');
+      ceremony.querySelectorAll('*').forEach(el => {
+        el.style.animation = '';
+        el.style.opacity = '';
+        el.style.transform = '';
+      });
+      ceremony.querySelectorAll('.ceremony-line').forEach(el => {
+        el.style.width = '';
+      });
+      // Force reflow
+      void ceremony.offsetWidth;
+      ceremony.classList.add('is-running');
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch (_) { /* ignore */ }
+      skipBtn.style.display = '';
+    });
+
+    /* ---------- Demo: toggle skipped concept review card ---------- */
+
+    let skippedCardInjected = false;
+
+    const skippedCardHTML = `
+      <hr class="ceremony-line" style="animation-delay: 5200ms;" />
+      <section class="review-card" style="
+        opacity: 0;
+        transform: translateY(6px);
+        animation: feedback-enter var(--duration-ceremony) var(--ease-standard) forwards;
+        animation-delay: 5400ms;
+      ">
+        <p class="review-card__title">可以再看看（1 个概念）</p>
+        <p class="review-card__concept">Concept B · 什么是 Embedding</p>
+        <p class="review-card__reason">
+          你在「应用层级」连续答错 3 次后跳过。<br />
+          现在可以单独回去看一下。
+        </p>
+        <div class="review-card__action">
+          <button type="button" class="btn-secondary">回到 Concept B</button>
+        </div>
+      </section>
+    `;
+
+    document.getElementById('toggle-skipped-btn').addEventListener('click', () => {
+      const existing = ceremony.querySelector('.review-card');
+      if (existing) {
+        existing.previousElementSibling.remove();  // the ceremony-line <hr>
+        existing.remove();
+        skippedCardInjected = false;
+      } else {
+        // Insert before done-actions
+        const doneActions = ceremony.querySelector('.done-actions');
+        doneActions.insertAdjacentHTML('beforebegin', skippedCardHTML);
+        skippedCardInjected = true;
+      }
+    });
+
+    /* ---------- Demo: simulate prefers-reduced-motion ---------- */
+
+    let isReducedMotionSimulated = false;
+
+    document.getElementById('toggle-reduced-motion-btn').addEventListener('click', () => {
+      isReducedMotionSimulated = !isReducedMotionSimulated;
+      if (isReducedMotionSimulated) {
+        forceFinalState();
+      } else {
+        // Reload page to restart ceremony
+        window.location.reload();
+      }
+    });
+
+    /* ---------- URL parameter: ?skipped=1 to show review card by default ---------- */
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('skipped') === '1') {
+        // Auto-inject after initial paint
+        window.setTimeout(() => {
+          if (!skippedCardInjected) {
+            document.getElementById('toggle-skipped-btn').click();
+          }
+        }, 100);
+      }
+    } catch (_) { /* ignore */ }
+
+    /* ---------- Initial state ---------- */
+
+    checkSkipPreference();
+  </script>
+
+</body>
+</html>

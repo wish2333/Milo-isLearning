@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0E1311" />
+  <title>AI Learning Compiler · 编译中</title>
+
+  <!--
+    Phase 3 · 编译中页
+    ================
+    对应 DESIGN-SPEC.md §5.2 + §5.2.6 Agent 超时抚慰态 (V1.1)
+
+    状态机：
+      1. stage-N           — 当前阶段 N 进行中（1 ≤ N ≤ 5）
+      2. stage-5-complete  — 全部完成，1 秒后跳转 overview
+      3. failed            — 当前阶段点变橙 + 错误信息
+      4. soothing-1        — 当前阶段持续 8 秒无更新，文字替换
+      5. soothing-2        — 持续 15 秒无更新，追加底部"取消编译"入口
+
+    关键决策（§5.2.5/5.2.6）：
+      - 用阶梯式进度而非百分比条
+      - 预计时间用衬线大字"约 18 秒"
+      - 抚慰文字用 --fg-tertiary，不喧哗
+      - 抚慰文字保留"约 18 秒（已 Xs）"——透明优于粉饰
+      - 禁止 spinner / 闪烁 / 自动取消
+  -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="./mock-data.js"></script>
+  <script src="./app.js"></script>
+
+  <style>
+    .compile-page {
+      max-width: 540px;
+      padding-top: var(--space-9);
+      text-align: center;
+    }
+
+    .compile-title {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);  /* 36px */
+      font-weight: var(--weight-medium);
+      color: var(--fg-primary);
+      letter-spacing: var(--tracking-tight);
+      margin-bottom: var(--space-7);
+    }
+
+    /* ---- Staircase-style 5-stage indicator (§5.2.2) ---- */
+    .staircase-5 {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: var(--space-3);
+      align-items: end;
+      max-width: 360px;
+      margin: 0 auto var(--space-4);
+    }
+
+    .stair-5 {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .stair-5__bar {
+      width: 100%;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      transition: background var(--duration-base) var(--ease-standard),
+                  border-color var(--duration-base) var(--ease-standard),
+                  height var(--duration-base) var(--ease-standard);
+    }
+
+    /* Increasing heights for staircase feeling */
+    .stair-5:nth-child(1) .stair-5__bar { height: 16px; }
+    .stair-5:nth-child(2) .stair-5__bar { height: 22px; }
+    .stair-5:nth-child(3) .stair-5__bar { height: 28px; }
+    .stair-5:nth-child(4) .stair-5__bar { height: 34px; }
+    .stair-5:nth-child(5) .stair-5__bar { height: 40px; }
+
+    .stair-5__marker {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg-tertiary);
+      line-height: 1;
+    }
+
+    .stair-5__label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-tertiary);
+      text-transform: uppercase;
+    }
+
+    .stair-5.is-completed .stair-5__bar {
+      background: var(--success-soft);
+      border-color: var(--success);
+    }
+    .stair-5.is-completed .stair-5__marker { color: var(--success); }
+
+    .stair-5.is-active .stair-5__bar {
+      background: var(--accent-primary-soft);
+      border-color: var(--accent-primary);
+    }
+    .stair-5.is-active .stair-5__marker {
+      color: var(--accent-primary);
+      animation: pulse-marker 1600ms var(--ease-standard) infinite;
+    }
+
+    .stair-5.is-failed .stair-5__bar {
+      background: var(--warning-soft);
+      border-color: var(--warning);
+    }
+    .stair-5.is-failed .stair-5__marker { color: var(--warning); }
+
+    @keyframes pulse-marker {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.4; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .stair-5.is-active .stair-5__marker { animation: none; }
+    }
+
+    /* ---- Time estimate (§5.2.5 衬线大字) ---- */
+    .compile-time {
+      font-family: var(--font-serif);
+      font-size: var(--text-md);  /* 18px */
+      color: var(--fg-secondary);
+      margin-top: var(--space-5);
+      margin-bottom: var(--space-3);
+    }
+
+    .compile-time__actual {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--fg-tertiary);
+      margin-left: var(--space-2);
+    }
+
+    /* ---- Current stage text (changes via soothing state) ---- */
+    .compile-stage-text {
+      font-family: var(--font-serif);
+      font-size: var(--text-sm);
+      color: var(--fg-tertiary);
+      min-height: 1.5em;
+      max-width: 36ch;
+      margin: 0 auto;
+
+      transition: opacity var(--duration-base) var(--ease-standard);
+    }
+
+    .compile-stage-text.is-fading {
+      opacity: 0;
+    }
+
+    /* ---- Soothing second threshold · bottom retry link ---- */
+    .soothing-retry {
+      display: none;
+      margin-top: var(--space-5);
+
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-tertiary);
+    }
+
+    .soothing-retry.is-visible {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .soothing-retry .btn-text {
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+    }
+
+    /* ---- Cancel button (top right) ---- */
+    .nav-top__cancel {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: color var(--duration-instant) var(--ease-standard);
+    }
+
+    .nav-top__cancel:hover { color: var(--warning); }
+
+    /* ---- Demo panel ---- */
+    .demo-panel {
+      position: fixed;
+      right: var(--space-4);
+      bottom: var(--space-4);
+      z-index: 50;
+      padding: var(--space-3);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      min-width: 200px;
+    }
+
+    .demo-panel__title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+      margin-bottom: var(--space-1);
+    }
+
+    .demo-panel__btn {
+      padding: var(--space-2) var(--space-3);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-secondary);
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: left;
+      transition: all var(--duration-instant) var(--ease-standard);
+    }
+
+    .demo-panel__btn:hover {
+      color: var(--fg-primary);
+      border-color: var(--border-strong);
+      background: var(--bg-elevated);
+    }
+
+    .demo-panel__btn.is-active {
+      color: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+
+    /* ---- Failed state ---- */
+    .compile-failed {
+      display: none;
+      margin-top: var(--space-7);
+      padding: var(--space-5);
+      background: var(--bg-surface);
+      border: 1px solid var(--warning);
+      border-radius: var(--radius-md);
+    }
+
+    .compile-failed.is-visible { display: block; }
+
+    .compile-failed__title {
+      font-family: var(--font-serif);
+      font-size: var(--text-md);
+      color: var(--fg-primary);
+      margin-bottom: var(--space-2);
+    }
+
+    .compile-failed__msg {
+      font-family: var(--font-serif);
+      font-size: var(--text-sm);
+      color: var(--fg-secondary);
+      margin-bottom: var(--space-4);
+    }
+
+    @media (max-width: 767px) {
+      .compile-page { padding-top: var(--space-7); }
+      .compile-title { font-size: var(--text-xl); }
+      .demo-panel { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <a href="#main-content" class="skip-link">跳到主要内容</a>
+
+  <div class="app-shell">
+
+    <div id="nav-top-mount"></div>
+
+    <main id="main-content" class="page compile-page" role="main">
+
+      <h1 class="compile-title">正在编译</h1>
+
+      <!-- §5.2.2 阶梯式 5 阶进度 -->
+      <div class="staircase-5" id="staircase-5" aria-label="编译进度 5 阶段">
+        <!-- Generated by JS -->
+      </div>
+
+      <!-- §5.2.5 预计时间 + 实际耗时 -->
+      <p class="compile-time">
+        <span>约 18 秒</span>
+        <span class="compile-time__actual" id="actual-time">（已 0 秒）</span>
+      </p>
+
+      <!-- §5.2.5 当前阶段文字 / §5.2.6 抚慰态文字 -->
+      <p class="compile-stage-text" id="stage-text">清洗 Markdown...</p>
+
+      <!-- §5.2.6 第二阈值（15 秒）取消入口 -->
+      <div class="soothing-retry" id="soothing-retry">
+        <span>如果 30 秒后仍未完成，可以取消后重试</span>
+        <button type="button" class="btn-text" id="cancel-retry">取消编译</button>
+      </div>
+
+      <!-- §5.2.3 失败态 -->
+      <div class="compile-failed" id="compile-failed">
+        <p class="compile-failed__title">编译遇到了问题</p>
+        <p class="compile-failed__msg">
+          从当前阶段（<span id="failed-stage-name">概念提取</span>）无法继续。
+          请返回修改 Markdown 内容，或使用示例重试。
+        </p>
+        <button type="button" class="btn-secondary" id="failed-back">返回修改</button>
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Demo panel -->
+  <aside class="demo-panel" aria-hidden="true">
+    <span class="demo-panel__title">演示状态</span>
+    <button type="button" class="demo-panel__btn is-active" data-demo="stage-1">阶段 1·清洗</button>
+    <button type="button" class="demo-panel__btn" data-demo="stage-3">阶段 3·概念</button>
+    <button type="button" class="demo-panel__btn" data-demo="stage-5">阶段 5·费曼</button>
+    <button type="button" class="demo-panel__btn" data-demo="soothing-1">抚慰 1（8s 态）</button>
+    <button type="button" class="demo-panel__btn" data-demo="soothing-2">抚慰 2（15s 态）</button>
+    <button type="button" class="demo-panel__btn" data-demo="failed">失败态</button>
+    <button type="button" class="demo-panel__btn" data-demo="completed">完成态</button>
+  </aside>
+
+  <script>
+    'use strict';
+
+    /* ==============================================================
+       Phase 3 · 02-compiling · state machine
+       ============================================================== */
+
+    const stages = window.MOCK.compileStages;
+
+    /** @type {'running'|'soothing-1'|'soothing-2'|'failed'|'completed'} */
+    let phase = 'running';
+    let currentStageIdx = 0;
+    let elapsedSec = 0;
+    let lastProgressAt = 0;  // seconds since last stage change
+
+    /* ---------- Element refs ---------- */
+
+    const staircaseEl = document.getElementById('staircase-5');
+    const stageTextEl = document.getElementById('stage-text');
+    const actualTimeEl = document.getElementById('actual-time');
+    const soothingRetry = document.getElementById('soothing-retry');
+    const failedEl = document.getElementById('compile-failed');
+    const failedStageName = document.getElementById('failed-stage-name');
+
+    /* ---------- Render staircase ---------- */
+
+    function renderStaircase() {
+      staircaseEl.innerHTML = stages.map((s, i) => {
+        let stateClass = '';
+        let marker = '○';
+        if (i < currentStageIdx) {
+          stateClass = 'is-completed';
+          marker = '✓';
+        } else if (i === currentStageIdx) {
+          if (phase === 'failed') {
+            stateClass = 'is-failed';
+            marker = '!';
+          } else if (phase === 'completed') {
+            stateClass = 'is-completed';
+            marker = '✓';
+          } else {
+            stateClass = 'is-active';
+            marker = '◐';
+          }
+        }
+        return `
+          <div class="stair-5 ${stateClass}" aria-label="${s.name}阶段 ${i < currentStageIdx ? '已完成' : (i === currentStageIdx ? '进行中' : '待解锁')}">
+            <div class="stair-5__bar">
+              <span class="stair-5__marker" aria-hidden="true">${marker}</span>
+            </div>
+            <span class="stair-5__label">${s.name}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* ---------- Stage text management ---------- */
+
+    /**
+     * @param {string} text
+     */
+    function setStageText(text) {
+      stageTextEl.classList.add('is-fading');
+      window.setTimeout(() => {
+        stageTextEl.textContent = text;
+        stageTextEl.classList.remove('is-fading');
+      }, 240);
+    }
+
+    function updateStageText() {
+      if (phase === 'soothing-1') {
+        setStageText('正在深度思考复杂概念，这需要一点时间…');
+      } else if (phase === 'soothing-2') {
+        setStageText('仍在思考中。复杂概念值得多花一些时间。');
+      } else if (phase === 'failed') {
+        setStageText(`${stages[currentStageIdx].name}阶段未能完成。`);
+      } else if (phase === 'completed') {
+        setStageText('全部阶段完成，正在跳转到课程概览…');
+      } else {
+        setStageText(stages[currentStageIdx].label);
+      }
+    }
+
+    /* ---------- Time tracking ---------- */
+
+    function tick() {
+      elapsedSec += 1;
+      lastProgressAt += 1;
+      actualTimeEl.textContent = `（已 ${elapsedSec} 秒）`;
+
+      // §5.2.6 Soothing thresholds (only during running phase)
+      if (phase === 'running' && lastProgressAt === 8) {
+        phase = 'soothing-1';
+        updateStageText();
+      } else if (phase === 'soothing-1' && lastProgressAt === 15) {
+        phase = 'soothing-2';
+        updateStageText();
+        soothingRetry.classList.add('is-visible');
+      }
+    }
+
+    let timer = window.setInterval(tick, 1000);
+
+    /* ---------- Stage auto-advance (simulated compile) ---------- */
+
+    /**
+     * @param {number} stageIdx 0-based
+     */
+    function goToStage(stageIdx) {
+      currentStageIdx = Math.max(0, Math.min(stages.length - 1, stageIdx));
+      lastProgressAt = 0;
+      phase = 'running';
+      soothingRetry.classList.remove('is-visible');
+      renderStaircase();
+      updateStageText();
+    }
+
+    /* ---------- Cancel / fail / complete handlers ---------- */
+
+    document.getElementById('cancel-retry').addEventListener('click', () => {
+      window.clearInterval(timer);
+      window.ALC.navigate('01-home.html');
+    });
+
+    document.getElementById('failed-back').addEventListener('click', () => {
+      window.ALC.navigate('01-home.html');
+    });
+
+    function showFailed() {
+      window.clearInterval(timer);
+      phase = 'failed';
+      failedStageName.textContent = stages[currentStageIdx].name;
+      failedEl.classList.add('is-visible');
+      soothingRetry.classList.remove('is-visible');
+      renderStaircase();
+      updateStageText();
+    }
+
+    function showCompleted() {
+      window.clearInterval(timer);
+      phase = 'completed';
+      currentStageIdx = stages.length;  // beyond last → all complete
+      currentStageIdx = stages.length - 1;  // last stage marker shows ✓
+      renderStaircase();
+      updateStageText();
+      // §5.2.3 完成态：1 秒后跳转
+      window.setTimeout(() => {
+        window.ALC.navigate('03-overview.html');
+      }, 1000);
+    }
+
+    /* ---------- Demo state switcher ---------- */
+
+    document.querySelectorAll('.demo-panel__btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.demo-panel__btn').forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+        const demo = btn.getAttribute('data-demo');
+        switch (demo) {
+          case 'stage-1':  goToStage(0); break;
+          case 'stage-3':  goToStage(2); break;
+          case 'stage-5':  goToStage(4); break;
+          case 'soothing-1':
+            currentStageIdx = 2;  // stuck on stage 3
+            lastProgressAt = 8;
+            phase = 'soothing-1';
+            renderStaircase();
+            updateStageText();
+            break;
+          case 'soothing-2':
+            currentStageIdx = 2;
+            lastProgressAt = 15;
+            phase = 'soothing-2';
+            soothingRetry.classList.add('is-visible');
+            renderStaircase();
+            updateStageText();
+            break;
+          case 'failed':   showFailed(); break;
+          case 'completed': showCompleted(); break;
+        }
+      });
+    });
+
+    /* ---------- Initial state ---------- */
+
+    window.ALC.renderNavTop({
+      back: '返回',
+      backTarget: '01-home.html',
+      actions: [
+        { label: '取消编译', onClick: () => window.ALC.navigate('01-home.html') },
+      ],
+    });
+
+    renderStaircase();
+    updateStageText();
+  </script>
+
+</body>
+</html>

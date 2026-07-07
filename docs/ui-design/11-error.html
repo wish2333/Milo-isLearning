@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0E1311" />
+  <title>AI Learning Compiler · 出错了</title>
+
+  <!--
+    Phase 3 · 全局错误页 · §5.11
+    ==========================
+    处理两种错误场景：
+      1. compile  — 编译失败（Markdown 不够、概念提取失败）
+      2. network  — Feedback Agent 超时（作答已保存，反馈需联网）
+
+    关键决策（§5.11）：
+      - 错误页绝不使用红色、感叹号、警告图标
+      - 错误是「信息」，不是「事件」
+      - 保持学术沉静基调
+
+    演示控件：URL 参数 ?type=compile|network 或右下角面板切换。
+  -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="./mock-data.js"></script>
+  <script src="./app.js"></script>
+
+  <style>
+    .error-page {
+      max-width: 540px;
+      padding-top: var(--space-10);
+      padding-bottom: var(--space-10);
+      text-align: center;
+    }
+
+    .error-divider {
+      width: 48px;
+      height: 1px;
+      background: var(--accent-primary);
+      border: none;
+      margin: 0 auto var(--space-7);
+    }
+
+    .error-title {
+      font-family: var(--font-serif);
+      font-size: var(--text-2xl);  /* 36px */
+      font-weight: var(--weight-medium);
+      color: var(--fg-primary);
+      letter-spacing: var(--tracking-tight);
+      margin-bottom: var(--space-5);
+    }
+
+    .error-message {
+      font-family: var(--font-serif);
+      font-size: var(--text-md);  /* 18px */
+      line-height: var(--leading-normal);
+      color: var(--fg-secondary);
+      max-width: 32ch;
+      margin: 0 auto var(--space-3);
+    }
+
+    .error-hint {
+      font-family: var(--font-serif);
+      font-size: var(--text-sm);
+      line-height: var(--leading-normal);
+      color: var(--fg-tertiary);
+      max-width: 36ch;
+      margin: 0 auto var(--space-7);
+    }
+
+    .error-actions {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+      margin-top: var(--space-7);
+    }
+
+    .error-actions .btn-primary,
+    .error-actions .btn-secondary {
+      min-width: 160px;
+    }
+
+    /* Demo panel */
+    .demo-panel {
+      position: fixed;
+      right: var(--space-4);
+      bottom: var(--space-4);
+      z-index: 50;
+      padding: var(--space-3);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      min-width: 180px;
+    }
+
+    .demo-panel__title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-tertiary);
+      margin-bottom: var(--space-1);
+    }
+
+    .demo-panel__btn {
+      padding: var(--space-2) var(--space-3);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      text-transform: uppercase;
+      color: var(--fg-secondary);
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: left;
+      transition: all var(--duration-instant) var(--ease-standard);
+    }
+
+    .demo-panel__btn:hover {
+      color: var(--fg-primary);
+      border-color: var(--border-strong);
+    }
+
+    .demo-panel__btn.is-active {
+      color: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+
+    @media (max-width: 767px) {
+      .error-page { padding-top: var(--space-8); }
+      .error-title { font-size: var(--text-xl); }
+      .error-actions .btn-primary,
+      .error-actions .btn-secondary { width: 100%; min-width: 0; }
+      .demo-panel { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <a href="#main-content" class="skip-link">跳到主要内容</a>
+
+  <div class="app-shell">
+
+    <div id="nav-top-mount"></div>
+
+    <main id="main-content" class="page error-page" role="main">
+
+      <hr class="error-divider" />
+
+      <h1 class="error-title" id="error-title">编译遇到了问题</h1>
+
+      <p class="error-message" id="error-message">
+        我们无法从这段 Markdown 中提取足够的概念。
+      </p>
+
+      <p class="error-hint" id="error-hint">
+        请补充至 200 字以上，或尝试更结构化的内容。
+      </p>
+
+      <hr class="error-divider" />
+
+      <div class="error-actions" id="error-actions">
+        <!-- Generated by JS -->
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Demo panel -->
+  <aside class="demo-panel" aria-hidden="true">
+    <span class="demo-panel__title">演示错误类型</span>
+    <button type="button" class="demo-panel__btn is-active" data-error="compile">编译失败</button>
+    <button type="button" class="demo-panel__btn" data-error="network">网络失败</button>
+  </aside>
+
+  <script>
+    'use strict';
+
+    /** @param {'compile'|'network'} type */
+    function renderError(type) {
+      const err = window.MOCK.errors[type];
+      if (!err) return;
+
+      document.getElementById('error-title').textContent = err.title;
+      document.getElementById('error-message').textContent = err.message;
+      document.getElementById('error-hint').textContent = err.hint;
+
+      const actionsEl = document.getElementById('error-actions');
+      actionsEl.innerHTML = err.actions.map(a => {
+        const cls = a.variant === 'primary' ? 'btn-primary' :
+                    a.variant === 'secondary' ? 'btn-secondary' :
+                    'btn-text';
+        const isLink = a.target && a.target.endsWith('.html');
+        const tag = isLink ? 'a' : 'button';
+        const href = isLink ? ` href="${a.target}"` : '';
+        const type2 = isLink ? '' : ' type="button"';
+        return `<${tag}${href}${type2} class="${cls}" data-target="${a.target}">${a.label}</${tag}>`;
+      }).join('');
+
+      actionsEl.querySelectorAll('[data-target]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          const target = e.currentTarget.getAttribute('data-target');
+          if (target.startsWith('#')) {
+            // In-page placeholder action
+            // eslint-disable-next-line no-console
+            console.log(`[demo] 触发动作: ${target}`);
+          } else if (target.endsWith('.html')) {
+            window.ALC.navigate(target);
+          }
+        });
+      });
+    }
+
+    /* ---------- Demo state switcher ---------- */
+
+    document.querySelectorAll('.demo-panel__btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.demo-panel__btn').forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+        renderError(/** @type {'compile'|'network'} */ (btn.getAttribute('data-error')));
+      });
+    });
+
+    /* ---------- URL parameter ---------- */
+
+    let initialError = 'compile';
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get('type');
+      if (t === 'compile' || t === 'network') initialError = t;
+    } catch (_) { /* ignore */ }
+
+    /* ---------- Initial state ---------- */
+
+    window.ALC.renderNavTop({
+      back: '返回',
+      backTarget: '01-home.html',
+    });
+
+    renderError(initialError);
+  </script>
+
+</body>
+</html>

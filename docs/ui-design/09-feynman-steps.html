@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0E1311" />
+  <title>AI Learning Compiler · 费曼 · Step 1-5</title>
+
+  <!--
+    Phase 3 · Feynman Steps 1-5 · §5.8
+    ================================
+    让用户不知不觉内化解释的结构，为最终输出做铺垫。
+
+    状态：
+      Step 1-4 (Choice · §5.8.2):
+        - 答错不重试（PRD FR-06）· 直接显示解释，进入下一步——降低焦虑
+        - 答错反馈更柔和：解释面板用 --fg-secondary，反馈短语为「看看正确答案」
+        - 按钮文案「下一步」（序列感，区别于「下一题」）
+
+      Step 5 (Fill Blank · §5.8.3):
+        - 内联输入到题干
+        - 按钮文案「补全这句话」
+
+    Step 切换动效（§6.5.1）：
+      T+0     反馈动效
+      T+?     用户点击「下一步」
+      T+0     stepper 当前步 → completed，下一步 → active（240ms）
+      T+240ms 当前题干与选项淡出（400ms）
+      T+640ms 空白期（200ms）
+      T+840ms 新步骤内容淡入（400ms）
+      T+1240ms 就绪
+
+    Step 5 → Step 6 切换由 §6.5.2 单独处理（在 09-feynman-final.html 中）。
+  -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="./mock-data.js"></script>
+  <script src="./app.js"></script>
+
+  <style>
+    .feynman-page {
+      max-width: 720px;
+      padding-top: var(--space-7);
+    }
+
+    /* Feynman-tinted staircase */
+    .staircase-wrap {
+      position: relative;
+      padding: var(--space-5) var(--space-6);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-7);
+
+      background-image: radial-gradient(
+        ellipse at 90% 0%,
+        rgba(232, 200, 148, 0.06),
+        transparent 60%
+      );
+    }
+
+    .staircase-legend {
+      display: flex;
+      justify-content: space-between;
+      margin-top: var(--space-4);
+      padding-top: var(--space-3);
+      border-top: 1px solid var(--border-subtle);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-tertiary);
+    }
+
+    .staircase-legend__apex {
+      color: var(--stage-feynman);
+    }
+
+    /* Stepper */
+    .stepper-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: var(--space-5);
+    }
+
+    .stepper-feynman {
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .stepper-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: var(--space-2);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--fg-tertiary);
+      letter-spacing: var(--tracking-mono);
+    }
+
+    .step-meta {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: var(--tracking-mono);
+      color: var(--fg-tertiary);
+      text-transform: uppercase;
+      margin-bottom: var(--space-5);
+      text-align: center;
+    }
+
+    .step-meta strong {
+      color: var(--stage-feynman);
+      font-weight: var(--weight-medium);
+    }
+
+    .quiz-stem {
+      font-family: var(--font-serif);
+      font-size: var(--text-xl);
+      line-height: var(--leading-normal);
+      color: var(--fg-primary);
+      margin-top: var(--space-5);
+      margin-bottom: var(--space-6);
+      transition: opacity var(--duration-slow) var(--ease-standard);
+    }
+
+    .quiz-stem.is-fading { opacity: 0; }
+
+    /* Step content (options or input) fades together */
+    .step-content {
+      transition: opacity var(--duration-slow) var(--ease-standard);
+    }
+    .step-content.is-fading { opacity: 0; }
+
+    .option-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    /* Softer wrong feedback for Feynman (§5.8.4) */
+    .feedback-block .text-feedback {
+      animation: none;
+      opacity: 0;
+      transform: translateY(4px);
+      margin-top: var(--space-6);
+      margin-bottom: var(--space-4);
+      color: var(--fg-secondary);  /* §5.8.4 softer than Concept */
+    }
+
+    .feedback-block .text-feedback.is-visible {
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 80ms;
+    }
+
+    .submit-area {
+      display: flex;
+      justify-content: center;
+      margin-top: var(--space-8);
+    }
+
+    .submit-area .btn-primary {
+      min-width: 200px;
+    }
+
+    .submit-area .btn-primary .btn-label {
+      display: inline-block;
+      transition: opacity var(--duration-base) var(--ease-standard);
+    }
+
+    .submit-area .btn-primary.is-transitioning .btn-label { opacity: 0; }
+
+    /* Fill-blank (Step 5) */
+    .option-fill-blank.is-correct {
+      border-bottom-color: var(--success);
+      box-shadow: 0 1px 0 0 var(--success);
+    }
+    .option-fill-blank.is-wrong {
+      border-bottom-color: var(--warning);
+      box-shadow: 0 1px 0 0 var(--warning);
+    }
+
+    .reveal-correct {
+      display: none;
+      font-family: var(--font-serif);
+      font-size: var(--text-md);
+      color: var(--fg-secondary);
+      margin-top: var(--space-3);
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    .reveal-correct.is-visible {
+      display: block;
+      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+      animation-delay: 80ms;
+    }
+    .reveal-correct__answer {
+      color: var(--success);
+      font-weight: var(--weight-medium);
+    }
+
+    /* Mirror span */
+    .fill-mirror {
+      position: absolute;
+      visibility: hidden;
+      white-space: pre;
+      font-family: var(--font-serif);
+      font-size: var(--text-xl);
+      line-height: 1;
+    }
+
+    @media (max-width: 767px) {
+      .feynman-page { padding-top: var(--space-5); }
+      .quiz-stem { font-size: var(--text-lg); }
+      .submit-area .btn-primary { width: 100%; min-width: 0; }
+    }
+  </style>
+</head>
+
+<body>
+  <a href="#main-content" class="skip-link">跳到主要内容</a>
+
+  <div class="app-shell">
+
+    <div id="nav-top-mount"></div>
+
+    <main id="main-content" class="page feynman-page" role="main">
+
+      <!-- Staircase · Feynman 顶点提亮 -->
+      <section class="staircase-wrap" aria-label="Module 学习路径">
+        <ol class="staircase"
+            role="progressbar"
+            aria-valuenow="85" aria-valuemin="0" aria-valuemax="100"
+            aria-label="Module 学习进度 · Feynman 进行中">
+          <li class="stair stair--completed"><span class="stair__label">C1</span></li>
+          <li class="stair stair--completed"><span class="stair__label">C1</span></li>
+          <li class="stair stair--completed"><span class="stair__label">C2</span></li>
+          <li class="stair stair--completed"><span class="stair__label">C2</span></li>
+          <li class="stair stair--completed"><span class="stair__label">C3</span></li>
+          <li class="stair stair--completed"><span class="stair__label">C3</span></li>
+          <li class="stair stair--completed staircase--challenge"><span class="stair__label">Chl</span></li>
+          <li class="stair stair--completed staircase--challenge"><span class="stair__label">Chl</span></li>
+          <li class="stair stair--active staircase--feynman"><span class="stair__label">Fey</span></li>
+          <li class="stair stair--locked staircase--feynman"><span class="stair__label">Fey</span></li>
+        </ol>
+
+        <div class="staircase-legend">
+          <span>Concept · Challenge 已完成</span>
+          <span class="staircase-legend__apex">你在费曼 · Step <span id="step-num">1</span> / 6</span>
+        </div>
+      </section>
+
+      <!-- Stepper -->
+      <div class="stepper-wrap">
+        <div>
+          <ul class="stepper-feynman" id="stepper" aria-label="Feynman 步骤"></ul>
+          <div class="stepper-labels" aria-hidden="true">
+            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="step-meta">费曼 · <strong>Step <span id="step-num-meta">1</span> / 6</strong></p>
+
+      <hr class="section-divider" />
+
+      <!-- Dynamic step content -->
+      <p class="quiz-stem" id="quiz-stem"></p>
+
+      <div class="step-content" id="step-content"></div>
+
+      <!-- Fill mirror for Step 5 -->
+      <span class="fill-mirror" id="fill-mirror" aria-hidden="true"></span>
+
+      <!-- Feedback block -->
+      <div class="feedback-block" aria-live="polite" aria-atomic="true">
+        <p class="text-feedback" id="text-feedback">很好。</p>
+        <div class="panel-explanation-wrapper" id="panel-wrapper">
+          <div class="panel-explanation">
+            <div class="panel-explanation__inner" id="panel-content"></div>
+          </div>
+        </div>
+        <p class="reveal-correct" id="reveal-correct">
+          <span>正确答案：</span>
+          <span class="reveal-correct__answer" id="reveal-answer"></span>
+        </p>
+      </div>
+
+      <div class="submit-area">
+        <button type="button" id="submit-btn" class="btn-primary" disabled aria-disabled="true">
+          <span class="btn-label">下一步</span>
+        </button>
+      </div>
+
+    </main>
+
+  </div>
+
+  <script>
+    'use strict';
+
+    const steps = window.MOCK.module.feynman.steps;
+    const totalSteps = window.MOCK.module.feynman.totalSteps;  // 6
+
+    /** 1-based current step */
+    let currentStep = 1;
+
+    /* Element refs */
+    const stepper = document.getElementById('stepper');
+    const stepNumEls = [
+      document.getElementById('step-num'),
+      document.getElementById('step-num-meta'),
+    ];
+    const quizStem = document.getElementById('quiz-stem');
+    const stepContent = document.getElementById('step-content');
+    const fillMirror = document.getElementById('fill-mirror');
+    const submitBtn = document.getElementById('submit-btn');
+    const submitLabel = submitBtn.querySelector('.btn-label');
+    const textFeedback = document.getElementById('text-feedback');
+    const panelWrapper = document.getElementById('panel-wrapper');
+    const panelContent = document.getElementById('panel-content');
+    const revealCorrect = document.getElementById('reveal-correct');
+    const revealAnswer = document.getElementById('reveal-answer');
+
+    let isAnswered = false;
+    /** @type {string | null} */ let selectedOption = null;
+    /** @type {HTMLInputElement | null} */ let fillInput = null;
+
+    /* ---------- Render stepper ---------- */
+
+    function renderStepper() {
+      const items = [];
+      for (let i = 1; i <= totalSteps; i++) {
+        let cls = 'stepper-feynman__step';
+        if (i < currentStep) cls += ' stepper-feynman__step--completed';
+        else if (i === currentStep) cls += ' stepper-feynman__step--active';
+        items.push(`<li class="${cls}" aria-label="Step ${i} ${i < currentStep ? '已完成' : (i === currentStep ? '进行中' : '未开始')}"></li>`);
+        if (i < totalSteps) items.push('<li class="stepper-feynman__connector" aria-hidden="true"></li>');
+      }
+      stepper.innerHTML = items.join('');
+    }
+
+    /* ---------- Render current step ---------- */
+
+    function renderStep() {
+      isAnswered = false;
+      selectedOption = null;
+      fillInput = null;
+      textFeedback.classList.remove('is-visible');
+      panelWrapper.classList.remove('panel-explanation-wrapper--open');
+      revealCorrect.classList.remove('is-visible');
+
+      const step = steps[currentStep - 1];
+      if (!step) return;
+
+      stepNumEls.forEach(el => { el.textContent = String(currentStep); });
+
+      // Fade transition
+      quizStem.classList.add('is-fading');
+      stepContent.classList.add('is-fading');
+
+      window.setTimeout(() => {
+        if (step.type === 'choice') {
+          quizStem.innerHTML = step.stem;
+          stepContent.innerHTML = `
+            <ul class="option-list" role="group">
+              ${step.options.map(opt => `
+                <li>
+                  <button type="button" class="option-choice" data-option="${opt.letter}" data-correct="${opt.correct}">
+                    <span class="option-choice__letter">${opt.letter}</span>
+                    <span class="option-choice__text">${opt.text}</span>
+                  </button>
+                </li>
+              `).join('')}
+            </ul>
+          `;
+          submitLabel.textContent = '下一步';
+          submitBtn.disabled = true;
+          wireChoiceHandlers();
+        } else if (step.type === 'fill-blank') {
+          quizStem.innerHTML = `
+            ${step.stemPrefix}
+            <input type="text"
+                   class="option-fill-blank"
+                   id="fill-input"
+                   placeholder="……"
+                   aria-label="填空"
+                   autocomplete="off"
+                   spellcheck="false" />
+            ${step.stemSuffix}
+          `;
+          stepContent.innerHTML = '';
+          submitLabel.textContent = '补全这句话';
+          submitBtn.disabled = true;
+          fillInput = /** @type {HTMLInputElement} */ (document.getElementById('fill-input'));
+          wireFillHandlers();
+          autoGrowWidth();
+          // Focus input on render
+          window.setTimeout(() => fillInput && fillInput.focus(), 100);
+        }
+
+        quizStem.classList.remove('is-fading');
+        stepContent.classList.remove('is-fading');
+      }, 240);
+    }
+
+    /* ---------- Choice handlers (Steps 1-4) ---------- */
+
+    function wireChoiceHandlers() {
+      const opts = stepContent.querySelectorAll('.option-choice');
+      opts.forEach(opt => {
+        opt.addEventListener('click', () => {
+          if (isAnswered) return;
+          selectedOption = opt.getAttribute('data-option');
+          opts.forEach(o => {
+            o.classList.toggle('option-choice--selected',
+              o.getAttribute('data-option') === selectedOption);
+          });
+          submitBtn.disabled = false;
+          submitBtn.setAttribute('aria-disabled', 'false');
+        });
+      });
+    }
+
+    /* ---------- Fill-blank handlers (Step 5) ---------- */
+
+    function wireFillHandlers() {
+      if (!fillInput) return;
+      fillInput.addEventListener('input', () => {
+        autoGrowWidth();
+        if (isAnswered) return;
+        const len = fillInput.value.trim().length;
+        submitBtn.disabled = len === 0;
+        submitBtn.setAttribute('aria-disabled', String(len === 0));
+      });
+      fillInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !submitBtn.disabled) {
+          e.preventDefault();
+          submitBtn.click();
+        }
+      });
+    }
+
+    function autoGrowWidth() {
+      if (!fillInput) return;
+      const cs = window.getComputedStyle(fillInput);
+      if (cs.fieldSizing && cs.fieldSizing !== 'normal') return;
+      const text = fillInput.value || fillInput.placeholder;
+      fillMirror.textContent = text || 'XX';
+      const rect = fillMirror.getBoundingClientRect();
+      const width = Math.min(Math.max(rect.width + 16, 32), 320);
+      fillInput.style.width = `${width}px`;
+    }
+
+    /* ---------- Submit handler ---------- */
+
+    submitBtn.addEventListener('click', () => {
+      if (isAnswered) {
+        // After answered → advance
+        advanceToNext();
+        return;
+      }
+
+      const step = steps[currentStep - 1];
+      if (!step) return;
+
+      isAnswered = true;
+      submitBtn.classList.add('is-transitioning');
+
+      if (step.type === 'choice') {
+        const selectedEl = stepContent.querySelector(`.option-choice[data-option="${selectedOption}"]`);
+        if (!selectedEl) return;
+        const isCorrect = selectedEl.getAttribute('data-correct') === 'true';
+
+        stepContent.querySelectorAll('.option-choice').forEach(o => {
+          o.disabled = true;
+          o.setAttribute('aria-disabled', 'true');
+        });
+
+        window.setTimeout(() => {
+          if (isCorrect) {
+            selectedEl.classList.add('option-choice--correct');
+            window.requestAnimationFrame(() => {
+              selectedEl.classList.add('is-line-drawn');
+            });
+            window.setTimeout(() => {
+              textFeedback.textContent = window.MOCKPickFeedback('correct');
+              textFeedback.classList.add('is-visible');
+            }, 80);
+          } else {
+            const correctEl = stepContent.querySelector('.option-choice[data-correct="true"]');
+            // §5.8.4 Softer feedback for Feynman wrong: don't mark user's wrong with strong orange
+            selectedEl.classList.add('option-choice--wrong');
+            correctEl.classList.add('option-choice--correct');
+            window.requestAnimationFrame(() => {
+              correctEl.classList.add('is-line-drawn');
+            });
+            window.setTimeout(() => {
+              textFeedback.textContent = '看看正确答案。';
+              textFeedback.classList.add('is-visible');
+            }, 80);
+          }
+
+          // §5.8.4 解释面板 --fg-secondary softer
+          window.setTimeout(() => {
+            const correctOpt = step.options.find(o => o.correct);
+            panelContent.textContent = `正确选项是 ${correctOpt.letter}：${correctOpt.text}`;
+            panelWrapper.classList.add('panel-explanation-wrapper--open');
+          }, 240);
+
+          window.setTimeout(() => {
+            // §5.8.4 答错也直接进入下一步 (PRD FR-06)
+            submitLabel.textContent = isCorrect ? '下一步' : '进入下一步';
+            submitBtn.classList.remove('is-transitioning');
+            submitBtn.disabled = false;
+          }, 640);
+        }, 200);
+      } else if (step.type === 'fill-blank') {
+        const userAns = fillInput.value.trim();
+        const acceptable = step.acceptableAnswers.map(a => a.toLowerCase().trim());
+        const isCorrect = acceptable.includes(userAns.toLowerCase());
+
+        fillInput.disabled = true;
+        submitBtn.disabled = true;
+
+        window.setTimeout(() => {
+          fillInput.classList.add(isCorrect ? 'is-correct' : 'is-wrong');
+
+          window.setTimeout(() => {
+            textFeedback.textContent = isCorrect
+              ? window.MOCKPickFeedback('correct')
+              : '看看正确答案。';
+            textFeedback.classList.add('is-visible');
+          }, 80);
+
+          window.setTimeout(() => {
+            panelContent.textContent = step.answer ?
+              `正确答案是「${step.answer}」。${step.stemPrefix}${step.answer}${step.stemSuffix}` :
+              '';
+            panelWrapper.classList.add('panel-explanation-wrapper--open');
+          }, 240);
+
+          if (!isCorrect) {
+            revealAnswer.textContent = step.answer;
+            window.setTimeout(() => {
+              revealCorrect.classList.add('is-visible');
+            }, 240);
+          }
+
+          window.setTimeout(() => {
+            submitLabel.textContent = isCorrect ? '下一步' : '进入下一步';
+            submitBtn.classList.remove('is-transitioning');
+            submitBtn.disabled = false;
+          }, 640);
+        }, 200);
+      }
+    });
+
+    /* ---------- Advance to next step ---------- */
+
+    function advanceToNext() {
+      if (currentStep < 5) {
+        currentStep += 1;
+        renderStepper();
+        renderStep();
+      } else {
+        // Step 5 → Step 6 · navigate to 09-feynman-final.html
+        window.ALC.setState({ feynmanStep: 6 });
+        window.ALC.navigate('09-feynman-final.html');
+      }
+    }
+
+    /* ---------- Keyboard ---------- */
+
+    document.addEventListener('keydown', (e) => {
+      if (isAnswered && e.key === 'Enter') {
+        submitBtn.click();
+        return;
+      }
+      // Choice 1-4 only
+      const step = steps[currentStep - 1];
+      if (step && step.type === 'choice' && ['1', '2', '3', '4'].includes(e.key)) {
+        const idx = parseInt(e.key, 10) - 1;
+        const opt = stepContent.querySelectorAll('.option-choice')[idx];
+        if (opt && !opt.disabled) opt.click();
+      }
+    });
+
+    /* ---------- Initial render ---------- */
+
+    window.ALC.renderNavTop({
+      back: '概览',
+      backTarget: '03-overview.html',
+      stage: 'feynman',
+    });
+
+    renderStepper();
+    renderStep();
+  </script>
+
+</body>
+</html>
