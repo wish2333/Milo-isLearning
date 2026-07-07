@@ -47,19 +47,73 @@ export interface JsonParseErr {
 }
 
 /**
+ * 尝试从字符串中提取 JSON 对象。
+ *
+ * 处理策略（按优先级）：
+ *   1. 先 trim（LLM 偶发前后空白）
+ *   2. 尝试提取 markdown 代码块中的 JSON（普通块 ``` 或 json 块 ```json）
+ *   3. 尝试定位第一个 `{` 和最后一个 `}` 提取裸 JSON
+ *   4. 回退到直接 JSON.parse（原始字符串）
+ *
+ * LLM 输出偶发夹杂开场白（"以下是结果："）、尾缀（"。\n\n```"）或 markdown 包裹，
+ * 该函数确保这些噪声不影响 JSON 解析。
+ */
+function extractJSON(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (trimmed === '') return null
+
+  // 策略 1：直接解析（最快路径，适用于纯净 JSON 输出）
+  try {
+    JSON.parse(trimmed)
+    return trimmed // 合法 JSON，直接返回
+  } catch {
+    // 不合法，尝试提取
+  }
+
+  // 策略 2：提取 markdown 代码块内容（```json ... ``` 或 ``` ... ```）
+  const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+  if (codeBlockMatch?.[1]) {
+    const inner = codeBlockMatch[1].trim()
+    if (inner) {
+      try {
+        JSON.parse(inner)
+        return inner
+      } catch {
+        // 代码块内也不是合法 JSON，继续尝试
+      }
+    }
+  }
+
+  // 策略 3：定位第一个 `{` 和最后一个 `}` 提取
+  const firstBrace = trimmed.indexOf('{')
+  const lastBrace = trimmed.lastIndexOf('}')
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = trimmed.slice(firstBrace, lastBrace + 1)
+    try {
+      JSON.parse(candidate)
+      return candidate
+    } catch {
+      // 提取的子串也不是合法 JSON
+    }
+  }
+
+  return null
+}
+
+/**
  * 安全解析 JSON 字符串
  *
  * - 不抛异常，返回 discriminated union
- * - 先 trim（LLM 偶发前后空白）
+ * - 先尝试直接解析，再尝试从 markdown 代码块或文本中提取 JSON
  * - 失败时返回可读 error 文案，供 runAgent 追加到对话中提示 LLM 修正
  */
 export function safeParseJSON(raw: string): JsonParseOk | JsonParseErr {
-  const trimmed = raw.trim()
-  if (trimmed === '') {
+  const extracted = extractJSON(raw)
+  if (extracted === null) {
     return { ok: false, error: '响应为空字符串' }
   }
   try {
-    return { ok: true, value: JSON.parse(trimmed) }
+    return { ok: true, value: JSON.parse(extracted) }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }

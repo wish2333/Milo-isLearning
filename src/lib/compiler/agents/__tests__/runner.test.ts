@@ -66,13 +66,13 @@ describe('runAgent — 成功与重试', () => {
     expect(provider.calls).toHaveLength(1)
   })
 
-  it('非法 JSON → 重试 1 次后成功', async () => {
+  it('非法 JSON（无 JSON 结构）→ 重试后成功', async () => {
     const validPayload = {
       normalizedText: '标准化文本。',
       stats: { originalLength: 50, normalizedLength: 48, removedElements: 1 },
     }
     const provider = mockProvider([
-      ok('这不是 JSON：' + JSON.stringify(validPayload)), // 第一次非法
+      ok('这完全不是JSON，没有任何大括号或代码块结构'), // 第一次非法（enhanced parser 也无法提取）
       ok(JSON.stringify(validPayload)), // 第二次合法
     ])
 
@@ -117,7 +117,8 @@ describe('runAgent — 成功与重试', () => {
       kind: 'import',
       reason: 'invalid_json',
     })
-    expect(provider.calls).toHaveLength(2)
+    // MAX_ATTEMPTS=5 → 5 次尝试均失败
+    expect(provider.calls).toHaveLength(5)
   })
 
   it('Schema 违例两次 → reason=schema_violation', async () => {
@@ -171,7 +172,7 @@ describe('runAgent — 成功与重试', () => {
 })
 
 describe('runAgent — AgentKind 配置传递', () => {
-  it('按 AgentKind 配置传递 temperature / maxTokens', async () => {
+  it('按 AgentKind 配置传递 temperature（M3 W8 移除 maxTokens）', async () => {
     const validPayload = {
       normalizedText: 'x',
       stats: { originalLength: 10, normalizedLength: 9, removedElements: 0 },
@@ -183,7 +184,6 @@ describe('runAgent — AgentKind 配置传递', () => {
     const cfg = getAgentConfig('import')
     const firstCall = provider.calls[0]
     expect(firstCall?.temperature).toBe(cfg.temperature)
-    expect(firstCall?.maxTokens).toBe(cfg.maxTokens)
   })
 
   it('Quiz Agent 用高温度 0.7，Feedback 用低温度 0.1', async () => {

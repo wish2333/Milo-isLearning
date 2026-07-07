@@ -1,7 +1,10 @@
 /**
- * Agent 调用参数配置：temperature / maxTokens / enableThinking
+ * Agent 调用参数配置：temperature / disableThinking
  *
- * 对应 docs/Prompt-Engineering.md §7.2（温度策略）与 §7.3（maxTokens 策略）。
+ * 对应 docs/Prompt-Engineering.md §7.2（温度策略）。
+ *
+ * M3 W8 移除 maxTokens：显式设限在 DeepSeek V4 Flash 等模型上导致
+ * 冗长推理消耗全部 budget 后输出被截断。改为不限制，由 API 端处理。
  *
  * 设计意图：
  *   - 把"每个 Agent 该用什么采样参数"集中在一处，便于 A/B 与调优
@@ -14,12 +17,12 @@ import type { AgentKind } from '@/lib/compiler/schemas'
 export interface AgentCallConfig {
   /** 采样温度；越低越确定 */
   temperature: number
-  /** 单次响应最大 token 数（取预估最大值的 ~2 倍，避免截断） */
-  maxTokens: number
   /**
    * 是否关闭 thinking 模式（GLM enable_thinking=false）。
    * 结构化 / 评分场景关闭以稳定输出；生成场景可开启（Prompt-Eng §12.6）。
    * MVP 默认全部关闭，A/B 时再放开 Quiz / Feynman。
+   *
+   * 注意：仅 GLM 识别此参数；DeepSeek V4 Flash 不支持，忽略后仍输出冗长推理。
    */
   disableThinking: boolean
 }
@@ -27,20 +30,22 @@ export interface AgentCallConfig {
 /**
  * 9 个 Agent 的调用参数表
  *
- * 来源：Prompt-Engineering.md §7.2 / §7.3。
+ * 来源：Prompt-Engineering.md §7.2。
+ * M3 W8：全部移除 maxTokens（改为由 API 端默认值处理，避免显式限幅截断）。
  */
 export const AGENT_CONFIG: Readonly<Record<AgentKind, AgentCallConfig>> = Object.freeze({
   // 编译期 7 个 Agent
-  import: { temperature: 0.1, maxTokens: 4096, disableThinking: true },
-  chunk: { temperature: 0.1, maxTokens: 8192, disableThinking: true },
-  concept: { temperature: 0.3, maxTokens: 4096, disableThinking: true },
-  module: { temperature: 0.3, maxTokens: 2048, disableThinking: true },
-  mission: { temperature: 0.2, maxTokens: 4096, disableThinking: true },
-  quiz: { temperature: 0.7, maxTokens: 2048, disableThinking: true },
-  feynman: { temperature: 0.7, maxTokens: 8192, disableThinking: true },
+  import: { temperature: 0.1, disableThinking: true },
+  chunk: { temperature: 0.1, disableThinking: true },
+  concept: { temperature: 0.3, disableThinking: true },
+  module: { temperature: 0.3, disableThinking: true },
+  mission: { temperature: 0.2, disableThinking: true },
+  quiz: { temperature: 0.7, disableThinking: true },
+  feynman: { temperature: 0.7, disableThinking: true },
   // 运行时 2 个 Agent
-  feedback: { temperature: 0.1, maxTokens: 1024, disableThinking: true },
-  'feynman-eval': { temperature: 0.2, maxTokens: 2048, disableThinking: true },
+  feedback: { temperature: 0.1, disableThinking: true },
+  'feynman-eval': { temperature: 0.2, disableThinking: true },
+  'quiz-batch': { temperature: 0.7, disableThinking: true },
 })
 
 /** 取某 Agent 的调用配置 */

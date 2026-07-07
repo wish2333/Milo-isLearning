@@ -1,16 +1,19 @@
 /**
- * Agent 通用调用运行器：buildPrompt → provider.chat → JSON.parse → Zod 校验，含 1 次重试。
+ * Agent 通用调用运行器：buildPrompt → provider.chat → JSON.parse → Zod 校验，含最多 4 次重试。
  *
  * 对应 docs/Technical-Specification.md §4.3 与 docs/Prompt-Engineering.md §6.3。
  *
- * 重试策略（NFR-R4）：
+ * 重试策略（M3 W8 调整）：
  *   1. 调 LLM（response_format=json_object，由 provider 层依据 jsonSchema 触发）
- *   2. 取 message.content；为空 → 追加 system 提示"响应为空"，retry 1 次
- *   3. JSON.parse 失败 → 追加 system 提示错误信息，retry 1 次
- *   4. schema.safeParse 失败 → 追加 system 提示校验问题，retry 1 次
+ *   2. 取 message.content；为空 → 追加 system 提示"响应为空"，retry
+ *   3. JSON.parse 失败 → 追加 system 提示错误信息，retry
+ *   4. schema.safeParse 失败 → 追加 system 提示校验问题，retry
  *   5. 仍失败 → 抛 AgentOutputError(kind, reason, raw)，上层 UI 提示"AI 输出不规范"
  *
- * 注：每类失败最多 retry 1 次（共 2 次尝试），避免无限重试拖垮编译时长（NFR-P1）。
+ * 共 MAX_ATTEMPTS=5 次尝试（1 次原始 + 4 次重试）。相比 M2.5 的 2 次，
+ * 提升对模型偶发输出不规范的容忍度，避免因 1-2 次瞬时不达标导致全流程失败。
+ * 多次重试对总耗时的影响受 P95 ≤ 3min 的 NFR-P1（M3 放宽版）约束，
+ * 实际中绝大多数重试在第 2-3 次成功，不会耗尽全部 5 次。
  */
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import type { ZodSchema } from 'zod'
@@ -22,8 +25,8 @@ import { buildPrompt, type PromptVariables } from '../prompts/builder'
 import { getAgentConfig } from './config'
 import { AgentOutputError, formatZodIssues, safeParseJSON, type AgentFailureReason } from './errors'
 
-/** 最大尝试次数（含首次）：1 次原始 + 1 次重试 */
-const MAX_ATTEMPTS = 2
+/** 最大尝试次数（含首次）：1 次原始 + 4 次重试。M3 W8 从 2 提升到 5 */
+const MAX_ATTEMPTS = 5
 
 /**
  * 运行选项（M2.5 W2 eval 脚本透传用）。
@@ -65,20 +68,21 @@ export async function runAgent<T>(
   const messages = buildPrompt(kind, input)
   // 作为 response_format=json_object 的提示传入（provider 层据 truthy jsonSchema 启用）
   const jsonSchemaHint = zodToJsonSchema(schema, { name: undefined })
-  // GLM enable_thinking 透传（M2.5 W3）：disableThinking=true 时强制关闭。
-  // DeepSeek V4 不识别此字段，透传后被忽略，无副作用（M2.5-Plan §2.W3）。
+  // disableThinking 控制：GLM-4.7+/5.x 与 DeepSeek V4 均使用此格式。
   // options.disableThinking 优先于 config（eval A/B 用）
   const disableThinking = options?.disableThinking ?? config.disableThinking
-  const extraBody = disableThinking ? { enable_thinking: false } : undefined
+  const extraBody = disableThinking ? ({ thinking: { type: 'disabled' } } as const) : undefined
 
   let lastReason: AgentFailureReason = 'empty_content'
   let lastRaw = ''
+  let lastZodIssues: string | undefined
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    // M3 W8：不再传递 maxTokens。显式 max_tokens 在 DeepSeek V4 Flash 上
+    // 导致推理内容消耗全部 budget 后输出被截断。改让 API 端自行处理。
     const response = await provider.chat({
       messages,
       temperature: config.temperature,
-      maxTokens: config.maxTokens,
       jsonSchema: jsonSchemaHint,
       ...(extraBody ? { extraBody } : {}),
     })
@@ -115,12 +119,16 @@ export async function runAgent<T>(
       return result.data
     }
     lastReason = 'schema_violation'
+    lastZodIssues = formatZodIssues(result.error.issues)
     appendRetryHint(
       messages,
-      `上一次响应未通过 Schema 校验：\n${formatZodIssues(result.error.issues)}\n请严格按 Schema 修正后重新输出。`,
+      `上一次响应未通过 Schema 校验：\n${lastZodIssues}\n请严格按 Schema 修正后重新输出。`,
     )
   }
 
-  // 两次尝试均失败
+  // 全部尝试均失败
+  if (lastZodIssues !== undefined) {
+    console.error(`[${kind}] ${lastZodIssues}`)
+  }
   throw new AgentOutputError(kind, lastReason, lastRaw)
 }
