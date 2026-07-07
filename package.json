@@ -13,18 +13,19 @@
     "ping": "bun run scripts/ping.ts"
   },
   "dependencies": {
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "nanoid": "^5.0.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "zustand": "^5.0.0",
-    "zod": "^3.23.8",
     "react-hook-form": "^7.50.0",
-    "nanoid": "^5.0.0",
-    "zod-error": "^1.5.0",
-    "clsx": "^2.1.1",
     "tailwind-merge": "^2.4.0",
-    "class-variance-authority": "^0.7.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.23.8",
+    "zod-error": "^1.5.0",
+    "zod-to-json-schema": "^3.23.5",
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

@@ -2,6 +2,7 @@
 // 对应 docs/Prompt-Engineering.md §4
 // 用于 lib/compiler/agents/_runner.ts 的 runAgent(kind, input, provider, schema)
 import { z, type ZodSchema } from 'zod'
+import { zodToJsonSchema } from 'zod-to-json-schema'
 
 import { importSchema, type ImportAgentOutput } from './import'
 import { chunkSchema, type ChunkAgentOutput } from './chunk'
@@ -56,14 +57,17 @@ export function getSchema(kind: AgentKind): ZodSchema<unknown> {
 }
 
 /**
- * 把 Zod Schema 转 JSON Schema 字符串（嵌入到 Prompt 的 {{> schema/<kind>}} 占位符）
- * 实现略：使用 zod-to-json-schema 包（M2 引入）
+ * 把 Zod Schema 转 JSON Schema 字符串（嵌入到 Prompt 的 {{> schema/<kind>}} 占位符）。
+ *
+ * 用于 lib/compiler/prompts/loader.ts 的 partial 展开：shared/json-output-rules.md
+ * 里引用 `{{> schema/<agent-kind>}}`，此处产出对应 Agent 的 JSON Schema 文本，
+ * 让 LLM 在 system 段直接看到结构约束。
+ *
+ * 注意：DeepSeek/GLM 仅支持 response_format=json_object，不支持 json_schema 强制，
+ * 所以这份 JSON Schema 仅作为"提示"嵌入 prompt，真正的强制校验由 _runner.ts 的 Zod 完成。
  */
 export function schemaToPromptHint(kind: AgentKind): string {
-  // TODO: M2 期间引入 zod-to-json-schema 包
-  // import { zodToJsonSchema } from 'zod-to-json-schema'
-  // return JSON.stringify(zodToJsonSchema(getSchema(kind)), null, 2)
-  return `[Schema for ${kind} - 见 lib/compiler/schemas/${kind.replace('-', '_')}.ts]`
+  return JSON.stringify(zodToJsonSchema(getSchema(kind), { name: undefined }), null, 2)
 }
 
 // 类型重导出
