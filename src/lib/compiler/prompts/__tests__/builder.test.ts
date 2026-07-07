@@ -27,6 +27,7 @@ const ALL_KINDS: AgentKind[] = [
   'feynman',
   'feedback',
   'feynman-eval',
+  'quiz-batch',
 ]
 
 /** 每个 Agent 的最小可用输入（满足其模板占位符） */
@@ -86,6 +87,22 @@ const SAMPLE_INPUTS: Record<AgentKind, Record<string, unknown>> = {
     userOutput: 'RAG 是把检索和生成结合起来的技术…（示例输出）',
     point: '检索',
   },
+  'quiz-batch': {
+    placeholders: [
+      { id: 'concept-1:slot-1', ladderLevel: 1, interactionType: 'choice', expressionLevel: 1 },
+      { id: 'concept-1:slot-2', ladderLevel: 1, interactionType: 'choice', expressionLevel: 1 },
+    ],
+    concept: {
+      id: 'concept-1',
+      name: 'RAG',
+      definition: '检索增强生成',
+      keyPoints: ['检索', '生成'],
+    },
+    moduleContext: { title: '理解 RAG' },
+    total: 2,
+    conceptName: 'RAG',
+    conceptId: 'concept-1',
+  },
 }
 
 /** 取消息的 system / user 文本（内部已断言长度与角色，安全解包） */
@@ -103,7 +120,7 @@ function sysUser(
 }
 
 describe('buildPrompt — 全 Agent 模板渲染', () => {
-  it('9 个 Agent 全部可构建且返回恰好 [system, user] 两条消息', () => {
+  it('10 个 Agent 全部可构建且返回恰好 [system, user] 两条消息', () => {
     for (const kind of ALL_KINDS) {
       const messages = buildPrompt(kind, SAMPLE_INPUTS[kind])
       expect(messages, `${kind} 应返回消息数组`).toHaveLength(2)
