@@ -56,7 +56,7 @@ const RETRY_NETWORK: RetryPolicy = {
   backoffMs: (): number => 1000,
 }
 
-const DEFAULT_TIMEOUT_MS = 30_000
+const DEFAULT_TIMEOUT_MS = 600_000
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))

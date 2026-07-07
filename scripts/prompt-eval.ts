@@ -446,6 +446,23 @@ async function buildAgentInput(
     case 'mission': {
       return { module: CANNED_MODULE, concepts: CANNED_MODULE.concepts }
     }
+    case 'quiz-batch': {
+      return {
+        placeholders: [
+          { id: 'concept-1:slot-1', ladderLevel: 1, interactionType: 'choice', expressionLevel: 1 },
+        ],
+        concept: {
+          id: 'concept-1',
+          name: 'RAG',
+          definition: '检索增强生成',
+          keyPoints: ['检索', '生成'],
+        },
+        moduleContext: { title: '理解 RAG' },
+        total: 1,
+        conceptName: 'RAG',
+        conceptId: 'concept-1',
+      }
+    }
     case 'quiz': {
       return {
         placeholder: CANNED_QUIZ_PLACEHOLDER,
