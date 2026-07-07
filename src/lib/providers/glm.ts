@@ -43,13 +43,10 @@ export const glmDefaults = {
  */
 export function createGLMProvider(config: LLMConfig): LLMProvider {
   if (config.provider !== 'glm') {
-    throw new Error(
-      `createGLMProvider called with provider='${config.provider}', expected 'glm'`,
-    )
+    throw new Error(`createGLMProvider called with provider='${config.provider}', expected 'glm'`)
   }
   return new OpenAICompatProvider({
     ...glmDefaults,
     ...config,
   })
 }
-

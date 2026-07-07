@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# Husky pre-commit (M2.5 W6)
+# Windows 兼容说明：依赖 git hooks 调用 bun；若 Windows 下 hook 失败，
+# 降级为 CI 门禁（lint/format 仅在本地失效，PR 阶段 CI 必须通过）。
+
+bun run lint-staged

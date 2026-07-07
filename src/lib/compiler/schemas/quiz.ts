@@ -5,7 +5,13 @@ import { z } from 'zod'
 
 const distractorItemSchema = z.object({
   text: z.string().min(1),
-  type: z.enum(['A_Overcorrection', 'B_Outdated', 'C_WrongContext', 'D_Incomplete', 'E_Misunderstanding']),
+  type: z.enum([
+    'A_Overcorrection',
+    'B_Outdated',
+    'C_WrongContext',
+    'D_Incomplete',
+    'E_Misunderstanding',
+  ]),
   used: z.boolean(),
 })
 
@@ -17,10 +23,7 @@ const quizCoreSchema = z.object({
   expressionLevel: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   interactionType: z.enum(['choice', 'sorting', 'fill_blank']),
   stem: z.string().min(5, 'stem 至少 5 字符'),
-  options: z.union([
-    z.array(z.string().min(1)).min(3).max(5),
-    z.null(),
-  ]),
+  options: z.union([z.array(z.string().min(1)).min(3).max(5), z.null()]),
   answer: z.string().min(1),
   explanation: z.string().min(20, 'explanation 至少 20 字').max(200, 'explanation ≤ 200 字'),
   distractors: z.array(distractorItemSchema).min(3, '至少 3 个 distractor 候选'),

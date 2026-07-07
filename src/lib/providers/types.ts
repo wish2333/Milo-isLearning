@@ -10,7 +10,7 @@
  */
 
 /** MVP 支持的供应商枚举（V2 可扩展） */
-export type ProviderKind = 'deepseek' | 'glm'
+export type ProviderKind = 'deepseek' | 'glm' | 'sensenova'
 
 /** 单条聊天消息 */
 export interface ChatMessage {
@@ -47,6 +47,18 @@ export interface ChatRequest {
   jsonSchema?: Record<string, unknown>
   /** 是否流式（编译进度反馈用） */
   stream?: boolean
+  /**
+   * 透传到供应商请求 body 的额外字段（M2.5 W3）。
+   *
+   * 用于供应商私有参数，例如 GLM 的 `enable_thinking`：
+   *   - `{ enable_thinking: false }` 关闭 thinking 模式
+   *
+   * Provider 适配层把这些字段 shallow-merge 进主 body；
+   * 已存在的字段（model/messages/...）不会被覆盖，调用方应避免命名冲突。
+   *
+   * 设计动机：见 docs/M2.5-Plan.md §2.W3 与 docs/Prompt-Engineering.md §12.6。
+   */
+  extraBody?: Record<string, unknown>
 }
 
 /** 单次同步响应 */

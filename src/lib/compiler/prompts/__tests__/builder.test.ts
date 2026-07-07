@@ -59,7 +59,12 @@ const SAMPLE_INPUTS: Record<AgentKind, Record<string, unknown>> = {
       interactionType: 'choice',
       expressionLevel: 1,
     },
-    concept: { id: 'concept-1', name: 'RAG', definition: '检索增强生成', keyPoints: ['检索', '生成'] },
+    concept: {
+      id: 'concept-1',
+      name: 'RAG',
+      definition: '检索增强生成',
+      keyPoints: ['检索', '生成'],
+    },
     moduleContext: { title: '理解 RAG' },
     originalQuiz: null,
     ladderLevel: 1,
@@ -84,7 +89,10 @@ const SAMPLE_INPUTS: Record<AgentKind, Record<string, unknown>> = {
 }
 
 /** 取消息的 system / user 文本（内部已断言长度与角色，安全解包） */
-function sysUser(kind: AgentKind, input: Record<string, unknown>): { system: string; user: string } {
+function sysUser(
+  kind: AgentKind,
+  input: Record<string, unknown>,
+): { system: string; user: string } {
   const msgs = buildPrompt(kind, input)
   const system = msgs[0]
   const user = msgs[1]

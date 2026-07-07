@@ -2,13 +2,14 @@
  * LLM Provider 真实 ping 脚本
  *
  * 用法：
- *   bun run scripts/ping.ts
+ *   bun --env-file=.env.local run scripts/ping.ts
  *
- * 环境变量（从 .env.local 读取）：
- *   DEEPSEEK_API_KEY  - 若设置，则 ping DeepSeek
- *   GLM_API_KEY       - 若设置，则 ping GLM
+ * 环境变量（从 .env.local 读取，bun 默认不自动加载，需 --env-file 显式指定）：
+ *   DEEPSEEK_API_KEY   - 若设置，则 ping 原生 DeepSeek
+ *   GLM_API_KEY        - 若设置，则 ping GLM（默认 Coding Plan 端点）
+ *   SENSENOVA_API_KEY  - 若设置，则 ping SenseNova（默认测试通道，托管 deepseek-v4-flash）
  *
- * 未设置的供应商会被自动 skip。两供应商都未设置时输出指引。
+ * 未设置的供应商会被自动 skip。全部未设置时输出指引。
  *
  * 对应 docs/Technical-Specification.md §16 M1 验收：「Provider 接入并通过 ping 测试」。
  */
@@ -24,6 +25,11 @@ interface ProviderCheck {
 }
 
 const CHECKS: ProviderCheck[] = [
+  {
+    kind: 'sensenova', // 默认测试通道，放第一位便于快速验证
+    apiKey: process.env.SENSENOVA_API_KEY,
+    model: process.env.SENSENOVA_MODEL ?? 'deepseek-v4-flash',
+  },
   {
     kind: 'deepseek',
     apiKey: process.env.DEEPSEEK_API_KEY,
@@ -41,7 +47,7 @@ function formatResult(kind: ProviderKind, result: PingResult): string {
   const status = result.ok ? 'OK' : 'FAIL'
   const latency = `${result.latencyMs}ms`
   const message = result.message ?? ''
-  return `[${kind.padEnd(8)}] ${status.padEnd(4)} ${latency.padStart(7)}  ${message}`
+  return `[${kind.padEnd(10)}] ${status.padEnd(4)} ${latency.padStart(7)}  ${message}`
 }
 
 async function main(): Promise<void> {
@@ -54,8 +60,8 @@ async function main(): Promise<void> {
     console.log('')
     console.log('配置方法：')
     console.log('  1. 复制 .env.example 为 .env.local')
-    console.log('  2. 填入 DEEPSEEK_API_KEY 或 GLM_API_KEY')
-    console.log('  3. 重新运行 bun run scripts/ping.ts')
+    console.log('  2. 填入 SENSENOVA_API_KEY / DEEPSEEK_API_KEY / GLM_API_KEY 至少一项')
+    console.log('  3. 重新运行 bun --env-file=.env.local run scripts/ping.ts')
     process.exit(0)
   }
 

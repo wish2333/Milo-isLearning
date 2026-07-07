@@ -16,12 +16,14 @@
 
 import { createDeepSeekProvider } from './deepseek'
 import { createGLMProvider } from './glm'
+import { createSenseNovaProvider } from './sensenova'
 import type { LLMConfig, LLMProvider, ProviderKind } from './types'
 
 export { ProviderError } from './types'
 export { OpenAICompatProvider } from './openai-compat'
 export { createDeepSeekProvider, deepseekDefaults } from './deepseek'
 export { createGLMProvider, glmDefaults } from './glm'
+export { createSenseNovaProvider, sensenovaDefaults } from './sensenova'
 export type {
   ChatMessage,
   ChatRequest,
@@ -44,11 +46,13 @@ export function createProvider(config: LLMConfig): LLMProvider {
       return createDeepSeekProvider(config)
     case 'glm':
       return createGLMProvider(config)
+    case 'sensenova':
+      return createSenseNovaProvider(config)
     default: {
       // exhaustiveness check：编译期保证 ProviderKind 全覆盖
       const exhaustive: never = config.provider
       throw new Error(
-        `Unsupported provider: ${exhaustive as string} (known: deepseek, glm)`,
+        `Unsupported provider: ${exhaustive as string} (known: deepseek, glm, sensenova)`,
       )
     }
   }
@@ -58,5 +62,5 @@ export function createProvider(config: LLMConfig): LLMProvider {
  * 检查某 ProviderKind 是否在 MVP 支持列表中（设置页 / 校验用）
  */
 export function isSupportedProvider(kind: unknown): kind is ProviderKind {
-  return kind === 'deepseek' || kind === 'glm'
+  return kind === 'deepseek' || kind === 'glm' || kind === 'sensenova'
 }

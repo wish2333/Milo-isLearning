@@ -20,15 +20,20 @@ import type { ChatMessage, LLMProvider } from '@/lib/providers/types'
 
 import { buildPrompt, type PromptVariables } from '../prompts/builder'
 import { getAgentConfig } from './config'
-import {
-  AgentOutputError,
-  formatZodIssues,
-  safeParseJSON,
-  type AgentFailureReason,
-} from './errors'
+import { AgentOutputError, formatZodIssues, safeParseJSON, type AgentFailureReason } from './errors'
 
 /** 最大尝试次数（含首次）：1 次原始 + 1 次重试 */
 const MAX_ATTEMPTS = 2
+
+/**
+ * 运行选项（M2.5 W2 eval 脚本透传用）。
+ *
+ * - `disableThinking`：覆盖 `AGENT_CONFIG[kind].disableThinking`，让 eval 脚本能切换 A/B
+ *   默认 undefined → 使用 config 默认值（M2.5 全部为 true）
+ */
+export interface RunAgentOptions {
+  disableThinking?: boolean
+}
 
 /**
  * 追加重试提示到对话尾部。
@@ -54,11 +59,17 @@ export async function runAgent<T>(
   input: PromptVariables,
   provider: LLMProvider,
   schema: ZodSchema<T>,
+  options?: RunAgentOptions,
 ): Promise<T> {
   const config = getAgentConfig(kind)
   const messages = buildPrompt(kind, input)
   // 作为 response_format=json_object 的提示传入（provider 层据 truthy jsonSchema 启用）
   const jsonSchemaHint = zodToJsonSchema(schema, { name: undefined })
+  // GLM enable_thinking 透传（M2.5 W3）：disableThinking=true 时强制关闭。
+  // DeepSeek V4 不识别此字段，透传后被忽略，无副作用（M2.5-Plan §2.W3）。
+  // options.disableThinking 优先于 config（eval A/B 用）
+  const disableThinking = options?.disableThinking ?? config.disableThinking
+  const extraBody = disableThinking ? { enable_thinking: false } : undefined
 
   let lastReason: AgentFailureReason = 'empty_content'
   let lastRaw = ''
@@ -69,6 +80,7 @@ export async function runAgent<T>(
       temperature: config.temperature,
       maxTokens: config.maxTokens,
       jsonSchema: jsonSchemaHint,
+      ...(extraBody ? { extraBody } : {}),
     })
 
     const raw = response.content

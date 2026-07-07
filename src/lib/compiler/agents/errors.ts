@@ -70,7 +70,10 @@ export function safeParseJSON(raw: string): JsonParseOk | JsonParseErr {
  *
  * 只取前若干条 issue 避免消息过长。
  */
-export function formatZodIssues(issues: Array<{ path: PropertyKey[]; message: string }>, limit = 5): string {
+export function formatZodIssues(
+  issues: Array<{ path: PropertyKey[]; message: string }>,
+  limit = 5,
+): string {
   const shown = issues.slice(0, limit)
   const lines = shown.map((i) => {
     const path = i.path.length > 0 ? i.path.join('.') : '(root)'

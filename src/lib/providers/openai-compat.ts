@@ -197,10 +197,20 @@ export class OpenAICompatProvider implements LLMProvider {
         throw new ProviderError('llm_rate_limit', 'HTTP 429', 429, false)
       }
       if (response.status >= 500) {
-        throw new ProviderError('llm_unavailable', `HTTP ${response.status}`, response.status, false)
+        throw new ProviderError(
+          'llm_unavailable',
+          `HTTP ${response.status}`,
+          response.status,
+          false,
+        )
       }
       if (response.status >= 400) {
-        throw new ProviderError('llm_client_error', `HTTP ${response.status}`, response.status, false)
+        throw new ProviderError(
+          'llm_client_error',
+          `HTTP ${response.status}`,
+          response.status,
+          false,
+        )
       }
       const json = await this.parseJsonSafely(response)
       return this.parseChatResponse(json)
@@ -232,6 +242,15 @@ export class OpenAICompatProvider implements LLMProvider {
     }
     if (stream) {
       body.stream = true
+    }
+    // extraBody shallow-merge（M2.5 W3）：供应商私有字段透传，例如 GLM enable_thinking。
+    // 已存在的键不被覆盖（caller 责任避免命名冲突）。
+    if (req.extraBody) {
+      for (const [k, v] of Object.entries(req.extraBody)) {
+        if (!(k in body)) {
+          body[k] = v
+        }
+      }
     }
     return {
       method: 'POST',
@@ -341,12 +360,9 @@ export class OpenAICompatProvider implements LLMProvider {
             ? 'content_filter'
             : 'stop',
       usage: {
-        promptTokens:
-          typeof usage?.['prompt_tokens'] === 'number' ? usage['prompt_tokens'] : 0,
+        promptTokens: typeof usage?.['prompt_tokens'] === 'number' ? usage['prompt_tokens'] : 0,
         completionTokens:
-          typeof usage?.['completion_tokens'] === 'number'
-            ? usage['completion_tokens']
-            : 0,
+          typeof usage?.['completion_tokens'] === 'number' ? usage['completion_tokens'] : 0,
       },
     }
   }
@@ -414,9 +430,7 @@ async function* parseSSEStream(body: ReadableStream<Uint8Array>): AsyncIterable<
 }
 
 function extractDataLine(event: string): string | null {
-  const dataLine = event
-    .split('\n')
-    .find((line) => line.startsWith('data:'))
+  const dataLine = event.split('\n').find((line) => line.startsWith('data:'))
   if (!dataLine) return null
   const data = dataLine.slice('data:'.length).trim()
   return data.length > 0 ? data : null

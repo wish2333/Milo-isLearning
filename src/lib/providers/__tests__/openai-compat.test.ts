@@ -168,6 +168,47 @@ describe('OpenAICompatProvider', () => {
       const body = JSON.parse(init.body as string) as Record<string, unknown>
       expect(body['temperature']).toBe(0.2)
     })
+
+    // M2.5 W3：extraBody 透传（GLM enable_thinking 等）
+    it('merges extraBody into request body', async () => {
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(mockResponse(200, openAIResponse('{}')))
+
+      vi.stubGlobal('fetch', fetchMock)
+
+      const provider = new OpenAICompatProvider(validConfig)
+      await provider.chat({
+        messages: [{ role: 'user', content: 'x' }],
+        extraBody: { enable_thinking: false },
+      })
+
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit
+      const body = JSON.parse(init.body as string) as Record<string, unknown>
+      expect(body['enable_thinking']).toBe(false)
+    })
+
+    it('extraBody does NOT overwrite reserved fields (model/messages/...)', async () => {
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(mockResponse(200, openAIResponse('{}')))
+
+      vi.stubGlobal('fetch', fetchMock)
+
+      const provider = new OpenAICompatProvider(validConfig)
+      // 攻击性输入：试图覆盖 model
+      await provider.chat({
+        messages: [{ role: 'user', content: 'x' }],
+        extraBody: { model: 'attacker-model', enable_thinking: true },
+      })
+
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit
+      const body = JSON.parse(init.body as string) as Record<string, unknown>
+      // model 来自 LLMConfig，未被 extraBody 覆盖
+      expect(body['model']).toBe('deepseek-v4-flash')
+      // 私有字段正常透传
+      expect(body['enable_thinking']).toBe(true)
+    })
   })
 
   // ----------------------------------------------------------------
@@ -237,9 +278,7 @@ describe('OpenAICompatProvider', () => {
     })
 
     it('throws llm_unavailable after exhausting 5xx retries', async () => {
-      const fetchMock = vi
-        .fn<typeof fetch>()
-        .mockResolvedValue(mockResponse(503, 'unavailable'))
+      const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(mockResponse(503, 'unavailable'))
 
       vi.stubGlobal('fetch', fetchMock)
 
@@ -281,9 +320,7 @@ describe('OpenAICompatProvider', () => {
     it('throws on 401 unauthorized', async () => {
       vi.stubGlobal(
         'fetch',
-        vi
-          .fn<typeof fetch>()
-          .mockResolvedValueOnce(mockResponse(401, 'unauthorized')),
+        vi.fn<typeof fetch>().mockResolvedValueOnce(mockResponse(401, 'unauthorized')),
       )
 
       const provider = new OpenAICompatProvider(validConfig)
@@ -344,9 +381,7 @@ describe('OpenAICompatProvider', () => {
     it('throws when response has no choices', async () => {
       vi.stubGlobal(
         'fetch',
-        vi
-          .fn<typeof fetch>()
-          .mockResolvedValueOnce(mockResponse(200, { foo: 'bar' })),
+        vi.fn<typeof fetch>().mockResolvedValueOnce(mockResponse(200, { foo: 'bar' })),
       )
 
       const provider = new OpenAICompatProvider(validConfig)
@@ -358,13 +393,11 @@ describe('OpenAICompatProvider', () => {
     it('throws when choices[0].message.content is not string', async () => {
       vi.stubGlobal(
         'fetch',
-        vi
-          .fn<typeof fetch>()
-          .mockResolvedValueOnce(
-            mockResponse(200, {
-              choices: [{ message: { content: 123 }, finish_reason: 'stop' }],
-            }),
-          ),
+        vi.fn<typeof fetch>().mockResolvedValueOnce(
+          mockResponse(200, {
+            choices: [{ message: { content: 123 }, finish_reason: 'stop' }],
+          }),
+        ),
       )
 
       const provider = new OpenAICompatProvider(validConfig)
@@ -376,19 +409,17 @@ describe('OpenAICompatProvider', () => {
     it('maps finish_reason "length" correctly', async () => {
       vi.stubGlobal(
         'fetch',
-        vi
-          .fn<typeof fetch>()
-          .mockResolvedValueOnce(
-            mockResponse(200, {
-              choices: [
-                {
-                  message: { content: 'truncated' },
-                  finish_reason: 'length',
-                },
-              ],
-              usage: { prompt_tokens: 1, completion_tokens: 1 },
-            }),
-          ),
+        vi.fn<typeof fetch>().mockResolvedValueOnce(
+          mockResponse(200, {
+            choices: [
+              {
+                message: { content: 'truncated' },
+                finish_reason: 'length',
+              },
+            ],
+            usage: { prompt_tokens: 1, completion_tokens: 1 },
+          }),
+        ),
       )
 
       const provider = new OpenAICompatProvider(validConfig)
@@ -407,9 +438,7 @@ describe('OpenAICompatProvider', () => {
     it('returns ok:true with latency on successful call', async () => {
       vi.stubGlobal(
         'fetch',
-        vi
-          .fn<typeof fetch>()
-          .mockResolvedValueOnce(mockResponse(200, openAIResponse('pong'))),
+        vi.fn<typeof fetch>().mockResolvedValueOnce(mockResponse(200, openAIResponse('pong'))),
       )
 
       const provider = new OpenAICompatProvider(validConfig)
@@ -424,9 +453,7 @@ describe('OpenAICompatProvider', () => {
     it('returns ok:false without throwing on 500', async () => {
       vi.stubGlobal(
         'fetch',
-        vi
-          .fn<typeof fetch>()
-          .mockResolvedValue(mockResponse(500, 'server error')),
+        vi.fn<typeof fetch>().mockResolvedValue(mockResponse(500, 'server error')),
       )
 
       const provider = new OpenAICompatProvider(validConfig)
@@ -437,10 +464,7 @@ describe('OpenAICompatProvider', () => {
     })
 
     it('returns ok:false on network error', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn<typeof fetch>().mockRejectedValue(new TypeError('dns failed')),
-      )
+      vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new TypeError('dns failed')))
 
       const provider = new OpenAICompatProvider(validConfig)
       const result = await provider.ping()
@@ -450,9 +474,7 @@ describe('OpenAICompatProvider', () => {
     })
 
     it('does NOT retry (single call only)', async () => {
-      const fetchMock = vi
-        .fn<typeof fetch>()
-        .mockResolvedValueOnce(mockResponse(429, 'rate limit'))
+      const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(mockResponse(429, 'rate limit'))
 
       vi.stubGlobal('fetch', fetchMock)
 

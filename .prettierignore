@@ -1,0 +1,54 @@
+# Prettier 忽略清单（M2.5 W6 质量门禁）
+# 与 .gitignore 大体重叠，额外包含生成产物与第三方代码
+
+# 依赖
+node_modules/
+bun.lock
+bun.lockb
+
+# 构建产物
+.next/
+out/
+build/
+dist/
+
+# 生成文件
+next-env.d.ts
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# 第三方 / 参考资料（不属于本仓库源码）
+references/
+
+# 报告与录制（运行时生成）
+reports/
+__recordings__/
+
+# ===== 出 M2.5 范围、保留原有风格 =====
+
+# M1 UI 设计稿（HTML/JS/CSS 自成体系，不参与 prettier 重排）
+docs/ui-design/**
+
+# Markdown 文档（保留人工排版）
+docs/**/*.md
+
+# Prompt 模板（Markdown 含特殊占位符，重排会破坏语义）
+src/lib/compiler/prompts/**/*.md
+
+# Fixtures（Markdown/JSON 测试数据，原样保留）
+src/lib/compiler/__fixtures__/**
+
+# Next.js / 工具链脚手架自动生成的配置文件
+# （与 eslint.config.mjs ignores 同步：脚手架代码 require / 匿名默认导出等）
+postcss.config.mjs
+tailwind.config.ts
+next.config.ts
+next-env.d.ts
+tsconfig.json
+vitest.config.ts
+vercel.json
+
+# 配置自身
+.prettierrc*
+.eslintrc*
+eslint.config.*
