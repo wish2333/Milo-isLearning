@@ -43,5 +43,7 @@ coverage/
 # Prompt eval 报告（M2.5 W2）
 reports/
 
-# OpenCode runtime (per project convention)
+# CodingAgent
 .omo/run-continuation/
+.reasonix
+bun
