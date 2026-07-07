@@ -9,7 +9,8 @@ import { chunkSchema, type ChunkAgentOutput } from './chunk'
 import { conceptSchema, type ConceptAgentOutput } from './concept'
 import { moduleSchema, type ModuleAgentOutput } from './module'
 import { missionSchema, type MissionAgentOutput } from './mission'
-import { quizSchema, type QuizAgentOutput } from './quiz'
+import { quizSchema, type QuizAgentOutput, quizItemSchema, type QuizItem } from './quiz'
+import { quizBatchSchema, type QuizBatchAgentOutput } from './quiz-batch'
 import { feynmanSchema, type FeynmanAgentOutput } from './feynman'
 import { feedbackSchema, type FeedbackAgentOutput } from './feedback'
 import { feynmanEvalSchema, type FeynmanEvalOutput } from './feynman-eval'
@@ -27,6 +28,7 @@ export type AgentKind =
   | 'feynman'
   | 'feedback'
   | 'feynman-eval'
+  | 'quiz-batch'
 
 /**
  * Agent 输出 Schema 注册表
@@ -43,6 +45,7 @@ export const schemasByAgentKind: Readonly<Record<AgentKind, ZodSchema<unknown>>>
   feynman: feynmanSchema as ZodSchema<unknown>,
   feedback: feedbackSchema as ZodSchema<unknown>,
   'feynman-eval': feynmanEvalSchema as ZodSchema<unknown>,
+  'quiz-batch': quizBatchSchema as ZodSchema<unknown>,
 })
 
 /**
@@ -81,6 +84,8 @@ export type {
   FeynmanAgentOutput,
   FeedbackAgentOutput,
   FeynmanEvalOutput,
+  QuizBatchAgentOutput,
+  QuizItem,
 }
 
 export {
@@ -90,6 +95,8 @@ export {
   moduleSchema,
   missionSchema,
   quizSchema,
+  quizItemSchema,
+  quizBatchSchema,
   feynmanSchema,
   feedbackSchema,
   feynmanEvalSchema,
