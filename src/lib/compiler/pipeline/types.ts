@@ -38,7 +38,7 @@ import type { LLMConfig } from '@/lib/providers'
  *   - feynman: 100%
  */
 export type CompileStage =
-  'import' | 'chunk' | 'concept' | 'module' | 'mission' | 'quiz' | 'feynman'
+  'import' | 'chunk' | 'concept' | 'module' | 'mission' | 'quiz' | 'challenge' | 'feynman'
 
 // =================================================================
 // 编译事件流
@@ -163,6 +163,7 @@ export const STAGE_PERCENT: Readonly<Record<Exclude<CompileStage, 'quiz'>, numbe
     concept: 55,
     module: 65,
     mission: 70,
+    challenge: 96,
     feynman: 100,
   },
 )

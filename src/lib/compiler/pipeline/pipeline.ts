@@ -21,6 +21,7 @@ import type { Concept, FeynmanTask, Module, Quiz } from '@/types/domain'
 import type {
   ChunkAgentOutput,
   ConceptAgentOutput,
+  ChallengeBatchAgentOutput,
   FeynmanAgentOutput,
   ImportAgentOutput,
   MissionAgentOutput,
@@ -33,11 +34,13 @@ import { createProvider } from '@/lib/providers'
 import { runAgent } from '@/lib/compiler/agents/_runner'
 import {
   assembleConcept,
+  assembleChallengeQuiz,
   assembleFeynmanTask,
   assembleModule,
   assembleQuiz,
 } from '@/lib/compiler/agents/mappers'
 import {
+  challengeBatchSchema,
   chunkSchema,
   conceptSchema,
   feynmanSchema,
@@ -231,6 +234,33 @@ export async function* compileMarkdown(
     disableThinking,
   })
   if (!quizOk) return
+
+  // ===== Stage 6.5: Challenge（96%，生成跨概念综合题）=====
+  const challengeTotal = Math.min(5, Math.max(3, assembledConcepts.length))
+  const challengeOut = yield* runStage('challenge', async () => {
+    const out = await runAgent(
+      'challenge-batch',
+      {
+        concepts: assembledConcepts.map((c) => ({
+          id: c.id,
+          name: c.name,
+          definition: c.definition,
+          keyPoints: c.keyPoints,
+        })),
+        moduleContext: partialModule,
+        total: challengeTotal,
+        conceptCount: assembledConcepts.length,
+      },
+      compileProvider,
+      challengeBatchSchema,
+      { disableThinking },
+    )
+    return out as ChallengeBatchAgentOutput
+  })
+  if (!challengeOut) return
+
+  // 把 Challenge 题写入 Module
+  partialModule.challengeQuizzes = challengeOut.quizzes.map((q) => assembleChallengeQuiz(q))
 
   // ===== Stage 7: Feynman（100%）=====
   const feynmanOut = yield* runStage('feynman', async () => {

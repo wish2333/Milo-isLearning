@@ -12,7 +12,7 @@
  *   - 用户排序结果用 \n 连接为字符串作为 userAnswer
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import type { Quiz } from '@/types/domain'
 
@@ -23,6 +23,9 @@ interface SortingQuizProps {
 }
 
 export function SortingQuiz({ quiz, disabled, onAnswer }: SortingQuizProps) {
+  // 拖拽状态守卫：拖拽期间禁用 arrow 按钮，防止 items 数组变化导致 stale index
+  const draggingRef = useRef(false)
+
   // 初始顺序随机打乱（原 options 顺序是正解）
   const [items, setItems] = useState<string[]>(() => {
     if (!quiz.options) return []
@@ -37,7 +40,7 @@ export function SortingQuiz({ quiz, disabled, onAnswer }: SortingQuizProps) {
   const canSubmit = useMemo(() => items.length > 0, [items])
 
   const moveItem = (index: number, direction: 'up' | 'down') => {
-    if (disabled) return
+    if (disabled || draggingRef.current) return
     const targetIndex = direction === 'up' ? index - 1 : index + 1
     if (targetIndex < 0 || targetIndex >= items.length) return
     const newItems = [...items]
@@ -47,6 +50,7 @@ export function SortingQuiz({ quiz, disabled, onAnswer }: SortingQuizProps) {
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.setData('text/plain', String(index))
+    draggingRef.current = true
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -56,6 +60,7 @@ export function SortingQuiz({ quiz, disabled, onAnswer }: SortingQuizProps) {
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault()
     if (disabled) return
+    draggingRef.current = false
     const sourceIndex = Number(e.dataTransfer.getData('text/plain'))
     if (sourceIndex === targetIndex) return
     const newItems = [...items]
@@ -85,6 +90,9 @@ export function SortingQuiz({ quiz, disabled, onAnswer }: SortingQuizProps) {
             key={item}
             draggable={!disabled}
             onDragStart={(e) => handleDragStart(e, i)}
+            onDragEnd={() => {
+              draggingRef.current = false
+            }}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, i)}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg border border-neutral-800 bg-neutral-900/30 ${

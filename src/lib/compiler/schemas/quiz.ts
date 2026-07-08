@@ -3,7 +3,7 @@
 // PRD §7.6
 import { z } from 'zod'
 
-const distractorItemSchema = z.object({
+export const distractorItemSchema = z.object({
   text: z.string().min(1),
   type: z.enum([
     'A_Overcorrection',

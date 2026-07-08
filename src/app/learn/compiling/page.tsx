@@ -37,6 +37,7 @@ const STAGE_LABELS: Record<string, string> = {
   module: '正在构建学习模块',
   mission: '正在规划练习序列',
   quiz: '正在生成练习题',
+  challenge: '正在生成综合挑战题',
   feynman: '正在设计费曼任务',
 }
 
@@ -51,6 +52,7 @@ export default function CompilingPage() {
   const startModule = useProgressStore((s) => s.startModule)
 
   const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
   const startedRef = useRef(false)
   const [, startTransition] = useTransition()
 
@@ -160,17 +162,13 @@ export default function CompilingPage() {
 
     return () => controller.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [retryCount])
 
   const handleRetry = () => {
     resetCompile()
     setError(null)
     startedRef.current = false
-    // 重新触发 effect
-    setTimeout(() => {
-      startedRef.current = false
-      window.location.reload()
-    }, 100)
+    setRetryCount((c) => c + 1)
   }
 
   // --- 渲染 ---

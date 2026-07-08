@@ -149,20 +149,35 @@ export const useProgressStore = create<ProgressStoreState>()(
               return
             }
 
-            // 所有 Concept 完成 → 进入 Feynman
-            set({
-              stage: { kind: 'feynman_intro' },
-              updatedAt: Date.now(),
-            })
+            // 所有 Concept 完成 → 进入 Challenge（如果有）或 Feynman
+            if (currentModule.challengeQuizzes?.length) {
+              set({
+                stage: { kind: 'challenge', quizIndex: 0 },
+                updatedAt: Date.now(),
+              })
+            } else {
+              set({
+                stage: { kind: 'feynman_intro' },
+                updatedAt: Date.now(),
+              })
+            }
             break
           }
 
           case 'challenge': {
-            // Challenge 是 Should/W9，当前跳过到 feynman_intro
-            set({
-              stage: { kind: 'feynman_intro' },
-              updatedAt: Date.now(),
-            })
+            // Challenge 正常推进：下一题或进入 Feynman
+            const challengeCount = currentModule.challengeQuizzes?.length ?? 0
+            if (stage.quizIndex + 1 < challengeCount) {
+              set({
+                stage: { kind: 'challenge', quizIndex: stage.quizIndex + 1 },
+                updatedAt: Date.now(),
+              })
+            } else {
+              set({
+                stage: { kind: 'feynman_intro' },
+                updatedAt: Date.now(),
+              })
+            }
             break
           }
 

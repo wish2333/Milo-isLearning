@@ -463,6 +463,19 @@ async function buildAgentInput(
         conceptId: 'concept-1',
       }
     }
+    case 'challenge-batch': {
+      return {
+        concepts: CANNED_MODULE.concepts.map((c) => ({
+          id: c.id,
+          name: c.name,
+          definition: c.definition,
+          keyPoints: c.keyPoints,
+        })),
+        moduleContext: CANNED_MODULE,
+        total: 3,
+        conceptCount: CANNED_MODULE.concepts.length,
+      }
+    }
     case 'quiz': {
       return {
         placeholder: CANNED_QUIZ_PLACEHOLDER,

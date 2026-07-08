@@ -37,6 +37,8 @@ export interface Module {
   concepts: Concept[]
   feynmanTask: FeynmanTask
   order: number
+  /** Module Challenge 综合题（3-5 道），编译产物。可选字段保持向后兼容 */
+  challengeQuizzes?: Quiz[]
 }
 
 /**
@@ -162,6 +164,8 @@ export interface Mastery {
   /** 0-100 */
   moduleCompletion: number
   conceptMastery: { conceptId: string; mastery: number }[]
+  /** Challenge 题首次答对率（无 Challenge 题时为 undefined） */
+  challengeMastery?: number
   feynmanCompleted: boolean
   feynmanScore?: number
 }

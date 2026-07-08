@@ -12,12 +12,21 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 
 import type { LLMConfig } from '@/lib/providers/types'
 
+/** 可从 .env.local 读取到的供应商 API Key 集合 */
+type ApiKeyMap = Record<string, string | null>
+
 interface SettingsState {
   /** LLM 配置；null = 未配置（首次使用 / 已清除） */
   config: LLMConfig | null
 
+  /** 从 .env.local 读取到的所有供应商 API Key，切换 provider 时自动填充 */
+  availableKeys: ApiKeyMap | null
+
   /** 写入完整配置 */
   setConfig: (config: LLMConfig) => void
+
+  /** 存储从 .env.local 加载的所有 API Key */
+  setAvailableKeys: (keys: ApiKeyMap) => void
 
   /** 部分更新配置（合并） */
   updateConfig: (partial: Partial<LLMConfig>) => void
@@ -30,8 +39,11 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       config: null,
+      availableKeys: null,
 
       setConfig: (config) => set({ config }),
+
+      setAvailableKeys: (keys) => set({ availableKeys: keys }),
 
       updateConfig: (partial) =>
         set((state) => {

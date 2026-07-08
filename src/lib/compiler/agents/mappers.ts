@@ -37,6 +37,7 @@ import type {
   QuizAgentOutput,
   FeynmanAgentOutput,
   FeynmanEvalOutput,
+  ChallengeBatchAgentOutput,
 } from '@/lib/compiler/schemas'
 
 // =================================================================
@@ -155,6 +156,27 @@ export function assembleConcept(
  * QuizAgentOutput 形状为 `{ reasoning, quiz: {...} }`，本函数取 `.quiz` 部分。
  */
 export function assembleQuiz(output: QuizAgentOutput['quiz']): Quiz {
+  return {
+    id: output.id,
+    conceptId: output.conceptId,
+    ladderLevel: output.ladderLevel,
+    expressionLevel: output.expressionLevel,
+    interactionType: output.interactionType,
+    stem: output.stem,
+    options: output.options,
+    answer: output.answer,
+    explanation: output.explanation,
+    distractors: output.distractors.map((d) => d.text),
+  }
+}
+
+/**
+ * 把 Challenge Batch Agent 输出补全为 domain.Quiz。
+ *
+ * 与 assembleQuiz 类似，但输入是 ChallengeBatchAgentOutput 的单个 quiz 项
+ * （含额外的 involvedConceptIds 字段，该字段不进入 domain.Quiz）。
+ */
+export function assembleChallengeQuiz(output: ChallengeBatchAgentOutput['quizzes'][number]): Quiz {
   return {
     id: output.id,
     conceptId: output.conceptId,

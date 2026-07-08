@@ -7,12 +7,14 @@
  * UI 参考：docs/ui-design/07-learn-fill-blank.html
  *
  * 交互：
- *   - 单个文本输入框（answer 是一个关键词或短语）
+ *   - 支持 stem 中多个 ____ 占位符，每个对应一个独立 input
+ *   - 单个 ____ 时渲染整行 input；多个时渲染行内 input
  *   - 提交后不可更改
  *   - 宽度自适应（DESIGN-SPEC §4.2.3）
+ *   - 多空答案用 \n 连接为 userAnswer
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 import type { Quiz } from '@/types/domain'
 
@@ -23,15 +25,34 @@ interface FillBlankQuizProps {
 }
 
 export function FillBlankQuiz({ quiz, disabled, onAnswer }: FillBlankQuizProps) {
-  const [value, setValue] = useState('')
-
-  const handleSubmit = () => {
-    if (!value.trim() || disabled) return
-    onAnswer(value.trim())
-  }
-
   // 把 stem 中的 ____（下划线占位符）替换为 input
   const parts = quiz.stem.split(/_{2,}/)
+  const blankCount = Math.max(parts.length - 1, 1)
+
+  // 多空模式：每个空一个独立 input，values[i] 对应第 i 个空
+  const [values, setValues] = useState<string[]>(() => Array.from({ length: blankCount }, () => ''))
+
+  // quiz 变化时（如 retry 换题）重置 values 以匹配新的 blank 数量
+  useEffect(() => {
+    setValues(Array.from({ length: blankCount }, () => ''))
+  }, [blankCount])
+
+  const handleChange = (index: number, val: string) => {
+    setValues((prev) => {
+      const next = [...prev]
+      next[index] = val
+      return next
+    })
+  }
+
+  const handleSubmit = () => {
+    if (disabled) return
+    const trimmed = values.map((v) => v.trim())
+    if (trimmed.some((v) => !v)) return
+    onAnswer(trimmed.join('\n'))
+  }
+
+  const allFilled = values.every((v) => v.trim())
 
   return (
     <div className="space-y-4">
@@ -40,13 +61,13 @@ export function FillBlankQuiz({ quiz, disabled, onAnswer }: FillBlankQuizProps) 
         {parts.length > 1 ? (
           <div className="flex flex-wrap items-center gap-1">
             {parts.map((part, i) => (
-              <span key={part.slice(0, 16)}>
+              <span key={`${part.length}-${part.slice(0, 12)}`}>
                 {part}
                 {i < parts.length - 1 && (
                   <input
                     type="text"
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
+                    value={values[i] ?? ''}
+                    onChange={(e) => handleChange(i, e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                     disabled={disabled}
                     placeholder="填写..."
@@ -55,7 +76,7 @@ export function FillBlankQuiz({ quiz, disabled, onAnswer }: FillBlankQuizProps) 
                         ? 'border-neutral-700'
                         : 'border-neutral-500 focus:border-neutral-300'
                     } text-neutral-100 text-base outline-none transition-colors text-center min-w-[80px]`}
-                    style={{ width: `${Math.max(value.length, 4) + 2}ch` }}
+                    style={{ width: `${Math.max(values[i]?.length ?? 0, 4) + 2}ch` }}
                   />
                 )}
               </span>
@@ -66,8 +87,8 @@ export function FillBlankQuiz({ quiz, disabled, onAnswer }: FillBlankQuizProps) 
             <p className="mb-3">{quiz.stem}</p>
             <input
               type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
+              value={values[0] ?? ''}
+              onChange={(e) => handleChange(0, e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
               disabled={disabled}
               placeholder="输入你的答案..."
@@ -81,7 +102,7 @@ export function FillBlankQuiz({ quiz, disabled, onAnswer }: FillBlankQuizProps) 
       {!disabled && (
         <button
           onClick={handleSubmit}
-          disabled={!value.trim()}
+          disabled={!allFilled}
           className="w-full py-2.5 rounded-lg bg-neutral-100 text-neutral-900 text-sm font-medium hover:bg-white disabled:bg-neutral-800 disabled:text-neutral-600 transition-colors"
         >
           确认答案

@@ -42,7 +42,15 @@ const mockedRunAgent = vi.mocked(runAgent)
 // Type: AgentKind (mirrors schemas/index.ts)
 // -------------------------------------------------------------------
 type AgentKind =
-  'import' | 'chunk' | 'concept' | 'module' | 'mission' | 'quiz' | 'quiz-batch' | 'feynman'
+  | 'import'
+  | 'chunk'
+  | 'concept'
+  | 'module'
+  | 'mission'
+  | 'quiz'
+  | 'quiz-batch'
+  | 'challenge-batch'
+  | 'feynman'
 
 // -------------------------------------------------------------------
 // Canned JSON templates (data returned by mocked runAgent)
@@ -225,6 +233,10 @@ const CANNED: Record<AgentKind, Record<string, unknown>> = {
     reasoning: 'r',
     quizzes: [], // placeholder; setupDefaultMock generates dynamic content
   },
+  'challenge-batch': {
+    reasoning: 'r',
+    quizzes: [], // placeholder; setupDefaultMock generates dynamic content
+  },
 }
 
 /** Build a single canned quiz item for the given slot info. */
@@ -300,6 +312,79 @@ function setupDefaultMock(): void {
           expressionLevel: p.expressionLevel,
         })
       })
+      return { reasoning: 'r', quizzes } as never
+    }
+    if (kind === 'challenge-batch') {
+      const quizzes = [
+        {
+          id: 'challenge-0',
+          conceptId: 'challenge',
+          ladderLevel: 3,
+          expressionLevel: 1,
+          interactionType: 'choice' as const,
+          stem: 'How do Concept One and Concept Two relate to each other?',
+          options: [
+            'They are complementary',
+            'They are opposites',
+            'They are unrelated',
+            'They are identical',
+          ],
+          answer: 'They are complementary',
+          explanation: 'Concept One and Concept Two work together in practice applications.',
+          distractors: [
+            { text: 'They are opposites', type: 'E_Misunderstanding', used: true },
+            { text: 'They are unrelated', type: 'C_WrongContext', used: true },
+            { text: 'They are identical', type: 'D_Incomplete', used: true },
+            { text: 'They are similar', type: 'A_Overcorrection', used: false },
+          ],
+          involvedConceptIds: ['concept-1', 'concept-2'],
+        },
+        {
+          id: 'challenge-1',
+          conceptId: 'challenge',
+          ladderLevel: 3,
+          expressionLevel: 2,
+          interactionType: 'sorting' as const,
+          stem: 'Order the steps involving both concepts correctly:',
+          options: [
+            'Step A uses Concept One',
+            'Step B bridges to Concept Two',
+            'Step C applies Concept Two',
+          ],
+          answer:
+            'Step A uses Concept One\nStep B bridges to Concept Two\nStep C applies Concept Two',
+          explanation:
+            'The correct workflow starts with Concept One, then bridges, then applies Two.',
+          distractors: [
+            { text: 'Wrong order option 1', type: 'E_Misunderstanding', used: true },
+            { text: 'Wrong order option 2', type: 'C_WrongContext', used: true },
+            { text: 'Wrong order option 3', type: 'D_Incomplete', used: true },
+          ],
+          involvedConceptIds: ['concept-1', 'concept-2'],
+        },
+        {
+          id: 'challenge-2',
+          conceptId: 'challenge',
+          ladderLevel: 3,
+          expressionLevel: 1,
+          interactionType: 'choice' as const,
+          stem: 'In a scenario requiring both concepts, which approach is correct?',
+          options: [
+            'Apply Concept One then Concept Two',
+            'Only use Concept One',
+            'Only use Concept Two',
+            'Skip both concepts',
+          ],
+          answer: 'Apply Concept One then Concept Two',
+          explanation: 'Both concepts are needed in sequence for the best outcome here.',
+          distractors: [
+            { text: 'Only use Concept One', type: 'D_Incomplete', used: true },
+            { text: 'Only use Concept Two', type: 'D_Incomplete', used: true },
+            { text: 'Skip both concepts', type: 'E_Misunderstanding', used: true },
+          ],
+          involvedConceptIds: ['concept-1', 'concept-2'],
+        },
+      ]
       return { reasoning: 'r', quizzes } as never
     }
     const k = kind as AgentKind
@@ -441,7 +526,7 @@ describe('C. Progress event sequence', () => {
     const events = await collectEvents(VALID_INPUT)
 
     const stageEnters = events.filter((e) => e.kind === 'stage_enter')
-    expect(stageEnters).toHaveLength(7)
+    expect(stageEnters).toHaveLength(8)
 
     const expectedOrder: string[] = [
       'import',
@@ -450,9 +535,10 @@ describe('C. Progress event sequence', () => {
       'module',
       'mission',
       'quiz',
+      'challenge',
       'feynman',
     ]
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 8; i++) {
       if (stageEnters[i]!.kind === 'stage_enter') {
         expect(stageEnters[i]!.stage).toBe(expectedOrder[i]!)
       }

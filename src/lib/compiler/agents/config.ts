@@ -46,6 +46,7 @@ export const AGENT_CONFIG: Readonly<Record<AgentKind, AgentCallConfig>> = Object
   feedback: { temperature: 0.1, disableThinking: true },
   'feynman-eval': { temperature: 0.2, disableThinking: true },
   'quiz-batch': { temperature: 0.7, disableThinking: true },
+  'challenge-batch': { temperature: 0.7, disableThinking: true },
 })
 
 /** 取某 Agent 的调用配置 */

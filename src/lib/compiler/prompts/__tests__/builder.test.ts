@@ -28,6 +28,7 @@ const ALL_KINDS: AgentKind[] = [
   'feedback',
   'feynman-eval',
   'quiz-batch',
+  'challenge-batch',
 ]
 
 /** 每个 Agent 的最小可用输入（满足其模板占位符） */
@@ -102,6 +103,20 @@ const SAMPLE_INPUTS: Record<AgentKind, Record<string, unknown>> = {
     total: 2,
     conceptName: 'RAG',
     conceptId: 'concept-1',
+  },
+  'challenge-batch': {
+    concepts: [
+      { id: 'concept-1', name: 'RAG', definition: '检索增强生成', keyPoints: ['检索', '生成'] },
+      {
+        id: 'concept-2',
+        name: 'Embedding',
+        definition: '稠密向量表示',
+        keyPoints: ['向量', '相似度'],
+      },
+    ],
+    moduleContext: { title: '理解 RAG', intro: 'RAG 与 Embedding 的综合应用' },
+    total: 3,
+    conceptCount: 2,
   },
 }
 

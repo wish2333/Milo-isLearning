@@ -1,23 +1,22 @@
 'use client'
 
 /**
- * ConceptView — Concept 学习视图
+ * ChallengeView — Module Challenge 跨概念综合题视图
  *
- * 对应 docs/M4-M5-Plan.md W4 / Tech Spec §5.2 gradeAttempt。
+ * 对应 docs/M6-Plan.md W3 / FR-05 / US-13/14。
  *
- * 完整作答流程：
- *   1. 从 module 读取当前 Concept 的当前 Quiz
- *   2. 用户作答 → POST /api/feedback
- *   3. Fill Blank 标准化兜底（精确匹配命中 → 覆盖为 advance）
- *   4. 追加 AttemptRecord → retry-policy 判断
- *   5. advance → progress-store.advance() + 清 currentQuiz
- *   6. retry → POST /api/regenerate → module-store.replaceCurrentQuiz
+ * 与 ConceptView 的差异：
+ *   - 数据源：module.challengeQuizzes[quizIndex]（非 concept.quizSeries.quizzes）
+ *   - slotId：quiz.id（challenge-N 格式）
+ *   - 视觉：amber 主色调（与 Concept 页的 neutral 区分，强调综合挑战感）
+ *   - retry：合成 Challenge 上下文 Concept 调用 /api/regenerate
+ *
+ * 共享逻辑模式与 ConceptView 一致（QuizRenderer + FeedbackPanel + retry-policy）
  */
 
 import { useEffect, useState, useCallback } from 'react'
 
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
-import { isFillBlankCorrect } from '@/lib/runtime/fill-blank'
 import {
   shouldForceAdvance,
   getConsecutiveFailures,
@@ -27,19 +26,18 @@ import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
-import type { AttemptRecord, Quiz } from '@/types/domain'
+import type { AttemptRecord, Concept, Quiz } from '@/types/domain'
 
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
 
-interface ConceptViewProps {
-  conceptIndex: number
+interface ChallengeViewProps {
   quizIndex: number
 }
 
 type Phase = 'answering' | 'evaluating' | 'feedback' | 'regenerating'
 
-export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
+export function ChallengeView({ quizIndex }: ChallengeViewProps) {
   const currentModule = useModuleStore((s) => s.currentModule)
   const currentQuiz = useModuleStore((s) => s.currentQuiz)
   const setCurrentQuiz = useModuleStore((s) => s.setCurrentQuiz)
@@ -59,9 +57,8 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
   const [forceAdvance, setForceAdvance] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // 获取当前应该显示的 quiz
-  const concept = currentModule?.concepts[conceptIndex]
-  const slotQuiz = concept?.quizSeries.quizzes[quizIndex]
+  // 获取当前应该显示的 Challenge quiz
+  const slotQuiz = currentModule?.challengeQuizzes?.[quizIndex]
   const quiz: Quiz | null = currentQuiz ?? slotQuiz ?? null
 
   // 进入新题时重置状态并同步 currentQuiz
@@ -70,35 +67,30 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
     setFeedback(null)
     setForceAdvance(false)
     setError(null)
-    // 如果 currentQuiz 与当前 slot 不匹配，重置为 slot quiz
+    // 如果 currentQuiz 不属于当前 challenge slot，重置为 slot quiz
     if (slotQuiz && (!currentQuiz || currentQuiz.id !== slotQuiz.id)) {
-      // currentQuiz 可能是 retry 替换题（id 不同但 originalQuizId = slotQuiz.id）
-      // 只有 currentQuiz 不属于当前 slot 时才重置
-      if (currentQuiz && currentQuiz.conceptId !== slotQuiz.conceptId) {
-        setCurrentQuiz(slotQuiz)
-      } else if (!currentQuiz) {
+      if (!currentQuiz || currentQuiz.conceptId !== 'challenge') {
         setCurrentQuiz(slotQuiz)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conceptIndex, quizIndex])
+  }, [quizIndex])
 
   const slotId = slotQuiz?.id ?? ''
 
   const handleAnswer = useCallback(
     async (userAnswer: string) => {
       if (!quiz || !config || !currentModule) return
-      if (phase !== 'answering') return // 防止双击重复提交
+      if (phase !== 'answering') return
 
       setPhase('evaluating')
       setError(null)
 
-      // 一次性快照 attemptVersion + consecutiveFailures，避免 API 调用前后两次获取导致竞态
+      // 一次性快照 attemptVersion + consecutiveFailures
       const attemptVersion = getNextAttemptVersion(slotId)
       const consecutiveFailures = getConsecutiveFailures(getAttempts(slotId))
 
       try {
-        // 调用 Feedback API
         const response = await fetch('/api/feedback', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -119,22 +111,7 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
 
         const result: FeedbackRuntime = await response.json()
 
-        // Fill Blank 标准化兜底
-        let finalResult = result
-        if (
-          quiz.interactionType === 'fill_blank' &&
-          result.nextAction === 'retry' &&
-          isFillBlankCorrect(userAnswer, quiz.answer)
-        ) {
-          finalResult = {
-            ...result,
-            score: 100,
-            gaps: [],
-            nextAction: 'advance',
-          }
-        }
-
-        // 记录 AttemptRecord（attemptVersion 已在函数入口快照，避免竞态）
+        // 记录 AttemptRecord（attemptVersion 已在函数入口快照）
         const attempt: AttemptRecord = {
           id:
             typeof crypto !== 'undefined' && crypto.randomUUID
@@ -144,9 +121,9 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
           originalQuizId: slotId,
           attemptVersion,
           userAnswer,
-          score: finalResult.score,
-          gaps: finalResult.gaps,
-          nextAction: finalResult.nextAction,
+          score: result.score,
+          gaps: result.gaps,
+          nextAction: result.nextAction,
           timestamp: Date.now(),
         }
         addAttempt(attempt)
@@ -155,7 +132,7 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
         const attempts = getAttempts(slotId)
         const shouldForce = shouldForceAdvance(attempts)
 
-        setFeedback(finalResult)
+        setFeedback(result)
         setForceAdvance(shouldForce)
         setPhase('feedback')
       } catch (err) {
@@ -167,29 +144,41 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
   )
 
   const handleAdvance = useCallback(() => {
-    clearCurrentQuiz() // 清除替换题，下道题从 slot 加载
+    clearCurrentQuiz()
     advance()
   }, [clearCurrentQuiz, advance])
 
   const handleRetry = useCallback(async () => {
-    if (!quiz || !config || !currentModule || !concept) return
+    if (!quiz || !config || !currentModule) return
 
     setPhase('regenerating')
     setError(null)
 
     try {
+      // 合成 Challenge 上下文 Concept（包含全部 Concept 信息供 Quiz Agent 参考）
+      const challengeContext: Concept = {
+        id: 'challenge',
+        moduleId: currentModule.id,
+        name: 'Module Challenge',
+        definition: currentModule.concepts.map((c) => `${c.name}: ${c.definition}`).join('\n'),
+        type: 'theory',
+        keyPoints: currentModule.concepts.flatMap((c) => c.keyPoints),
+        quizSeries: { conceptId: 'challenge', quizzes: [] },
+        order: 0,
+      }
+
       const response = await fetch('/api/regenerate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           placeholder: {
             id: slotId,
-            conceptId: concept.id,
+            conceptId: 'challenge',
             ladderLevel: quiz.ladderLevel,
             expressionLevel: quiz.expressionLevel,
             interactionType: quiz.interactionType,
           },
-          concept,
+          concept: challengeContext,
           moduleContext: { title: currentModule.title, intro: currentModule.intro },
           originalQuiz: quiz,
           llmConfig: config,
@@ -201,18 +190,24 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
       }
 
       const data: { quiz: Quiz } = await response.json()
-      replaceCurrentQuiz(data.quiz)
-      retry() // 更新 progress 时间戳（不转移 stage）
 
-      // 重置为答题态
+      // 重写 id 和 conceptId 保持 challenge slot 一致性
+      const challengeQuiz: Quiz = {
+        ...data.quiz,
+        id: slotId,
+        conceptId: 'challenge',
+      }
+      replaceCurrentQuiz(challengeQuiz)
+      retry()
+
       setPhase('answering')
       setFeedback(null)
       setForceAdvance(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : '题目生成失败，请重试')
-      setPhase('feedback') // 回到反馈态让用户重试
+      setPhase('feedback')
     }
-  }, [quiz, config, currentModule, concept, slotId, replaceCurrentQuiz, retry])
+  }, [quiz, config, currentModule, slotId, replaceCurrentQuiz, retry])
 
   // --- 渲染 ---
 
@@ -225,23 +220,25 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
   }
 
   const isAdvancing = feedback?.nextAction === 'advance' || forceAdvance
+  const challengeCount = currentModule?.challengeQuizzes?.length ?? 0
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
-        {/* Progress indicator */}
-        <div className="flex items-center gap-2 text-xs text-neutral-600">
+        {/* Progress indicator — amber 色调区分 */}
+        <div className="flex items-center gap-2 text-xs text-amber-500/70">
           <span>
-            概念 {conceptIndex + 1}/{currentModule?.concepts.length ?? 0}
+            Module Challenge {quizIndex + 1}/{challengeCount}
           </span>
           <span>·</span>
-          <span>题目 {quizIndex + 1}</span>
+          <span>跨概念综合题</span>
         </div>
 
-        {/* Concept name */}
-        {concept && (
-          <p className="text-xs text-neutral-500 uppercase tracking-wider">{concept.name}</p>
-        )}
+        {/* Challenge banner */}
+        <div className="border-l-2 border-amber-700/40 pl-4 py-1">
+          <p className="text-xs text-amber-600/80 uppercase tracking-wider">综合挑战</p>
+          <p className="text-sm text-amber-300/60 mt-0.5">以下题目涉及多个概念的综合应用</p>
+        </div>
 
         {/* Quiz */}
         <div className="pt-2">
@@ -272,14 +269,14 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
               {isAdvancing ? (
                 <button
                   onClick={handleAdvance}
-                  className="w-full py-3 rounded-lg bg-neutral-100 text-neutral-900 font-medium text-sm hover:bg-white transition-colors"
+                  className="w-full py-3 rounded-lg bg-amber-100 text-amber-950 font-medium text-sm hover:bg-amber-50 transition-colors"
                 >
                   继续
                 </button>
               ) : (
                 <button
                   onClick={handleRetry}
-                  className="w-full py-3 rounded-lg border border-neutral-700 text-neutral-300 font-medium text-sm hover:bg-neutral-900 transition-colors"
+                  className="w-full py-3 rounded-lg border border-amber-700/50 text-amber-300 font-medium text-sm hover:bg-amber-950/30 transition-colors"
                 >
                   换一道题
                 </button>

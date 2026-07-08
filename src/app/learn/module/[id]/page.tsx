@@ -19,6 +19,7 @@ import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 
 import { ConceptView } from '@/components/learn/ConceptView'
+import { ChallengeView } from '@/components/learn/ChallengeView'
 import { FeynmanIntroView } from '@/components/learn/FeynmanIntroView'
 import { FeynmanStepView } from '@/components/learn/FeynmanStepView'
 import { FeynmanFinalView } from '@/components/learn/FeynmanFinalView'
@@ -54,12 +55,7 @@ export default function ModulePage() {
       return <ConceptView conceptIndex={stage.conceptIndex} quizIndex={stage.quizIndex} />
 
     case 'challenge':
-      // W9 Should 项，当前直接跳到 feynman
-      return (
-        <div className="min-h-screen flex items-center justify-center text-neutral-500">
-          <p>Module Challenge 即将上线</p>
-        </div>
-      )
+      return <ChallengeView quizIndex={stage.quizIndex} />
 
     case 'feynman_intro':
       return <FeynmanIntroView />

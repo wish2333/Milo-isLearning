@@ -70,19 +70,30 @@ export function computeMastery(
   }))
 
   // --- 2. moduleCompletion：已完成 Quiz / 总 Quiz ---
-  // 总 Quiz = 所有 Concept 的 quizSeries.quizzes 之和 + Feynman 6 步
+  // 总 Quiz = 所有 Concept 的 quizSeries.quizzes 之和 + Challenge 题 + Feynman 6 步
   const totalConceptQuizzes = module.concepts.reduce(
     (sum, c) => sum + c.quizSeries.quizzes.length,
     0,
   )
+  const totalChallengeQuizzes = module.challengeQuizzes?.length ?? 0
   const totalFeynmanSteps = module.feynmanTask.steps.length // 6
-  const totalQuizzes = totalConceptQuizzes + totalFeynmanSteps
+  const totalQuizzes = totalConceptQuizzes + totalChallengeQuizzes + totalFeynmanSteps
 
   let completedQuizzes = 0
 
   // Concept 槽位：检查每个槽位是否已完成（通过或被强制推进）
   for (const concept of module.concepts) {
     for (const quiz of concept.quizSeries.quizzes) {
+      const slotAttempts = attemptsBySlot[quiz.id]
+      if (slotAttempts && isSlotCompleted(slotAttempts)) {
+        completedQuizzes++
+      }
+    }
+  }
+
+  // Challenge 槽位：检查每个槽位是否已完成
+  if (module.challengeQuizzes) {
+    for (const quiz of module.challengeQuizzes) {
       const slotAttempts = attemptsBySlot[quiz.id]
       if (slotAttempts && isSlotCompleted(slotAttempts)) {
         completedQuizzes++
@@ -100,7 +111,22 @@ export function computeMastery(
   const moduleCompletion =
     totalQuizzes > 0 ? Math.round((completedQuizzes / totalQuizzes) * 100) : 0
 
-  // --- 3. Feynman 完成状态与得分 ---
+  // --- 3. Challenge 掌握度（首次答对率，无 Challenge 题时为 undefined）---
+  let challengeMastery: number | undefined
+  if (module.challengeQuizzes && module.challengeQuizzes.length > 0) {
+    let challengeFirstPassed = 0
+    for (const quiz of module.challengeQuizzes) {
+      const slotAttempts = attemptsBySlot[quiz.id]
+      if (!slotAttempts || slotAttempts.length === 0) continue
+      const firstAttempt = slotAttempts.find((a) => a.attemptVersion === 0)
+      if (firstAttempt && firstAttempt.score >= PASS_THRESHOLD) {
+        challengeFirstPassed++
+      }
+    }
+    challengeMastery = Math.round((challengeFirstPassed / module.challengeQuizzes.length) * 100)
+  }
+
+  // --- 4. Feynman 完成状态与得分 ---
   const feynmanCompleted = feynmanAttempt !== undefined && feynmanAttempt.finalScore !== undefined
   const feynmanScore = feynmanAttempt?.finalScore
 
@@ -108,6 +134,7 @@ export function computeMastery(
     moduleId: module.id,
     moduleCompletion,
     conceptMastery,
+    challengeMastery,
     feynmanCompleted,
     feynmanScore,
   }

@@ -33,10 +33,11 @@ const ALL_SCHEMAS = {
 } as const
 
 describe('compiler schemas — smoke test', () => {
-  it('schemasByAgentKind exports all 10 agent kinds', () => {
+  it('schemasByAgentKind exports all 11 agent kinds', () => {
     const kinds = Object.keys(schemasByAgentKind).sort()
     expect(kinds).toEqual(
       [
+        'challenge-batch',
         'chunk',
         'concept',
         'feedback',
@@ -49,7 +50,7 @@ describe('compiler schemas — smoke test', () => {
         'quiz-batch',
       ].sort(),
     )
-    expect(kinds).toHaveLength(10)
+    expect(kinds).toHaveLength(11)
   })
 
   it('every schema is a ZodSchema (has safeParse + parse)', () => {

@@ -20,8 +20,8 @@ import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
 
-const MIN_WORDS = 100
-const MAX_WORDS = 500
+const MIN_CHARS = 100
+const MAX_CHARS = 500
 const MAX_SUBMITS = 2
 
 export function FeynmanFinalView() {
@@ -76,7 +76,7 @@ export function FeynmanFinalView() {
 
   const { finalPrompt } = currentModule.feynmanTask
   const charCount = output.length
-  const canSubmit = charCount >= MIN_WORDS && charCount <= MAX_WORDS && !evaluating
+  const canSubmit = charCount >= MIN_CHARS && charCount <= MAX_CHARS && !evaluating
   const hasResult = result !== null
   const canRetry = submitCount < MAX_SUBMITS
 
@@ -100,8 +100,8 @@ export function FeynmanFinalView() {
           />
           <div className="flex items-center justify-between text-xs">
             <span className="text-neutral-600">{charCount} 字</span>
-            <span className={charCount < MIN_WORDS ? 'text-amber-500/60' : 'text-neutral-600'}>
-              建议 {MIN_WORDS}-{MAX_WORDS} 字
+            <span className={charCount < MIN_CHARS ? 'text-amber-500/60' : 'text-neutral-600'}>
+              建议 {MIN_CHARS}-{MAX_CHARS} 字
             </span>
           </div>
         </div>
