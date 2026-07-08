@@ -1,6 +1,16 @@
-// Feynman Agent 输出 Schema（编译期，生成 6 步 + Rubric）
-// 对应 lib/compiler/prompts/feynman.md
-// PRD §7.7
+/**
+ * Feynman Agent 输出 Schema（编译期，生成 6 步 + Rubric）
+ *
+ * 对应 lib/compiler/prompts/feynman.md
+ * PRD §7.7
+ *
+ * 设计说明：
+ *   - 所有 6 步经过同一个 base schema，但 options/explanation 设为可选
+ *     （因为 Step 6 是元数据占位，不严格需要这些字段）
+ *   - 严格校验（options.length=4、explanation.min=20 等）放在 superRefine
+ *     针对 Step 1-4（choice）和 Step 5（fill_blank）单独做
+ *   - 这样 Step 6 不会被 base schema 挡掉
+ */
 import { z } from 'zod'
 
 const feynmanStepSchema = z.object({
@@ -14,9 +24,9 @@ const feynmanStepSchema = z.object({
   ]),
   type: z.enum(['choice', 'fill_blank']),
   stem: z.string().min(5),
-  options: z.union([z.array(z.string().min(1)).length(4, 'Choice 步必须有 4 个选项'), z.null()]),
+  options: z.union([z.array(z.string().min(1)), z.null()]).optional(),
   answer: z.string().min(1),
-  explanation: z.string().min(20).max(200),
+  explanation: z.string().max(500).optional(),
 })
 
 export const feynmanSchema = z
@@ -26,7 +36,7 @@ export const feynmanSchema = z
       moduleId: z.string().regex(/^module-\d+$/),
       steps: z.array(feynmanStepSchema).length(6, '必须恰好 6 步'),
       finalPrompt: z.string().min(10),
-      rubric: z.array(z.string().min(5).max(20)).min(3).max(5),
+      rubric: z.array(z.string().min(5).max(80)).min(3).max(5),
     }),
   })
   .superRefine((val, ctx) => {
@@ -45,7 +55,7 @@ export const feynmanSchema = z
       }
     }
 
-    // Step 1-4 必须 choice + 4 options，options[0]=answer
+    // Step 1-4 必须 choice + 4 options + options[0]=answer + explanation≥20
     // 注：z.array(...).length(6) 已保证 steps.length === 6，superRefine 在 length 校验通过后运行
     for (let i = 0; i < 4; i++) {
       const s = steps[i]
@@ -70,27 +80,43 @@ export const feynmanSchema = z
           path: ['feynmanTask', 'steps', String(i), 'options', '0'],
         })
       }
+      if (!s.explanation || s.explanation.length < 20) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Step ${i + 1} explanation 至少 20 字`,
+          path: ['feynmanTask', 'steps', String(i), 'explanation'],
+        })
+      }
     }
 
-    // Step 5 必须 fill_blank + options=null
+    // Step 5 (index 4) 必须 fill_blank + options=null + explanation≥20
     const step5 = steps[4]
-    if (step5 && step5.type !== 'fill_blank') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Step 5 必须 type='fill_blank'`,
-        path: ['feynmanTask', 'steps', '4', 'type'],
-      })
-    }
-    if (step5 && step5.options !== null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Step 5 options 必须为 null`,
-        path: ['feynmanTask', 'steps', '4', 'options'],
-      })
+    if (step5) {
+      if (step5.type !== 'fill_blank') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Step 5 必须 type='fill_blank'`,
+          path: ['feynmanTask', 'steps', '4', 'type'],
+        })
+      }
+      if (step5.options !== null && step5.options !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Step 5 options 必须为 null`,
+          path: ['feynmanTask', 'steps', '4', 'options'],
+        })
+      }
+      if (!step5.explanation || step5.explanation.length < 20) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Step 5 explanation 至少 20 字`,
+          path: ['feynmanTask', 'steps', '4', 'explanation'],
+        })
+      }
     }
 
-    // Step 6 不出现在 steps 数组（由前端用 finalPrompt 渲染）
-    // 但 schema 上仍要求 steps.length=6，第 6 项作为元数据占位
+    // Step 6 (index 5) 是元数据占位，只校验 order=6
+    // options/explanation 前端不用，不做要求
     const step6 = steps[5]
     if (step6 && step6.order !== 6) {
       ctx.addIssue({

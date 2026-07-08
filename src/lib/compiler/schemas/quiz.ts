@@ -26,7 +26,7 @@ const quizCoreSchema = z.object({
   options: z.union([z.array(z.string().min(1)).min(3).max(5), z.null()]),
   answer: z.string().min(1),
   explanation: z.string().min(20, 'explanation 至少 20 字').max(500, 'explanation ≤ 500 字'),
-  distractors: z.array(distractorItemSchema).min(3, '至少 3 个 distractor 候选'),
+  distractors: z.array(distractorItemSchema).min(1, '至少 1 个 distractor 候选'),
 })
 
 /**
@@ -49,14 +49,7 @@ export const quizItemSchema = quizCoreSchema.superRefine((val, ctx) => {
         path: ['options'],
       })
     } else {
-      // options[0] 必须等于 answer（ClassBuild 模式：正解永远放第一，前端打乱）
-      if (val.options[0] !== val.answer) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Choice 题 options[0] 必须等于 answer（正解永远放第一，前端打乱），options[0]="${val.options[0]}", answer="${val.answer}"`,
-          path: ['options', 0],
-        })
-      }
+      // W9：options[0] === answer 不再在 zod 校验（assembly 自动修复）
       // 选项不能完全相同
       const uniqueOpts = new Set(val.options)
       if (uniqueOpts.size !== val.options.length) {
@@ -85,15 +78,8 @@ export const quizItemSchema = quizCoreSchema.superRefine((val, ctx) => {
     }
   }
 
-  // 至少 3 个 distractor 标记为 used=true
-  const usedCount = val.distractors.filter((d) => d.used).length
-  if (usedCount < 3) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `至少 3 个 distractor 必须 used=true（实际 ${usedCount}）`,
-      path: ['distractors'],
-    })
-  }
+  // W9：distractor used=true 数量不再硬校验（prompt 保留建议，但不再拒绝）
+  // 只要 options 数组包含正确的 4 选项，quiz 就能正常渲染和判分
 
   // used=true 的 distractor 文本不能与 answer 相同
   const usedTexts = val.distractors.filter((d) => d.used).map((d) => d.text)

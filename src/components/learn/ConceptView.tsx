@@ -7,17 +7,16 @@
  *
  * 完整作答流程：
  *   1. 从 module 读取当前 Concept 的当前 Quiz
- *   2. 用户作答 → POST /api/feedback
- *   3. Fill Blank 标准化兜底（精确匹配命中 → 覆盖为 advance）
- *   4. 追加 AttemptRecord → retry-policy 判断
- *   5. advance → progress-store.advance() + 清 currentQuiz
- *   6. retry → POST /api/regenerate → module-store.replaceCurrentQuiz
+ *   2. 用户作答 → 本地确定性评估
+ *   3. 追加 AttemptRecord → retry-policy 判断
+ *   4. advance → progress-store.advance() + 清 currentQuiz
+ *   5. retry → POST /api/regenerate → module-store.replaceCurrentQuiz
  */
 
 import { useEffect, useState, useCallback } from 'react'
 
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
-import { isFillBlankCorrect } from '@/lib/runtime/fill-blank'
+import { evaluateAnswer } from '@/lib/runtime/evaluate-answer'
 import {
   shouldForceAdvance,
   getConsecutiveFailures,
@@ -87,52 +86,17 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
 
   const handleAnswer = useCallback(
     async (userAnswer: string) => {
-      if (!quiz || !config || !currentModule) return
+      if (!quiz || !currentModule) return
       if (phase !== 'answering') return // 防止双击重复提交
 
       setPhase('evaluating')
       setError(null)
 
-      // 一次性快照 attemptVersion + consecutiveFailures，避免 API 调用前后两次获取导致竞态
+      // 一次性快照 attemptVersion，避免记录作答时出现竞态
       const attemptVersion = getNextAttemptVersion(slotId)
-      const consecutiveFailures = getConsecutiveFailures(getAttempts(slotId))
 
       try {
-        // 调用 Feedback API
-        const response = await fetch('/api/feedback', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            quiz,
-            userAnswer,
-            attemptInfo: {
-              attemptVersion,
-              consecutiveFailures,
-            },
-            llmConfig: config,
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`Feedback API 失败: ${response.status}`)
-        }
-
-        const result: FeedbackRuntime = await response.json()
-
-        // Fill Blank 标准化兜底
-        let finalResult = result
-        if (
-          quiz.interactionType === 'fill_blank' &&
-          result.nextAction === 'retry' &&
-          isFillBlankCorrect(userAnswer, quiz.answer)
-        ) {
-          finalResult = {
-            ...result,
-            score: 100,
-            gaps: [],
-            nextAction: 'advance',
-          }
-        }
+        const result = evaluateAnswer(quiz, userAnswer)
 
         // 记录 AttemptRecord（attemptVersion 已在函数入口快照，避免竞态）
         const attempt: AttemptRecord = {
@@ -144,9 +108,9 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
           originalQuizId: slotId,
           attemptVersion,
           userAnswer,
-          score: finalResult.score,
-          gaps: finalResult.gaps,
-          nextAction: finalResult.nextAction,
+          score: result.score,
+          gaps: result.gaps,
+          nextAction: result.nextAction,
           timestamp: Date.now(),
         }
         addAttempt(attempt)
@@ -155,7 +119,7 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
         const attempts = getAttempts(slotId)
         const shouldForce = shouldForceAdvance(attempts)
 
-        setFeedback(finalResult)
+        setFeedback(result)
         setForceAdvance(shouldForce)
         setPhase('feedback')
       } catch (err) {
@@ -163,7 +127,7 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
         setPhase('answering')
       }
     },
-    [quiz, config, currentModule, slotId, phase, getNextAttemptVersion, getAttempts, addAttempt],
+    [quiz, currentModule, slotId, phase, getNextAttemptVersion, getAttempts, addAttempt],
   )
 
   const handleAdvance = useCallback(() => {

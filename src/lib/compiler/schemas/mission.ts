@@ -109,18 +109,9 @@ export const missionSchema = z
       }
 
       // 检查 expressionLevel 单调非递减
-      for (let i = 1; i < placeholders.length; i++) {
-        const curr = placeholders[i]
-        const prev = placeholders[i - 1]
-        if (!curr || !prev) continue // 类型收窄；min(8) 已保证 length ≥ 8
-        if (curr.expressionLevel < prev.expressionLevel) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `${conceptId} expressionLevel 应单调非递减，slot-${i + 1}（E${curr.expressionLevel}）< slot-${i}（E${prev.expressionLevel}）`,
-            path: ['seriesByConcept', conceptId, String(i)],
-          })
-        }
-      }
+      // W9：去掉 zod 硬校验。回顾型 E1 选择题在 E3 之后出现是合理教学设计，
+      // prompt 保留"建议单调递增"但不再强制。
+      /* 旧逻辑已删除 */
     }
   })
 

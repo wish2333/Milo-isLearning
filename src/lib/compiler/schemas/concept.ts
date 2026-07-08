@@ -10,10 +10,10 @@ export const conceptSchema = z
       .array(
         z.object({
           id: z.string().regex(/^concept-\d+$/, 'id 必须为 concept-N 格式'),
-          name: z.string().min(1).max(20, 'name ≤ 20 字'),
-          definition: z.string().min(1).max(30, 'definition ≤ 30 字'),
+          name: z.string().min(1).max(50, 'name ≤ 50 字'),
+          definition: z.string().min(1).max(75, 'definition ≤ 75 字'),
           type: z.enum(['fact', 'procedure', 'theory']),
-          keyPoints: z.array(z.string().min(1).max(15, 'keyPoint ≤ 15 字')).min(2).max(4),
+          keyPoints: z.array(z.string().min(1).max(40, 'keyPoint ≤ 40 字')).min(2).max(4),
           parentChunkId: z.string().regex(/^chunk-\d+$/, 'parentChunkId 必须为 chunk-N 格式'),
         }),
       )

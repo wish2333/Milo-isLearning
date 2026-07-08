@@ -77,7 +77,11 @@ export async function runAgent<T>(
   let lastRaw = ''
   let lastZodIssues: string | undefined
 
+  console.info(`[_runner] ${kind} 开始 LLM 调用 (temperature=${config.temperature})`)
+
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    console.info(`[_runner] ${kind} attempt ${attempt + 1}/${MAX_ATTEMPTS}`)
+    const llmStart = Date.now()
     // M3 W8：不再传递 maxTokens。显式 max_tokens 在 DeepSeek V4 Flash 上
     // 导致推理内容消耗全部 budget 后输出被截断。改让 API 端自行处理。
     const response = await provider.chat({
@@ -86,6 +90,9 @@ export async function runAgent<T>(
       jsonSchema: jsonSchemaHint,
       ...(extraBody ? { extraBody } : {}),
     })
+    console.info(
+      `[_runner] ${kind} attempt ${attempt + 1} LLM 返回，耗时 ${Date.now() - llmStart}ms, finishReason=${response.finishReason}, contentLength=${response.content.length}`,
+    )
 
     const raw = response.content
     lastRaw = raw
@@ -97,6 +104,7 @@ export async function runAgent<T>(
         response.finishReason === 'length'
           ? '上一次响应被 max_tokens 截断导致内容为空，请压缩输出并严格返回一个完整 JSON 对象。'
           : '上一次响应内容为空。请严格返回一个合法 JSON 对象。'
+      console.error(`[_runner] ${kind} attempt ${attempt + 1}/${MAX_ATTEMPTS} 响应内容为空`)
       appendRetryHint(messages, note)
       continue
     }
@@ -106,6 +114,9 @@ export async function runAgent<T>(
     const parsed = safeParseJSON(raw)
     if (!parsed.ok) {
       lastReason = 'invalid_json'
+      console.error(
+        `[_runner] ${kind} attempt ${attempt + 1}/${MAX_ATTEMPTS} JSON 解析失败：${parsed.error}`,
+      )
       appendRetryHint(
         messages,
         `上一次响应不是合法 JSON：${parsed.error}。请只输出一个严格匹配 Schema 的 JSON 对象，不要包含任何解释或 markdown 代码块。`,
@@ -116,10 +127,14 @@ export async function runAgent<T>(
     // 3. Zod Schema 校验
     const result = schema.safeParse(parsed.value)
     if (result.success) {
+      console.info(`[_runner] ${kind} 成功 (attempt ${attempt + 1}/${MAX_ATTEMPTS})`)
       return result.data
     }
     lastReason = 'schema_violation'
     lastZodIssues = formatZodIssues(result.error.issues)
+    console.error(
+      `[_runner] ${kind} attempt ${attempt + 1}/${MAX_ATTEMPTS} schema 校验失败：\n${lastZodIssues}`,
+    )
     appendRetryHint(
       messages,
       `上一次响应未通过 Schema 校验：\n${lastZodIssues}\n请严格按 Schema 修正后重新输出。`,

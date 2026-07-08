@@ -8,13 +8,13 @@ export const moduleSchema = z
     reasoning: z.string().min(1, '私有 CoT 不能为空'),
     module: z.object({
       id: z.string().regex(/^module-\d+$/, 'id 必须为 module-N 格式'),
-      title: z.string().min(1).max(20, 'title ≤ 20 字'),
+      title: z.string().min(1).max(50, 'title ≤ 50 字'),
       intro: z
         .string()
         .min(1)
-        .max(40, 'intro ≤ 40 字')
+        .max(100, 'intro ≤ 100 字')
         .refine((s) => s.startsWith('完成本模块后，你能'), 'intro 必须以"完成本模块后，你能"开头'),
-      goal: z.string().min(1).max(30, 'goal ≤ 30 字'),
+      goal: z.string().min(1).max(75, 'goal ≤ 75 字'),
       conceptOrder: z
         .array(z.string().regex(/^concept-\d+$/))
         .min(2)

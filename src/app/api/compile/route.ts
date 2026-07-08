@@ -25,10 +25,14 @@ import {
 export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
+  console.info('[api/compile] POST 请求到达')
+  const startTime = Date.now()
+
   // --- Parse & validate request body ---
   let body: unknown
   try {
     body = await req.json()
+    console.info('[api/compile] 请求体解析完成')
   } catch {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
@@ -52,6 +56,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'config must be an object' }, { status: 400 })
   }
 
+  console.info('[api/compile] 参数校验通过，准备创建 SSE stream')
+
   // --- Build SSE stream ---
   const encoder = new TextEncoder()
 
@@ -59,13 +65,25 @@ export async function POST(req: NextRequest) {
     return `event: ${event.kind}\ndata: ${JSON.stringify(event)}\n\n`
   }
 
+  let eventCount = 0
+
   const stream = new ReadableStream({
     async start(controller) {
+      console.info('[api/compile] ReadableStream.start() 开始执行')
       try {
         for await (const event of compileMarkdown(rawMarkdown, config as CompileConfig)) {
+          eventCount++
+          console.info(
+            `[api/compile] enqueue #${eventCount}: kind=${event.kind}`,
+            event.kind === 'stage_enter' ? `stage=${event.stage}` : '',
+          )
           controller.enqueue(encoder.encode(formatSSE(event)))
         }
+        console.info(
+          `[api/compile] 编译流结束，共 ${eventCount} 个事件，耗时 ${Date.now() - startTime}ms`,
+        )
       } catch (err: unknown) {
+        console.error('[api/compile] 编译异常:', err instanceof Error ? err.message : String(err))
         // Catch-all: translate unknown exceptions into a CompileError-shaped SSE event
         // so the client always receives a parseable error payload
         const message = err instanceof Error ? err.message : 'An unexpected error occurred'
@@ -84,10 +102,13 @@ export async function POST(req: NextRequest) {
 
         controller.enqueue(encoder.encode(formatSSE(fallbackEvent)))
       } finally {
+        console.info('[api/compile] 关闭 stream')
         controller.close()
       }
     },
   })
+
+  console.info('[api/compile] 返回 Response 对象')
 
   return new Response(stream, {
     headers: {

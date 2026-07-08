@@ -340,17 +340,25 @@ async function* runStage<T>(
   stage: Exclude<CompileStage, 'quiz'>,
   fn: () => Promise<T>,
 ): AsyncGenerator<CompileEvent, T | undefined> {
+  const stageStart = Date.now()
+  console.info(`[pipeline] stage_enter: ${stage}`)
   yield { kind: 'stage_enter', stage }
 
   let lastError: unknown
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
+      console.info(`[pipeline] ${stage} 开始执行 (attempt ${attempt + 1}/${MAX_RETRIES + 1})`)
+      const fnStart = Date.now()
       const result = await fn()
+      console.info(
+        `[pipeline] ${stage} 完成，耗时 ${Date.now() - fnStart}ms (总 ${Date.now() - stageStart}ms)`,
+      )
       const percent = STAGE_PERCENT[stage]
       yield { kind: 'progress', stage, percent }
       return result
     } catch (e: unknown) {
       lastError = e
+      console.warn(`[pipeline] ${stage} 错误: ${e instanceof Error ? e.message : String(e)}`)
       if (!isTransientError(e) || attempt >= MAX_RETRIES) break
       const delay = backoffDelay(attempt)
       console.warn(`[retry] ${stage} 瞬时错误，${delay}ms 后第 ${attempt + 1} 次重试...`)
@@ -358,6 +366,7 @@ async function* runStage<T>(
     }
   }
 
+  console.error(`[pipeline] ${stage} 失败，无更多重试`)
   yield { kind: 'error', error: translateError(stage, lastError!) }
   return undefined
 }

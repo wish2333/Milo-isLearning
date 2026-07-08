@@ -17,6 +17,7 @@
 import { useEffect, useState, useCallback } from 'react'
 
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
+import { evaluateAnswer } from '@/lib/runtime/evaluate-answer'
 import {
   shouldForceAdvance,
   getConsecutiveFailures,
@@ -80,36 +81,17 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
 
   const handleAnswer = useCallback(
     async (userAnswer: string) => {
-      if (!quiz || !config || !currentModule) return
+      if (!quiz || !currentModule) return
       if (phase !== 'answering') return
 
       setPhase('evaluating')
       setError(null)
 
-      // 一次性快照 attemptVersion + consecutiveFailures
+      // 一次性快照 attemptVersion，避免记录作答时出现竞态
       const attemptVersion = getNextAttemptVersion(slotId)
-      const consecutiveFailures = getConsecutiveFailures(getAttempts(slotId))
 
       try {
-        const response = await fetch('/api/feedback', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            quiz,
-            userAnswer,
-            attemptInfo: {
-              attemptVersion,
-              consecutiveFailures,
-            },
-            llmConfig: config,
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`Feedback API 失败: ${response.status}`)
-        }
-
-        const result: FeedbackRuntime = await response.json()
+        const result = evaluateAnswer(quiz, userAnswer)
 
         // 记录 AttemptRecord（attemptVersion 已在函数入口快照）
         const attempt: AttemptRecord = {
@@ -140,7 +122,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
         setPhase('answering')
       }
     },
-    [quiz, config, currentModule, slotId, phase, getNextAttemptVersion, getAttempts, addAttempt],
+    [quiz, currentModule, slotId, phase, getNextAttemptVersion, getAttempts, addAttempt],
   )
 
   const handleAdvance = useCallback(() => {

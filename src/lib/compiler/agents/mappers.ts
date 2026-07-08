@@ -156,6 +156,20 @@ export function assembleConcept(
  * QuizAgentOutput 形状为 `{ reasoning, quiz: {...} }`，本函数取 `.quiz` 部分。
  */
 export function assembleQuiz(output: QuizAgentOutput['quiz']): Quiz {
+  // 自动修复 options[0] !== answer（LLM 常见错误）
+  // 把 answer 匹配的选项换到 position 0，前端打乱后不影响判分
+  let fixedOptions = output.options
+  if (output.interactionType === 'choice' && Array.isArray(output.options)) {
+    const ansIdx = output.options.indexOf(output.answer)
+    if (ansIdx > 0) {
+      fixedOptions = [
+        output.options[ansIdx]!,
+        ...output.options.slice(0, ansIdx),
+        ...output.options.slice(ansIdx + 1),
+      ]
+    }
+  }
+
   return {
     id: output.id,
     conceptId: output.conceptId,
@@ -163,7 +177,7 @@ export function assembleQuiz(output: QuizAgentOutput['quiz']): Quiz {
     expressionLevel: output.expressionLevel,
     interactionType: output.interactionType,
     stem: output.stem,
-    options: output.options,
+    options: fixedOptions,
     answer: output.answer,
     explanation: output.explanation,
     distractors: output.distractors.map((d) => d.text),
@@ -177,6 +191,19 @@ export function assembleQuiz(output: QuizAgentOutput['quiz']): Quiz {
  * （含额外的 involvedConceptIds 字段，该字段不进入 domain.Quiz）。
  */
 export function assembleChallengeQuiz(output: ChallengeBatchAgentOutput['quizzes'][number]): Quiz {
+  // 自动修复 options[0] !== answer
+  let fixedOptions = output.options
+  if (output.interactionType === 'choice' && Array.isArray(output.options)) {
+    const ansIdx = output.options.indexOf(output.answer)
+    if (ansIdx > 0) {
+      fixedOptions = [
+        output.options[ansIdx]!,
+        ...output.options.slice(0, ansIdx),
+        ...output.options.slice(ansIdx + 1),
+      ]
+    }
+  }
+
   return {
     id: output.id,
     conceptId: output.conceptId,
@@ -184,7 +211,7 @@ export function assembleChallengeQuiz(output: ChallengeBatchAgentOutput['quizzes
     expressionLevel: output.expressionLevel,
     interactionType: output.interactionType,
     stem: output.stem,
-    options: output.options,
+    options: fixedOptions,
     answer: output.answer,
     explanation: output.explanation,
     distractors: output.distractors.map((d) => d.text),
@@ -203,7 +230,7 @@ export function assembleFeynmanTask(output: FeynmanAgentOutput['feynmanTask']): 
       stem: s.stem,
       options: s.options,
       answer: s.answer,
-      explanation: s.explanation,
+      explanation: s.explanation ?? '',
     })),
     finalPrompt: output.finalPrompt,
     rubric: output.rubric,

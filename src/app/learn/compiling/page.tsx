@@ -53,11 +53,24 @@ export default function CompilingPage() {
 
   const [error, setError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
+  const [storeReady, setStoreReady] = useState(false)
   const startedRef = useRef(false)
+  const controllerRef = useRef<AbortController | null>(null)
   const [, startTransition] = useTransition()
+
+  // 等待 Zustand persist 水合完成（防止刷新页面时 config 为 null）
+  useEffect(() => {
+    if (useSettingsStore.persist.hasHydrated()) {
+      setStoreReady(true)
+    } else {
+      const unsub = useSettingsStore.persist.onFinishHydration(() => setStoreReady(true))
+      return unsub
+    }
+  }, [])
 
   // 启动编译
   useEffect(() => {
+    if (!storeReady) return
     if (startedRef.current) return
     startedRef.current = true
 
@@ -78,8 +91,9 @@ export default function CompilingPage() {
       llm: config,
     }
 
-    // SSE 流式读取
+    // SSE 流式读取 — 用 ref 保存 controller 避免 Strict Mode 双挂载 abort
     const controller = new AbortController()
+    controllerRef.current = controller
 
     async function streamCompile() {
       try {
@@ -160,9 +174,16 @@ export default function CompilingPage() {
 
     streamCompile()
 
-    return () => controller.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [retryCount])
+  }, [retryCount, storeReady])
+
+  // 真正的 unmount cleanup：用户导航离开时中止 fetch
+  // 与主 effect 分离，避免 React Strict Mode 双挂载时 abort 掉唯一请求
+  useEffect(() => {
+    return () => {
+      controllerRef.current?.abort()
+    }
+  }, [])
 
   const handleRetry = () => {
     resetCompile()

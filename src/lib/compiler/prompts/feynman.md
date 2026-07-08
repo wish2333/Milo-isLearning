@@ -84,10 +84,11 @@
 - **`answer` 字段**：参考答案（用于 Step 5 的精确匹配兜底，但主要靠 Feedback Agent 语义判断）
 - **`explanation`**：示范一个好的总结应包含哪些要素
 
-#### Step 6（Final）：开放输出（无占位符）
+#### Step 6（Final）：开放输出
 
-- **本步骤不出现在 Feynman Agent 输出中**
-- 由前端根据 `finalPrompt` 渲染大文本输入框
+- **本步骤的 JSON 占位必须输出**（steps 数组要求恰好 6 项），但 options/explanation 字段不重要，可以省略或给最小值
+- **前端用 `finalPrompt` 渲染大文本输入框**，不会从 step 6 读取选项
+- **`order`=6，`type` 随意，`stem` 占位即可**
 - **`finalPrompt` 字段**：基于 module.goal 的开放任务说明
   - 示例：`现在请用你自己的话，完整解释 {module.goal}。建议字数 100-500 字。`
 
