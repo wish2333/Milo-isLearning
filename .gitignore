@@ -43,6 +43,10 @@ coverage/
 # Prompt eval 报告（M2.5 W2）
 reports/
 
+# Playwright test artifacts
+test-results/
+playwright-report/
+
 # CodingAgent
 .omo/run-continuation/
 .reasonix

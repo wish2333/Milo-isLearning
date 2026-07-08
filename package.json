@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "e2e": "playwright test",
     "ping": "bun run scripts/ping.ts",
     "eval": "bun run scripts/prompt-eval.ts",
     "m3-smoke": "bun --env-file=.env.local run scripts/m3-smoke.ts",
@@ -45,6 +46,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.61.1",
     "@types/bun": "^1.1.0",
     "@types/node": "^20.14.0",
     "@types/react": "^19.0.0",
