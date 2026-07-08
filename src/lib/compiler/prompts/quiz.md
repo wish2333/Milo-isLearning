@@ -28,6 +28,30 @@
 4. **正确答案不能通过常识排除法猜出**
 5. **explanation 必须同时解释"为什么对"和"为什么错"**
 
+### 背景引导契约
+
+每道 L2/L3 或 Fill Blank 题必须输出 `background`。
+`background` 是题目前的 1-3 句材料，用来把用户带到问题情境中。
+它不能泄露答案，但必须提供推理所需的概念、场景或反例。
+
+好：
+背景：团队把公司政策文档切片后放进向量库。用户提问时，系统先找回相关片段，再把片段和问题一起交给模型。
+题干：这些片段主要进入模型的哪一部分？
+
+坏：
+背景：正确答案是上下文窗口。
+题干：空白处填什么？
+
+### 解析契约
+
+`explanation` 必须包含：
+1. 正解为什么成立。
+2. 至少一个错误选项或常见误解为什么不成立。
+3. 用户下一次遇到类似题时可复用的判断线索。
+
+`misconception` 写最可能误区。
+`extendedKnowledge` 写 1-3 句基础知识、背景知识或延伸知识，避免百科式长篇。
+
 ### 不同 Ladder 层级的题干设计
 
 #### Level 1 Recognition（识别）
@@ -94,11 +118,30 @@
 
 #### Expression 3 Fill Blank（≤ 20% 的题）
 
-- 1 个空白，填入 1-3 个关键词
+- 1 个空白，填入一个明确短语
 - `options` 字段为 `null`（不适用）
 - `answer` 字段 = 标准答案字符串（用于精确匹配兜底）
+- `acceptableAnswers` 必须包含 2-6 个可接受变体，并包含 `answer`
+- `answerHint` 必须提示答案类别，不泄露答案
+- `evaluationMode` 默认使用 `semantic`，除非答案是唯一术语
 - `distractors` 字段列出**常见错误填法**（用于 Feedback Agent 判错时引用）
-- 题干必须明确"____ 处应填入 ____"
+- 题干必须给出语境，让用户通过理解推断答案
+- 禁止 `____ 是什么？`、`请填入概念名 ____`、背诵原句式题目
+
+### 输出字段示例（M7.6）
+
+```json
+{
+  "background": "检索增强生成不会重新训练模型，而是在每次回答时把检索到的材料放进当前输入。",
+  "stem": "这些材料主要被放进模型的哪一部分？",
+  "answer": "上下文窗口",
+  "acceptableAnswers": ["上下文窗口", "context window", "当前上下文"],
+  "answerHint": "模型本次回答时能同时看到的输入范围",
+  "explanation": "正确答案是上下文窗口。RAG 的检索片段是随请求一起提供的外部材料，模型在生成答案时参考它们；它们不会直接进入训练集，也不会改变模型权重。判断线索是：只影响本次回答的是上下文，长期改变模型行为才是训练或微调。",
+  "misconception": "把 RAG 检索片段误认为训练数据或模型参数更新。",
+  "extendedKnowledge": "上下文窗口有长度限制，所以 RAG 还需要排序、截断和去重，把最有帮助的片段放进有限空间。"
+}
+```
 
 ### Quiz Agent 强制执行流程
 
@@ -132,7 +175,7 @@
    - 自检 3：部分理解的学生会觉得有诱惑力吗？（应是）
 ```
 
-然后再输出 `stem` / `options` / `answer` / `explanation` / `distractors`。
+然后再输出 `background` / `stem` / `options` / `answer` / `acceptableAnswers` / `answerHint` / `explanation` / `misconception` / `extendedKnowledge` / `distractors`。
 
 **如果你跳过 reasoning 直接输出题目，你的输出会被打回重试。**
 
@@ -224,8 +267,8 @@
         },
         "explanation": {
           "type": "string",
-          "minLength": 20,
-          "maxLength": 200,
+          "minLength": 40,
+          "maxLength": 1200,
           "description": "解释为什么对，为什么错"
         },
         "distractors": {

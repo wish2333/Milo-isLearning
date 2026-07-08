@@ -14,7 +14,7 @@
  */
 
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { useModuleStore } from '@/lib/state/module-store'
@@ -26,6 +26,7 @@ export default function OverviewPage() {
   const currentModule = useModuleStore((s) => s.currentModule)
   const startModule = useProgressStore((s) => s.startModule)
   const stage = useProgressStore((s) => s.stage)
+  const [savedConfirmation, setSavedConfirmation] = useState(false)
 
   // 无 Module 数据时回到导入页（等 hydration 完成后再检查）
   useEffect(() => {
@@ -33,6 +34,14 @@ export default function OverviewPage() {
       router.replace('/learn/import')
     }
   }, [hydrated, currentModule, router])
+
+  useEffect(() => {
+    if (!hydrated) return
+    if (sessionStorage.getItem('alc:module-saved-confirmation') === '1') {
+      setSavedConfirmation(true)
+      sessionStorage.removeItem('alc:module-saved-confirmation')
+    }
+  }, [hydrated])
 
   if (!currentModule) return null
 
@@ -58,13 +67,13 @@ export default function OverviewPage() {
   const buttonText = hasProgress ? '继续学习' : '开始学习'
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100">
+    <main className="min-h-screen bg-bg-base text-fg-primary">
       <div className="max-w-2xl mx-auto px-6 py-12 space-y-10">
         {/* Top bar: lightweight library entry */}
         <div className="flex justify-end">
           <button
             onClick={() => router.push('/learn/library')}
-            className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="text-xs text-fg-tertiary hover:text-fg-secondary transition-colors"
           >
             ← 返回题库
           </button>
@@ -72,56 +81,61 @@ export default function OverviewPage() {
 
         {/* Header */}
         <div className="space-y-3">
-          <p className="text-xs text-neutral-600 uppercase tracking-wider">学习模块</p>
-          <h1 className="text-3xl font-semibold text-neutral-100">{currentModule.title}</h1>
-          <p className="text-sm text-neutral-400 leading-relaxed">{currentModule.intro}</p>
+          {savedConfirmation && (
+            <div className="rounded-lg border border-border-default bg-bg-surface/50 px-4 py-3 text-sm text-fg-secondary">
+              已保存到题库。旧题库仍可在“我的题库”中打开。
+            </div>
+          )}
+          <p className="text-xs text-fg-tertiary uppercase tracking-wider">学习模块</p>
+          <h1 className="text-3xl font-semibold text-fg-primary">{currentModule.title}</h1>
+          <p className="text-sm text-fg-secondary leading-relaxed">{currentModule.intro}</p>
         </div>
 
         {/* Goal */}
-        <div className="border-l-2 border-neutral-700 pl-4 py-1">
-          <p className="text-xs text-neutral-600 mb-1">学习目标</p>
-          <p className="text-sm text-neutral-300">{currentModule.goal}</p>
+        <div className="border-l-2 border-border-strong pl-4 py-1">
+          <p className="text-xs text-fg-tertiary mb-1">学习目标</p>
+          <p className="text-sm text-fg-secondary">{currentModule.goal}</p>
         </div>
 
         {/* Stats */}
         <div className="flex gap-6">
           <div className="space-y-0.5">
-            <p className="text-xs text-neutral-600">概念数</p>
-            <p className="text-lg text-neutral-200">{currentModule.concepts.length}</p>
+            <p className="text-xs text-fg-tertiary">概念数</p>
+            <p className="text-lg text-fg-primary">{currentModule.concepts.length}</p>
           </div>
           <div className="space-y-0.5">
-            <p className="text-xs text-neutral-600">练习数</p>
-            <p className="text-lg text-neutral-200">{totalConceptQuizzes}</p>
+            <p className="text-xs text-fg-tertiary">练习数</p>
+            <p className="text-lg text-fg-primary">{totalConceptQuizzes}</p>
           </div>
           <div className="space-y-0.5">
-            <p className="text-xs text-neutral-600">费曼步骤</p>
-            <p className="text-lg text-neutral-200">{totalFeynmanSteps} 步</p>
+            <p className="text-xs text-fg-tertiary">费曼步骤</p>
+            <p className="text-lg text-fg-primary">{totalFeynmanSteps} 步</p>
           </div>
           <div className="space-y-0.5">
-            <p className="text-xs text-neutral-600">预计时长</p>
-            <p className="text-lg text-neutral-200">约 {estimatedMinutes} 分钟</p>
+            <p className="text-xs text-fg-tertiary">预计时长</p>
+            <p className="text-lg text-fg-primary">约 {estimatedMinutes} 分钟</p>
           </div>
         </div>
 
         {/* Concept List */}
         <div className="space-y-3">
-          <p className="text-xs text-neutral-600 uppercase tracking-wider">概念清单</p>
+          <p className="text-xs text-fg-tertiary uppercase tracking-wider">概念清单</p>
           <div className="space-y-2">
             {currentModule.concepts.map((concept, i) => (
               <div
                 key={concept.id}
-                className="flex items-center justify-between py-3 px-4 border border-neutral-800 rounded-lg hover:border-neutral-700 transition-colors"
+                className="flex items-center justify-between py-3 px-4 border border-border-default rounded-lg hover:border-border-strong transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-neutral-600 tabular-nums">
+                  <span className="text-xs text-fg-tertiary tabular-nums">
                     {String(i + 1).padStart(2, '0')}
                   </span>
                   <div>
-                    <p className="text-sm text-neutral-200">{concept.name}</p>
-                    <p className="text-xs text-neutral-600">{concept.type}</p>
+                    <p className="text-sm text-fg-primary">{concept.name}</p>
+                    <p className="text-xs text-fg-tertiary">{concept.type}</p>
                   </div>
                 </div>
-                <span className="text-xs text-neutral-500">
+                <span className="text-xs text-fg-tertiary">
                   {concept.quizSeries.quizzes.length} 题
                 </span>
               </div>
@@ -132,7 +146,7 @@ export default function OverviewPage() {
         {/* CTA */}
         <button
           onClick={handleStart}
-          className="w-full py-3 rounded-lg bg-neutral-100 text-neutral-900 font-medium text-sm hover:bg-white transition-colors"
+          className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover transition-colors"
         >
           {buttonText}
         </button>

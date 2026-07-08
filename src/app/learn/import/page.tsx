@@ -56,22 +56,16 @@ export default function ImportPage() {
   }, [isValid, submitting, config, markdown, router])
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
+    <main className="alc-page">
       {/* Header */}
-      <header className="border-b border-neutral-800 px-6 py-4">
+      <header className="alc-app-header px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <h1 className="text-lg font-medium text-neutral-200">导入知识</h1>
+          <h1 className="text-lg font-medium text-fg-primary">导入知识</h1>
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/learn/library')}
-              className="text-sm text-neutral-400 hover:text-neutral-200 transition-colors"
-            >
+            <button onClick={() => router.push('/learn/library')} className="alc-link text-sm">
               我的题库
             </button>
-            <button
-              onClick={() => router.push('/settings')}
-              className="text-sm text-neutral-400 hover:text-neutral-200 transition-colors"
-            >
+            <button onClick={() => router.push('/settings')} className="alc-link text-sm">
               {config ? '设置' : '配置 LLM'}
             </button>
           </div>
@@ -83,10 +77,11 @@ export default function ImportPage() {
         <div className="w-full max-w-3xl space-y-6">
           {/* Intro */}
           <div className="space-y-1">
-            <h2 className="text-2xl font-semibold text-neutral-100">
+            <p className="alc-label uppercase tracking-wider">Source material</p>
+            <h2 className="text-2xl font-semibold text-fg-primary">
               粘贴 Markdown，编译为学习路径
             </h2>
-            <p className="text-sm text-neutral-500">
+            <p className="text-sm text-fg-secondary">
               支持任意技术文档、教程、笔记。AI 将自动拆分概念、生成练习、设计费曼任务。
             </p>
           </div>
@@ -97,24 +92,24 @@ export default function ImportPage() {
               value={markdown}
               onChange={(e) => setMarkdown(e.target.value)}
               placeholder="在此粘贴 Markdown 内容..."
-              className="w-full h-72 bg-neutral-900 border border-neutral-800 rounded-lg p-4 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-600 resize-none font-mono"
+              className="alc-textarea h-72 text-sm font-mono"
               maxLength={INPUT_MAX_LENGTH + 1000}
             />
 
             {/* Character counter */}
             <div className="flex items-center justify-between text-xs">
-              <span className="text-neutral-600">
+              <span className="alc-muted">
                 {charCount === 0 ? '等待输入...' : `${charCount.toLocaleString()} 字`}
               </span>
               <span
                 className={
                   isShort
-                    ? 'text-amber-500/70'
+                    ? 'text-warning'
                     : isValid
-                      ? 'text-emerald-500/70'
+                      ? 'text-success'
                       : charCount > INPUT_MAX_LENGTH
-                        ? 'text-red-500/70'
-                        : 'text-neutral-600'
+                        ? 'text-danger'
+                        : 'alc-muted'
                 }
               >
                 {INPUT_MIN_LENGTH} - {INPUT_MAX_LENGTH.toLocaleString()} 字
@@ -126,13 +121,13 @@ export default function ImportPage() {
           <button
             onClick={handleCompile}
             disabled={!isValid || submitting}
-            className="w-full py-3 rounded-lg bg-neutral-100 text-neutral-900 font-medium text-sm hover:bg-white disabled:bg-neutral-800 disabled:text-neutral-600 transition-colors"
+            className="alc-button-primary w-full py-3 text-sm"
           >
             {!config ? '配置 LLM 后开始' : submitting ? '准备中...' : '开始编译'}
           </button>
 
           {!config && (
-            <p className="text-xs text-amber-500/60 text-center">需要先配置 LLM 供应商才能编译</p>
+            <p className="text-warning text-xs text-center">需要先配置 LLM 供应商才能编译</p>
           )}
         </div>
       </div>

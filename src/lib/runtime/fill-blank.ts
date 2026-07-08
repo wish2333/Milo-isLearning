@@ -43,3 +43,12 @@ export function isFillBlankCorrect(userAnswer: string, correctAnswer: string): b
 
   return normalizedUser === normalizedCorrect
 }
+
+export function isFillBlankAnswerAccepted(
+  userAnswer: string,
+  correctAnswer: string,
+  acceptableAnswers: string[] = [],
+): boolean {
+  const candidates = [correctAnswer, ...acceptableAnswers]
+  return candidates.some((candidate) => isFillBlankCorrect(userAnswer, candidate))
+}

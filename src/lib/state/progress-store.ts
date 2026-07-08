@@ -20,7 +20,9 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-import type { FeynmanAttempt, ModuleStage } from '@/types/domain'
+import type { FeynmanAttempt, ModuleStage, ProgressState } from '@/types/domain'
+import { StorageKeys } from '@/lib/persistence/keys'
+import { storage } from '@/lib/persistence/local-storage'
 
 import { useModuleStore } from './module-store'
 
@@ -284,6 +286,49 @@ export const useProgressStore = create<ProgressStoreState>()(
         updatedAt: state.updatedAt,
         feynmanAttempt: state.feynmanAttempt,
       }),
+      onRehydrateStorage: () => (state) => {
+        // 首次加载（hydration）后同步到 per-module 存储
+        if (state?.moduleId && state.stage) {
+          storage.set<ProgressState>(StorageKeys.progress(state.moduleId), {
+            moduleId: state.moduleId,
+            stage: state.stage,
+            updatedAt: state.updatedAt,
+          })
+        }
+      },
     },
   ),
 )
+
+/**
+ * 同步 progress-store 到 per-module 存储（alc:progress:{moduleId}）。
+ *
+ * 背景：listStoredModules 从 per-module key 读取 progress，但 Zustand persist
+ * 只写到全局 key（alc:state:progress）。此 subscribe 桥接两者，使题库列表
+ * 能获取到正确的 updatedAt / completed 状态。
+ *
+ * 触发时机：
+ *   - 每次状态变更（advance / retry / startModule 等）
+ *   - 切换 Module 时保存前一个 Module 的最终进度
+ *   - reset 时不写（避免 clearAll 后又写入）
+ */
+useProgressStore.subscribe((state, prevState) => {
+  // reset 后 state 为初始态，不写 per-module key
+  if (!state.moduleId || !state.stage) return
+
+  // 切换 Module 时保存前一个 Module 的最终进度
+  if (prevState.moduleId && prevState.moduleId !== state.moduleId && prevState.stage) {
+    storage.set<ProgressState>(StorageKeys.progress(prevState.moduleId), {
+      moduleId: prevState.moduleId,
+      stage: prevState.stage,
+      updatedAt: prevState.updatedAt,
+    })
+  }
+
+  // 始终同步当前 Module 的进度
+  storage.set<ProgressState>(StorageKeys.progress(state.moduleId), {
+    moduleId: state.moduleId,
+    stage: state.stage,
+    updatedAt: state.updatedAt,
+  })
+})

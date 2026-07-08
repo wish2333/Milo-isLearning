@@ -53,4 +53,4 @@ export const STORAGE_KEY_PREFIX = `${STORAGE_NAMESPACE}:`
  */
 export const STORAGE_WARN_BYTES = 4.5 * 1024 * 1024 // 4.5MB 预警
 export const STORAGE_HARD_LIMIT_BYTES = 5 * 1024 * 1024 // 5MB LocalStorage 上限
-export const STORAGE_MAX_HISTORY_MODULES = 3 // 当前 + 历史 3 = 最多 4 个 Module
+export const STORAGE_MAX_HISTORY_MODULES = 12 // M7.6：默认保留 12 个本地 Module

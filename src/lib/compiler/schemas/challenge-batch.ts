@@ -31,10 +31,16 @@ const challengeQuizItemSchema = z
     stem: z.string().min(5, 'stem 至少 5 字符'),
     options: z.array(z.string().min(1)).min(3).max(5),
     answer: z.string().min(1),
-    explanation: z.string().min(20, 'explanation 至少 20 字').max(500, 'explanation ≤ 500 字'),
+    explanation: z.string().min(40, 'explanation 至少 40 字').max(1200, 'explanation ≤ 1200 字'),
     distractors: z.array(distractorItemSchema).min(1, '至少 1 个 distractor 候选'),
     /** Challenge 题特有：显式声明涉及的 Concept id（≥ 2） */
     involvedConceptIds: z.array(z.string()).min(2, 'Challenge 题必须涉及 ≥ 2 个 Concept'),
+    background: z.string().min(20).max(800).optional(),
+    answerHint: z.string().min(2).max(120).optional(),
+    acceptableAnswers: z.array(z.string().min(1)).min(1).max(8).optional(),
+    misconception: z.string().min(10).max(500).optional(),
+    extendedKnowledge: z.string().min(20).max(1200).optional(),
+    evaluationMode: z.enum(['exact', 'normalized', 'semantic']).optional(),
   })
   .superRefine((val, ctx) => {
     // Choice 题：4 选项（W9：options[0] === answer 由 assembly 自动修复）

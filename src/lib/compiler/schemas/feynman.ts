@@ -26,7 +26,12 @@ const feynmanStepSchema = z.object({
   stem: z.string().min(5),
   options: z.union([z.array(z.string().min(1)), z.null()]).optional(),
   answer: z.string().min(1),
-  explanation: z.string().max(500).optional(),
+  explanation: z.string().max(1200).optional(),
+  answerHint: z.string().min(2).max(120).optional(),
+  acceptableAnswers: z.array(z.string().min(1)).min(1).max(8).optional(),
+  misconception: z.string().min(10).max(500).optional(),
+  extendedKnowledge: z.string().min(20).max(1200).optional(),
+  evaluationMode: z.enum(['exact', 'normalized', 'semantic']).optional(),
 })
 
 export const feynmanSchema = z

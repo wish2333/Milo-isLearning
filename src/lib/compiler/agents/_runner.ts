@@ -16,7 +16,7 @@
  * 实际中绝大多数重试在第 2-3 次成功，不会耗尽全部 5 次。
  */
 import { zodToJsonSchema } from 'zod-to-json-schema'
-import type { ZodSchema } from 'zod'
+import type { ZodSchema, ZodIssue } from 'zod'
 
 import type { AgentKind } from '@/lib/compiler/schemas'
 import type { ChatMessage, LLMProvider } from '@/lib/providers/types'
@@ -36,6 +36,13 @@ const MAX_ATTEMPTS = 5
  */
 export interface RunAgentOptions {
   disableThinking?: boolean
+  /**
+   * Schema 校验失败时尝试自动修复（在重试前调用）。
+   *
+   * 返回修复后的值（非 null）则重新 safeParse；返回 null 表示无法修复，走重试。
+   * 典型用途：过滤短串、移除等于 answer 的 distractor 等。
+   */
+  autoFix?: (value: unknown, issues: ZodIssue[]) => unknown | null
 }
 
 /**
@@ -130,6 +137,21 @@ export async function runAgent<T>(
       console.info(`[_runner] ${kind} 成功 (attempt ${attempt + 1}/${MAX_ATTEMPTS})`)
       return result.data
     }
+
+    // 3.5 尝试 autoFix（若提供）— 在重试前先尝试自动修复已知问题
+    if (options?.autoFix) {
+      const fixed = options.autoFix(parsed.value, result.error.issues)
+      if (fixed !== null) {
+        const reparse = schema.safeParse(fixed)
+        if (reparse.success) {
+          console.info(
+            `[_runner] ${kind} autoFix 修复成功 (attempt ${attempt + 1}/${MAX_ATTEMPTS})`,
+          )
+          return reparse.data
+        }
+      }
+    }
+
     lastReason = 'schema_violation'
     lastZodIssues = formatZodIssues(result.error.issues)
     console.error(

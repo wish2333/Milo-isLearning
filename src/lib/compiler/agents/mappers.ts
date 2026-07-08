@@ -180,7 +180,13 @@ export function assembleQuiz(output: QuizAgentOutput['quiz']): Quiz {
     options: fixedOptions,
     answer: output.answer,
     explanation: output.explanation,
-    distractors: output.distractors.map((d) => d.text),
+    distractors: output.distractors.filter((d) => d.text !== output.answer).map((d) => d.text),
+    background: output.background,
+    answerHint: output.answerHint,
+    acceptableAnswers: output.acceptableAnswers,
+    misconception: output.misconception,
+    extendedKnowledge: output.extendedKnowledge,
+    evaluationMode: output.evaluationMode,
   }
 }
 
@@ -214,8 +220,14 @@ export function assembleChallengeQuiz(output: ChallengeBatchAgentOutput['quizzes
     options: fixedOptions,
     answer: output.answer,
     explanation: output.explanation,
-    distractors: output.distractors.map((d) => d.text),
+    distractors: output.distractors.filter((d) => d.text !== output.answer).map((d) => d.text),
     involvedConceptIds: output.involvedConceptIds,
+    background: output.background,
+    answerHint: output.answerHint,
+    acceptableAnswers: output.acceptableAnswers,
+    misconception: output.misconception,
+    extendedKnowledge: output.extendedKnowledge,
+    evaluationMode: output.evaluationMode,
   }
 }
 
@@ -232,6 +244,11 @@ export function assembleFeynmanTask(output: FeynmanAgentOutput['feynmanTask']): 
       options: s.options,
       answer: s.answer,
       explanation: s.explanation ?? '',
+      answerHint: s.answerHint,
+      acceptableAnswers: s.acceptableAnswers,
+      misconception: s.misconception,
+      extendedKnowledge: s.extendedKnowledge,
+      evaluationMode: s.evaluationMode,
     })),
     finalPrompt: output.finalPrompt,
     rubric: output.rubric,

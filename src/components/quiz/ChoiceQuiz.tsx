@@ -49,7 +49,7 @@ export function ChoiceQuiz({ quiz, disabled, onAnswer }: ChoiceQuizProps) {
   return (
     <div className="space-y-4">
       {/* Stem */}
-      <p className="text-base text-neutral-200 leading-relaxed">{quiz.stem}</p>
+      <p className="alc-question-stem">{quiz.stem}</p>
 
       {/* Options */}
       <div className="space-y-2">
@@ -60,13 +60,12 @@ export function ChoiceQuiz({ quiz, disabled, onAnswer }: ChoiceQuizProps) {
               key={option}
               onClick={() => !disabled && setSelected(option)}
               disabled={disabled}
-              className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-all ${
-                isSelected
-                  ? 'border-neutral-400 bg-neutral-800/50 text-neutral-100'
-                  : 'border-neutral-800 text-neutral-300 hover:border-neutral-700 hover:bg-neutral-900/50'
-              } ${disabled ? 'cursor-default opacity-60' : ''}`}
+              className={`alc-option w-full text-left text-base ${
+                disabled ? 'cursor-default opacity-60' : ''
+              }`}
+              data-selected={isSelected ? 'true' : undefined}
             >
-              <span className="text-xs text-neutral-600 mr-2">{String.fromCharCode(65 + i)}</span>
+              <span className="mr-2 text-xs text-fg-tertiary">{String.fromCharCode(65 + i)}</span>
               {option}
             </button>
           )
@@ -78,7 +77,7 @@ export function ChoiceQuiz({ quiz, disabled, onAnswer }: ChoiceQuizProps) {
         <button
           onClick={handleSubmit}
           disabled={selected === null}
-          className="w-full py-2.5 rounded-lg bg-neutral-100 text-neutral-900 text-sm font-medium hover:bg-white disabled:bg-neutral-800 disabled:text-neutral-600 transition-colors"
+          className="alc-button-primary w-full disabled:bg-bg-elevated disabled:text-fg-tertiary"
         >
           确认选择
         </button>

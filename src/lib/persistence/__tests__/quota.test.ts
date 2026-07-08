@@ -6,7 +6,7 @@
 //   - listModuleIds: Module 枚举
 //   - removeModule: 关联数据清除
 //   - evictOldestModule: 按 updatedAt 排序淘汰
-//   - ensureCapacity: 超 MAX_HISTORY_MODULES 淘汰 + 超预警淘汰
+//   - ensureCapacity: 兼容旧调用但不静默淘汰
 
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -15,8 +15,10 @@ import type { Module, ProgressState } from '@/types/domain'
 import { StorageKeys } from '../keys'
 import type { StorageRepository } from '../repository'
 import {
+  MAX_STORED_MODULES,
   ensureCapacity,
   evictOldestModule,
+  getStorageCapacitySummary,
   getStorageUsage,
   isStorageFull,
   isStorageNearLimit,
@@ -205,6 +207,34 @@ describe('removeModule', () => {
 
     expect(repo.has(StorageKeys.attemptsModule('m1'))).toBe(false)
   })
+
+  it('removes prefixed slots from the global attempts store', () => {
+    const repo = new MockRepo()
+    seedModule(repo, 'm1', 1000)
+    repo.set('alc:state:attempts', {
+      state: {
+        attemptsBySlot: {
+          'm1:concept-1:slot-1': [{ id: 'a1' }],
+          'm1:challenge-1': [{ id: 'a2' }],
+          'm2:concept-1:slot-1': [{ id: 'b1' }],
+          'concept-1:slot-1': [{ id: 'legacy' }],
+        },
+      },
+      version: 0,
+    })
+
+    removeModule(repo, 'm1')
+
+    expect(repo.get('alc:state:attempts')).toEqual({
+      state: {
+        attemptsBySlot: {
+          'm2:concept-1:slot-1': [{ id: 'b1' }],
+          'concept-1:slot-1': [{ id: 'legacy' }],
+        },
+      },
+      version: 0,
+    })
+  })
 })
 
 describe('evictOldestModule', () => {
@@ -237,7 +267,7 @@ describe('evictOldestModule', () => {
 })
 
 describe('ensureCapacity', () => {
-  it('does not evict when under MAX_HISTORY_MODULES', () => {
+  it('does not evict when under MAX_STORED_MODULES', () => {
     const repo = new MockRepo()
     seedModule(repo, 'm1', 1000)
 
@@ -247,32 +277,42 @@ describe('ensureCapacity', () => {
     expect(listModuleIds(repo)).toEqual(['m1'])
   })
 
-  it('evicts oldest when exceeding MAX_HISTORY_MODULES (3)', () => {
+  it('does not evict normal libraries below the 12 module limit', () => {
     const repo = new MockRepo()
-    seedModule(repo, 'm1', 1000) // oldest
-    seedModule(repo, 'm2', 2000)
-    seedModule(repo, 'm3', 3000)
-    seedModule(repo, 'm4', 4000) // this is the 4th → over limit
+    for (let i = 1; i <= MAX_STORED_MODULES; i++) {
+      seedModule(repo, `m${i}`, i * 1000)
+    }
 
     const evicted = ensureCapacity(repo, 0)
 
-    expect(evicted).toEqual(['m1'])
-    expect(listModuleIds(repo).sort()).toEqual(['m2', 'm3', 'm4'])
+    expect(evicted).toEqual([])
+    expect(listModuleIds(repo)).toHaveLength(MAX_STORED_MODULES)
   })
 
-  it('evicts multiple when far over limit', () => {
+  it('does not silently evict when exceeding the 12 module limit', () => {
     const repo = new MockRepo()
-    seedModule(repo, 'm1', 1000)
-    seedModule(repo, 'm2', 2000)
-    seedModule(repo, 'm3', 3000)
-    seedModule(repo, 'm4', 4000)
-    seedModule(repo, 'm5', 5000)
-    seedModule(repo, 'm6', 6000)
+    for (let i = 1; i <= MAX_STORED_MODULES + 2; i++) {
+      seedModule(repo, `m${i}`, i * 1000)
+    }
 
     const evicted = ensureCapacity(repo, 0)
 
-    // 6 modules → evict to 3 → evict m1, m2, m3
-    expect(evicted).toEqual(['m1', 'm2', 'm3'])
-    expect(listModuleIds(repo).sort()).toEqual(['m4', 'm5', 'm6'])
+    expect(evicted).toEqual([])
+    expect(listModuleIds(repo)).toHaveLength(MAX_STORED_MODULES + 2)
+  })
+})
+
+describe('getStorageCapacitySummary', () => {
+  it('reports module count, max modules, and near-limit state', () => {
+    const repo = new MockRepo()
+    for (let i = 1; i <= MAX_STORED_MODULES - 1; i++) {
+      seedModule(repo, `m${i}`, i * 1000)
+    }
+
+    expect(getStorageCapacitySummary(repo)).toMatchObject({
+      moduleCount: MAX_STORED_MODULES - 1,
+      maxModules: MAX_STORED_MODULES,
+      nearLimit: true,
+    })
   })
 })

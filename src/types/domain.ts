@@ -92,6 +92,18 @@ export interface Quiz {
    * 仅 Challenge 题有值；Concept 题 undefined。可选以兼容旧数据。
    */
   involvedConceptIds?: string[]
+  /** 题目前背景材料。M7.6 新增，可选以兼容旧 Module。 */
+  background?: string
+  /** Fill Blank 或开放回答的语境提示。 */
+  answerHint?: string
+  /** 可接受答案变体，主要用于 Fill Blank。 */
+  acceptableAnswers?: string[]
+  /** 常见误区，用于错误反馈补强。 */
+  misconception?: string
+  /** 延伸知识，默认可折叠展示。 */
+  extendedKnowledge?: string
+  /** 运行时判分模式。未设置时按题型默认。 */
+  evaluationMode?: 'exact' | 'normalized' | 'semantic'
 }
 
 /**
@@ -118,6 +130,11 @@ export interface FeynmanStep {
   options?: string[] | null
   answer: string
   explanation: string
+  answerHint?: string
+  acceptableAnswers?: string[]
+  misconception?: string
+  extendedKnowledge?: string
+  evaluationMode?: 'exact' | 'normalized' | 'semantic'
 }
 
 // =================================================================

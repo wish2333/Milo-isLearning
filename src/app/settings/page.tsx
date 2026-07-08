@@ -148,36 +148,33 @@ export default function SettingsPage() {
   // hydration 前不渲染表单（避免 SSR/localStorage 不匹配）
   if (!hydrated) {
     return (
-      <main className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center">
-        <p className="text-sm text-neutral-600">加载中...</p>
+      <main className="alc-page items-center justify-center">
+        <p className="alc-muted text-sm">加载中...</p>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100">
+    <main className="alc-page">
       <div className="max-w-xl mx-auto px-6 py-12 space-y-8">
         {/* Header */}
         <div className="space-y-2">
-          <button
-            onClick={() => router.push('/')}
-            className="text-xs text-neutral-600 hover:text-neutral-400 transition-colors"
-          >
+          <button onClick={() => router.push('/')} className="alc-link text-xs">
             ← 返回首页
           </button>
-          <h1 className="text-2xl font-semibold">LLM 配置</h1>
-          <p className="text-sm text-neutral-500">
+          <h1 className="text-2xl font-semibold text-fg-primary">LLM 配置</h1>
+          <p className="text-sm text-fg-secondary">
             配置 AI 供应商以启用编译功能。API Key 仅存储在浏览器 LocalStorage 中。
           </p>
         </div>
 
         {/* 已保存配置提示 */}
         {config && (
-          <div className="px-4 py-3 rounded-lg border border-emerald-800/30 bg-emerald-950/10 space-y-1">
-            <p className="text-xs text-emerald-400/80">
+          <div className="alc-card border-success/40 bg-success-soft px-4 py-3 space-y-1">
+            <p className="text-xs text-success">
               当前已配置：{PROVIDER_DEFAULTS[config.provider].label} / {config.model}
             </p>
-            <p className="text-xs text-neutral-600">
+            <p className="alc-muted text-xs">
               API Key: {config.apiKey.slice(0, 4)}...{config.apiKey.slice(-4)}
             </p>
           </div>
@@ -185,28 +182,25 @@ export default function SettingsPage() {
 
         {/* Provider 选择 */}
         <div className="space-y-3">
-          <label className="text-xs text-neutral-600 uppercase tracking-wider">供应商</label>
+          <label className="alc-label uppercase tracking-wider">供应商</label>
           <div className="grid grid-cols-3 gap-2">
             {PROVIDER_LIST.map((kind) => (
               <button
                 key={kind}
                 onClick={() => handleProviderChange(kind)}
-                className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
-                  provider === kind
-                    ? 'border-neutral-400 bg-neutral-800/50 text-neutral-100'
-                    : 'border-neutral-800 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300'
-                }`}
+                data-active={provider === kind}
+                className="alc-pill-button text-sm font-medium"
               >
                 {PROVIDER_DEFAULTS[kind].label}
               </button>
             ))}
           </div>
-          <p className="text-xs text-neutral-600">{PROVIDER_DEFAULTS[provider].hint}</p>
+          <p className="alc-muted text-xs">{PROVIDER_DEFAULTS[provider].hint}</p>
         </div>
 
         {/* API Key */}
         <div className="space-y-2">
-          <label className="text-xs text-neutral-600 uppercase tracking-wider">API Key</label>
+          <label className="alc-label uppercase tracking-wider">API Key</label>
           <div className="relative">
             <input
               type={showKey ? 'text' : 'password'}
@@ -217,11 +211,11 @@ export default function SettingsPage() {
                 setSaved(false)
               }}
               placeholder="sk-..."
-              className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-neutral-600 text-sm font-mono pr-20"
+              className="alc-input pr-20 text-sm font-mono"
             />
             <button
               onClick={() => setShowKey(!showKey)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-600 hover:text-neutral-400"
+              className="absolute right-3 top-1/2 -translate-y-1/2 alc-link text-xs"
             >
               {showKey ? '隐藏' : '显示'}
             </button>
@@ -230,7 +224,7 @@ export default function SettingsPage() {
 
         {/* Model */}
         <div className="space-y-2">
-          <label className="text-xs text-neutral-600 uppercase tracking-wider">模型</label>
+          <label className="alc-label uppercase tracking-wider">模型</label>
           <input
             type="text"
             value={model}
@@ -240,14 +234,14 @@ export default function SettingsPage() {
               setSaved(false)
             }}
             placeholder="模型 ID"
-            className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-neutral-600 text-sm font-mono"
+            className="alc-input text-sm font-mono"
           />
         </div>
 
         {/* baseURL */}
         <div className="space-y-2">
-          <label className="text-xs text-neutral-600 uppercase tracking-wider">
-            Base URL <span className="text-neutral-700">(可选，已自动填充默认值)</span>
+          <label className="alc-label uppercase tracking-wider">
+            Base URL <span className="text-fg-quaternary">(可选，已自动填充默认值)</span>
           </label>
           <input
             type="text"
@@ -258,7 +252,7 @@ export default function SettingsPage() {
               setSaved(false)
             }}
             placeholder="https://..."
-            className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-neutral-600 text-sm font-mono"
+            className="alc-input text-sm font-mono"
           />
         </div>
 
@@ -267,22 +261,22 @@ export default function SettingsPage() {
           <button
             onClick={handlePing}
             disabled={!canPing}
-            className="px-4 py-2 rounded-lg border border-neutral-700 text-neutral-300 text-sm hover:bg-neutral-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="alc-button-secondary text-sm disabled:cursor-not-allowed disabled:opacity-40"
           >
             {pinging ? '正在测试...' : '测试连接'}
           </button>
 
           {pingResult && (
             <div
-              className={`px-4 py-3 rounded-lg border text-sm ${
+              className={`rounded-lg border px-4 py-3 text-sm ${
                 pingResult.ok
-                  ? 'border-emerald-800/30 bg-emerald-950/10 text-emerald-400/80'
-                  : 'border-red-800/30 bg-red-950/10 text-red-400/80'
+                  ? 'border-success/40 bg-success-soft text-success'
+                  : 'border-danger/40 bg-danger-soft text-danger'
               }`}
             >
               <span className="font-medium">{pingResult.ok ? '连接成功' : '连接失败'}</span>
               {pingResult.latencyMs > 0 && (
-                <span className="text-neutral-500 ml-2">延迟 {pingResult.latencyMs}ms</span>
+                <span className="text-fg-secondary ml-2">延迟 {pingResult.latencyMs}ms</span>
               )}
               {pingResult.message && (
                 <p className="text-xs mt-1 opacity-70">{pingResult.message}</p>
@@ -296,15 +290,12 @@ export default function SettingsPage() {
           <button
             onClick={handleSave}
             disabled={!canSave}
-            className="flex-1 py-3 rounded-lg bg-neutral-100 text-neutral-900 font-medium text-sm hover:bg-white disabled:bg-neutral-800 disabled:text-neutral-600 transition-colors"
+            className="alc-button-primary flex-1 py-3 text-sm"
           >
             {saved ? '已保存' : '保存配置'}
           </button>
           {config && (
-            <button
-              onClick={handleClear}
-              className="px-4 py-3 rounded-lg border border-neutral-800 text-neutral-500 text-sm hover:text-red-400/70 hover:border-red-800/30 transition-colors"
-            >
+            <button onClick={handleClear} className="alc-button-danger px-4 py-3 text-sm">
               清除
             </button>
           )}
@@ -312,12 +303,9 @@ export default function SettingsPage() {
 
         {/* Next step hint */}
         {config && (
-          <div className="pt-4 border-t border-neutral-800/50">
-            <p className="text-xs text-neutral-600 mb-2">配置已就绪，下一步：</p>
-            <button
-              onClick={() => router.push('/learn/import')}
-              className="text-sm text-neutral-300 hover:text-neutral-100 transition-colors"
-            >
+          <div className="pt-4 border-t border-border-subtle">
+            <p className="alc-muted text-xs mb-2">配置已就绪，下一步：</p>
+            <button onClick={() => router.push('/learn/import')} className="alc-link text-sm">
               前往导入知识 →
             </button>
           </div>

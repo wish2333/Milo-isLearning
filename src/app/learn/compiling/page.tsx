@@ -22,6 +22,7 @@ import { Suspense, useEffect, useRef, useState, useTransition } from 'react'
 import type { CompileConfig, CompileEvent } from '@/lib/compiler/pipeline/types'
 
 import { storage } from '@/lib/persistence/local-storage'
+import { assignLocalModuleIdentity } from '@/lib/persistence/module-package'
 import { ensureCapacity } from '@/lib/persistence/quota'
 import { StorageKeys } from '@/lib/persistence/keys'
 import {
@@ -64,9 +65,9 @@ export default function CompilingPage() {
 
 function CompilingFallback() {
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center p-6">
+    <main className="min-h-screen bg-bg-base text-fg-primary flex flex-col items-center justify-center p-6">
       <div className="max-w-md w-full text-center space-y-2">
-        <p className="text-sm text-neutral-400">正在加载编译上下文...</p>
+        <p className="text-sm text-fg-secondary">正在加载编译上下文...</p>
       </div>
     </main>
   )
@@ -236,7 +237,7 @@ function CompilingPageInner() {
 
               // 编译完成 → 持久化 + 路由
               if (parsed.kind === 'complete') {
-                const compiledModule = parsed.module
+                const compiledModule = assignLocalModuleIdentity(parsed.module)
 
                 // 写入 repository（持久化 + quota 检查）
                 ensureCapacity(storage, JSON.stringify(compiledModule).length)
@@ -249,7 +250,10 @@ function CompilingPageInner() {
                 })
                 // M7.5：持久化 qualityReport
                 if (parsed.qualityReport) {
-                  storage.set(StorageKeys.qualityReport(compiledModule.id), parsed.qualityReport)
+                  storage.set(StorageKeys.qualityReport(compiledModule.id), {
+                    ...parsed.qualityReport,
+                    moduleId: compiledModule.id,
+                  })
                 }
 
                 // 写入 stores
@@ -266,6 +270,7 @@ function CompilingPageInner() {
                   pruneCompileJobs(storage)
                 }
                 sessionStorage.removeItem(SOURCE_KEY)
+                sessionStorage.setItem('alc:module-saved-confirmation', '1')
 
                 // 路由到概览页
                 startTransition(() => {
@@ -444,23 +449,23 @@ function CompilingPageInner() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center p-6">
+      <main className="min-h-screen bg-bg-base text-fg-primary flex flex-col items-center justify-center p-6">
         <div className="max-w-md space-y-4 text-center">
           <div className="w-12 h-12 mx-auto rounded-full bg-red-500/10 flex items-center justify-center">
             <span className="text-red-400 text-xl">!</span>
           </div>
           <h2 className="text-lg font-medium">编译遇到问题</h2>
-          <p className="text-sm text-neutral-400">{error}</p>
+          <p className="text-sm text-fg-secondary">{error}</p>
           <div className="flex gap-3 justify-center pt-2">
             <button
               onClick={handleRetry}
-              className="px-4 py-2 rounded-md bg-neutral-100 text-neutral-900 text-sm hover:bg-white"
+              className="px-4 py-2 rounded-md bg-accent-primary text-bg-base text-sm hover:bg-accent-primary-hover"
             >
               重试
             </button>
             <button
               onClick={() => router.push('/learn/import')}
-              className="px-4 py-2 rounded-md border border-neutral-700 text-neutral-300 text-sm hover:bg-neutral-900"
+              className="px-4 py-2 rounded-md border border-border-strong text-fg-secondary text-sm hover:bg-bg-elevated"
             >
               返回修改
             </button>
@@ -474,7 +479,7 @@ function CompilingPageInner() {
   const stageLabel = stage ? (STAGE_LABELS[stage] ?? stage) : '准备中...'
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center p-6">
+    <main className="min-h-screen bg-bg-base text-fg-primary flex flex-col items-center justify-center p-6">
       <div className="max-w-md w-full space-y-8">
         {/* Spinner / Progress */}
         <div className="flex flex-col items-center gap-4">
@@ -487,7 +492,7 @@ function CompilingPageInner() {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
-                className="text-neutral-800"
+                className="text-fg-quaternary"
               />
               <circle
                 cx="32"
@@ -498,18 +503,18 @@ function CompilingPageInner() {
                 strokeWidth="2"
                 strokeDasharray={`${(percent / 100) * 176} 176`}
                 strokeLinecap="round"
-                className="text-neutral-300 transition-all duration-500"
+                className="text-fg-secondary transition-all duration-500"
                 transform="rotate(-90 32 32)"
               />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-xs text-neutral-400">
+            <span className="absolute inset-0 flex items-center justify-center text-xs text-fg-secondary">
               {percent}%
             </span>
           </div>
 
           <div className="text-center space-y-1">
-            <p className="text-sm text-neutral-300">{stageLabel}</p>
-            {message && <p className="text-xs text-neutral-600">{message}</p>}
+            <p className="text-sm text-fg-secondary">{stageLabel}</p>
+            {message && <p className="text-xs text-fg-tertiary">{message}</p>}
           </div>
         </div>
 
@@ -524,11 +529,11 @@ function CompilingPageInner() {
               <div
                 key={key}
                 className={`flex items-center gap-2 text-xs py-1 ${
-                  isActive ? 'text-neutral-200' : isPast ? 'text-neutral-500' : 'text-neutral-700'
+                  isActive ? 'text-fg-primary' : isPast ? 'text-fg-tertiary' : 'text-fg-quaternary'
                 }`}
               >
                 <span
-                  className={`w-1 h-1 rounded-full ${isActive ? 'bg-neutral-300' : isPast ? 'bg-neutral-600' : 'bg-neutral-800'}`}
+                  className={`w-1 h-1 rounded-full ${isActive ? 'bg-accent-primary' : isPast ? 'bg-state-completed' : 'bg-bg-elevated'}`}
                 />
                 {label}
               </div>

@@ -11,7 +11,7 @@
 
 import { nanoid } from 'nanoid'
 
-import type { KnowledgeSource, Module } from '@/types/domain'
+import type { KnowledgeSource, Module, Quiz } from '@/types/domain'
 
 import { StorageKeys } from './keys'
 import type { StorageRepository } from './repository'
@@ -79,6 +79,68 @@ export function serializeModulePackage(pkg: CompiledModulePackage): string {
 }
 
 // =================================================================
+// 本地身份分配（编译/导入共用）
+// =================================================================
+
+export interface AssignLocalModuleIdentityOptions {
+  moduleId?: string
+  sourceId?: string
+}
+
+function prefixQuizId(moduleId: string, quizId: string): string {
+  return quizId.startsWith(`${moduleId}:`) ? quizId : `${moduleId}:${quizId}`
+}
+
+function assignQuizLocalIdentity(moduleId: string, quiz: Quiz): Quiz {
+  return {
+    ...quiz,
+    id: prefixQuizId(moduleId, quiz.id),
+  }
+}
+
+function assignQualityReportModuleId(report: unknown, moduleId: string): unknown {
+  if (!report || typeof report !== 'object' || Array.isArray(report)) return report
+  return { ...report, moduleId }
+}
+
+/**
+ * 把 LLM 输出/导入包中的局部 id 转换成本浏览器持久化用的唯一 id。
+ *
+ * LLM schema 会稳定产生 module-1、concept-1:slot-1、challenge-1 等局部 id。
+ * 这些 id 适合编译流水线内部校验，但不能直接作为 localStorage key 或 attempts key。
+ */
+export function assignLocalModuleIdentity(
+  module: Module,
+  options: AssignLocalModuleIdentityOptions = {},
+): Module {
+  const nextModuleId = options.moduleId ?? `module-${nanoid()}`
+  const nextSourceId = options.sourceId ?? `source-${nanoid()}`
+
+  return {
+    ...module,
+    id: nextModuleId,
+    sourceId: nextSourceId,
+    concepts: module.concepts.map((concept) => ({
+      ...concept,
+      moduleId: nextModuleId,
+      quizSeries: {
+        ...concept.quizSeries,
+        quizzes: concept.quizSeries.quizzes.map((quiz) =>
+          assignQuizLocalIdentity(nextModuleId, quiz),
+        ),
+      },
+    })),
+    challengeQuizzes: module.challengeQuizzes?.map((quiz) =>
+      assignQuizLocalIdentity(nextModuleId, quiz),
+    ),
+    feynmanTask: {
+      ...module.feynmanTask,
+      moduleId: nextModuleId,
+    },
+  }
+}
+
+// =================================================================
 // 解析（带安全校验）
 // =================================================================
 
@@ -140,18 +202,11 @@ export function importModulePackage(repo: StorageRepository, pkg: CompiledModule
   const nextModuleId = `module-${nanoid()}`
 
   const nextModule: Module = {
-    ...pkg.module,
-    id: nextModuleId,
-    sourceId: nextSourceId,
+    ...assignLocalModuleIdentity(pkg.module, {
+      moduleId: nextModuleId,
+      sourceId: nextSourceId,
+    }),
     importedAt: Date.now(),
-    concepts: pkg.module.concepts.map((concept) => ({
-      ...concept,
-      moduleId: nextModuleId,
-    })),
-    feynmanTask: {
-      ...pkg.module.feynmanTask,
-      moduleId: nextModuleId,
-    },
   }
 
   repo.set(StorageKeys.source(nextSourceId), {
@@ -161,7 +216,10 @@ export function importModulePackage(repo: StorageRepository, pkg: CompiledModule
   })
   repo.set(StorageKeys.module(nextModuleId), nextModule)
   if (pkg.qualityReport !== undefined) {
-    repo.set(StorageKeys.qualityReport(nextModuleId), pkg.qualityReport)
+    repo.set(
+      StorageKeys.qualityReport(nextModuleId),
+      assignQualityReportModuleId(pkg.qualityReport, nextModuleId),
+    )
   }
 
   return nextModule

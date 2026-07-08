@@ -80,8 +80,8 @@ export function SortingQuiz({ quiz, disabled, onAnswer }: SortingQuizProps) {
   return (
     <div className="space-y-4">
       {/* Stem */}
-      <p className="text-base text-neutral-200 leading-relaxed">{quiz.stem}</p>
-      <p className="text-xs text-neutral-600">拖拽或使用箭头调整顺序（从上到下）</p>
+      <p className="alc-question-stem">{quiz.stem}</p>
+      <p className="text-xs text-fg-tertiary">拖拽或使用箭头调整顺序（从上到下）</p>
 
       {/* Sortable items */}
       <div className="space-y-2">
@@ -95,25 +95,25 @@ export function SortingQuiz({ quiz, disabled, onAnswer }: SortingQuizProps) {
             }}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, i)}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg border border-neutral-800 bg-neutral-900/30 ${
-              disabled ? 'cursor-default' : 'cursor-move hover:border-neutral-700'
+            className={`alc-option flex items-center gap-3 ${
+              disabled ? 'cursor-default' : 'cursor-move'
             }`}
           >
-            <span className="text-xs text-neutral-600 tabular-nums w-6">{i + 1}</span>
-            <span className="flex-1 text-sm text-neutral-300">{item}</span>
+            <span className="w-6 tabular-nums text-xs text-fg-tertiary">{i + 1}</span>
+            <span className="flex-1 text-base text-fg-primary">{item}</span>
             {!disabled && (
               <div className="flex flex-col gap-0.5">
                 <button
                   onClick={() => moveItem(i, 'up')}
                   disabled={i === 0}
-                  className="text-neutral-600 hover:text-neutral-300 disabled:opacity-30 text-xs leading-none"
+                  className="text-fg-tertiary hover:text-fg-secondary disabled:opacity-30 text-xs leading-none"
                 >
                   ▲
                 </button>
                 <button
                   onClick={() => moveItem(i, 'down')}
                   disabled={i === items.length - 1}
-                  className="text-neutral-600 hover:text-neutral-300 disabled:opacity-30 text-xs leading-none"
+                  className="text-fg-tertiary hover:text-fg-secondary disabled:opacity-30 text-xs leading-none"
                 >
                   ▼
                 </button>
@@ -125,10 +125,7 @@ export function SortingQuiz({ quiz, disabled, onAnswer }: SortingQuizProps) {
 
       {/* Submit */}
       {!disabled && (
-        <button
-          onClick={handleSubmit}
-          className="w-full py-2.5 rounded-lg bg-neutral-100 text-neutral-900 text-sm font-medium hover:bg-white transition-colors"
-        >
+        <button onClick={handleSubmit} className="alc-button-primary w-full">
           确认排序
         </button>
       )}

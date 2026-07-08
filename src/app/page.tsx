@@ -5,27 +5,34 @@ import Link from 'next/link'
  */
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center gap-6 p-8">
-      <div className="space-y-2 text-center">
-        <h1 className="text-3xl font-semibold">AI Learning Compiler</h1>
-        <p className="text-sm text-neutral-500">
-          将任何知识自动编译为一条低摩擦、高掌握度的学习路径
-        </p>
-      </div>
-      <div className="flex gap-3">
-        <Link
-          href="/learn/import"
-          className="px-6 py-3 rounded-md bg-neutral-100 text-neutral-900 text-sm font-medium hover:bg-white transition-colors"
-        >
-          开始学习
-        </Link>
-        <Link
-          href="/settings"
-          className="px-4 py-3 rounded-md border border-neutral-800 text-neutral-400 text-sm hover:text-neutral-200 hover:border-neutral-700 transition-colors"
-        >
-          设置
-        </Link>
-      </div>
+    <main className="alc-page items-center justify-center p-8">
+      <section className="w-full max-w-2xl space-y-8 text-center">
+        <div className="space-y-3">
+          <p className="alc-label uppercase tracking-wider">Learning path compiler</p>
+          <h1 className="text-4xl font-semibold text-fg-primary">AI Learning Compiler</h1>
+          <p className="mx-auto max-w-md text-sm leading-relaxed text-fg-secondary">
+            将任何知识编译成一条低摩擦、高掌握度的学习路径：先理解，再练习，最后讲清楚。
+          </p>
+        </div>
+
+        <div className="mx-auto grid max-w-sm grid-cols-2 gap-3">
+          <Link href="/learn/import" className="alc-button-primary text-sm">
+            开始学习
+          </Link>
+          <Link href="/settings" className="alc-button-secondary text-sm">
+            设置
+          </Link>
+        </div>
+
+        <div className="mx-auto grid max-w-xl grid-cols-3 gap-2 text-left">
+          {['导入材料', '编译题库', '费曼解释'].map((label, index) => (
+            <div key={label} className="alc-card p-3">
+              <p className="alc-muted text-xs tabular-nums">0{index + 1}</p>
+              <p className="mt-1 text-sm text-fg-primary">{label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
     </main>
   )
 }

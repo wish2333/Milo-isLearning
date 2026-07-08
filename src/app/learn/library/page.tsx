@@ -20,6 +20,7 @@ import { useHydrated } from '@/lib/hooks/useHydrated'
 import { storage } from '@/lib/persistence/local-storage'
 import { listStoredModules } from '@/lib/persistence/module-library'
 import type { StoredModuleSummary } from '@/lib/persistence/module-library'
+import { getStorageCapacitySummary, type CapacitySummary } from '@/lib/persistence/quota'
 import type { CompileQualityReport } from '@/lib/compiler/quality/quality-report'
 import { StorageKeys } from '@/lib/persistence/keys'
 
@@ -32,11 +33,13 @@ export default function LibraryPage() {
   const hydrated = useHydrated()
 
   const [modules, setModules] = useState<StoredModuleSummary[]>([])
+  const [capacity, setCapacity] = useState<CapacitySummary | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [activeQualityFor, setActiveQualityFor] = useState<string | null>(null)
 
   const refresh = useCallback(() => {
     setModules(listStoredModules(storage))
+    setCapacity(getStorageCapacitySummary(storage))
   }, [])
 
   useEffect(() => {
@@ -118,6 +121,17 @@ export default function LibraryPage() {
                 关闭
               </button>
             </div>
+          </div>
+        )}
+
+        {capacity?.nearLimit && (
+          <div className="alc-card border-warning/40 bg-warning-soft px-4 py-3 text-sm">
+            <p className="text-fg-primary">
+              本地题库接近上限（{capacity.moduleCount}/{capacity.maxModules}）。
+            </p>
+            <p className="mt-1 text-xs text-fg-secondary">
+              你可以导出旧题库后再删除；系统不会在当前学习中静默删除正在使用的题库。
+            </p>
           </div>
         )}
 

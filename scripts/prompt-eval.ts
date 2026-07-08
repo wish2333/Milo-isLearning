@@ -61,6 +61,7 @@ interface RunResult {
   failureReason?: string
   latencyMs: number
   rawResponse?: string
+  enrichedCoverage?: number
 }
 
 /** 聚合指标 */
@@ -74,6 +75,7 @@ interface Metrics {
   latencyP95: number
   latencyMean: number
   failures: { runIndex: number; reason: string }[]
+  enrichedCoverageMean?: number
 }
 
 const AGENTS: AgentKind[] = [
@@ -86,6 +88,8 @@ const AGENTS: AgentKind[] = [
   'feynman',
   'feedback',
   'feynman-eval',
+  'quiz-batch',
+  'challenge-batch',
 ]
 
 const FIXTURES_DIR = path.resolve(
@@ -515,6 +519,34 @@ async function buildAgentInput(
 // void 一下未使用的常量（CANNED_FEYNMAN_STEPS 预留给 V2 集成测试）
 void CANNED_FEYNMAN_STEPS
 
+function extractQuizzes(output: unknown): Array<Record<string, unknown>> {
+  if (!output || typeof output !== 'object') return []
+  const record = output as Record<string, unknown>
+  if (Array.isArray(record.quizzes)) return record.quizzes as Array<Record<string, unknown>>
+  if (record.quiz && typeof record.quiz === 'object')
+    return [record.quiz as Record<string, unknown>]
+  return []
+}
+
+function computeEnrichedCoverage(output: unknown): number | undefined {
+  const quizzes = extractQuizzes(output)
+  if (quizzes.length === 0) return undefined
+  const enrichedCount = quizzes.filter((quiz) => {
+    const background = quiz.background
+    const explanation = quiz.explanation
+    const extendedKnowledge = quiz.extendedKnowledge
+    return (
+      typeof background === 'string' &&
+      background.length >= 20 &&
+      typeof explanation === 'string' &&
+      explanation.length >= 80 &&
+      typeof extendedKnowledge === 'string' &&
+      extendedKnowledge.length >= 20
+    )
+  }).length
+  return enrichedCount / quizzes.length
+}
+
 // =================================================================
 // 运行循环
 // =================================================================
@@ -530,12 +562,13 @@ async function runOnce(args: CliArgs, runIndex: number): Promise<RunResult> {
 
   const start = Date.now()
   try {
-    await runAgent(args.agent, input, metricsProvider, schema, { disableThinking })
+    const output = await runAgent(args.agent, input, metricsProvider, schema, { disableThinking })
     return {
       runIndex,
       ok: true,
       attempts: metricsProvider.chatCallCount,
       latencyMs: Date.now() - start,
+      enrichedCoverage: computeEnrichedCoverage(output),
     }
   } catch (e) {
     const reason =
@@ -568,6 +601,9 @@ function aggregate(results: RunResult[]): Metrics {
   const total = results.length
   const success = results.filter((r) => r.ok).length
   const retryTriggered = results.filter((r) => r.attempts >= 2).length
+  const enrichedCoverages = results
+    .map((r) => r.enrichedCoverage)
+    .filter((v): v is number => typeof v === 'number')
   const latencies = results.map((r) => r.latencyMs).sort((a, b) => a - b)
   const sum = latencies.reduce((a, b) => a + b, 0)
   return {
@@ -582,6 +618,10 @@ function aggregate(results: RunResult[]): Metrics {
     failures: results
       .filter((r) => !r.ok)
       .map((r) => ({ runIndex: r.runIndex, reason: r.failureReason ?? 'unknown' })),
+    enrichedCoverageMean:
+      enrichedCoverages.length > 0
+        ? enrichedCoverages.reduce((sum, value) => sum + value, 0) / enrichedCoverages.length
+        : undefined,
   }
 }
 
@@ -616,6 +656,11 @@ function formatMarkdownReport(args: CliArgs, metrics: Metrics, results: RunResul
   lines.push(`| 延迟 P50 | ${metrics.latencyP50}ms | — |`)
   lines.push(`| 延迟 P95 | ${metrics.latencyP95}ms | — |`)
   lines.push(`| 延迟 Mean | ${metrics.latencyMean}ms | — |`)
+  if (typeof metrics.enrichedCoverageMean === 'number') {
+    lines.push(
+      `| Enriched 字段覆盖率 | ${(metrics.enrichedCoverageMean * 100).toFixed(1)}% | L2/L3 背景覆盖 ≥ 80%；解析 ≥ 80 字；含 extendedKnowledge |`,
+    )
+  }
   lines.push('')
   if (metrics.failures.length > 0) {
     lines.push('## 失败详情')
@@ -630,10 +675,14 @@ function formatMarkdownReport(args: CliArgs, metrics: Metrics, results: RunResul
   }
   lines.push('## 每次运行')
   lines.push('')
-  lines.push('| run | ok | attempts | latencyMs |')
-  lines.push('|-----|-----|---------|-----------|')
+  lines.push('| run | ok | attempts | latencyMs | enrichedCoverage |')
+  lines.push('|-----|-----|---------|-----------|------------------|')
   for (const r of results) {
-    lines.push(`| ${r.runIndex} | ${r.ok ? 'OK' : 'FAIL'} | ${r.attempts} | ${r.latencyMs} |`)
+    const enriched =
+      typeof r.enrichedCoverage === 'number' ? `${(r.enrichedCoverage * 100).toFixed(1)}%` : '—'
+    lines.push(
+      `| ${r.runIndex} | ${r.ok ? 'OK' : 'FAIL'} | ${r.attempts} | ${r.latencyMs} | ${enriched} |`,
+    )
   }
   lines.push('')
   return lines.join('\n')

@@ -16,11 +16,19 @@ import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
 interface FeedbackPanelProps {
   feedback: FeedbackRuntime
   explanation?: string
+  misconception?: string
+  extendedKnowledge?: string
   /** 是否被强制推进（retry-policy 触发） */
   forceAdvance?: boolean
 }
 
-export function FeedbackPanel({ feedback, explanation, forceAdvance }: FeedbackPanelProps) {
+export function FeedbackPanel({
+  feedback,
+  explanation,
+  misconception,
+  extendedKnowledge,
+  forceAdvance,
+}: FeedbackPanelProps) {
   const passed = feedback.nextAction === 'advance'
   const showAmber = !passed && !forceAdvance
 
@@ -43,8 +51,8 @@ export function FeedbackPanel({ feedback, explanation, forceAdvance }: FeedbackP
       {feedback.gaps.length > 0 && (
         <ul className="space-y-1">
           {feedback.gaps.map((gap) => (
-            <li key={gap} className="text-xs text-neutral-500 flex items-start gap-2">
-              <span className="text-neutral-600 mt-0.5">-</span>
+            <li key={gap} className="text-xs text-fg-tertiary flex items-start gap-2">
+              <span className="text-fg-tertiary mt-0.5">-</span>
               <span>{gap}</span>
             </li>
           ))}
@@ -52,10 +60,28 @@ export function FeedbackPanel({ feedback, explanation, forceAdvance }: FeedbackP
       )}
 
       {/* Explanation */}
-      {explanation && !passed && (
-        <div className="pt-2 border-t border-neutral-800/50">
-          <p className="text-xs text-neutral-500 leading-relaxed">{explanation}</p>
+      {explanation && (
+        <div
+          className="alc-explanation pt-2 border-t border-border-subtle space-y-1"
+          data-state={passed ? 'correct' : 'retry'}
+        >
+          <p className="alc-explanation-label text-xs text-fg-secondary">解析</p>
+          <p className="text-xs text-fg-tertiary leading-relaxed">{explanation}</p>
         </div>
+      )}
+
+      {misconception && !passed && (
+        <div className="alc-misconception rounded-md border border-amber-800/30 bg-amber-950/10 p-3 space-y-1">
+          <p className="alc-explanation-label text-xs text-amber-300/70">容易卡住的地方</p>
+          <p className="text-xs text-fg-tertiary leading-relaxed">{misconception}</p>
+        </div>
+      )}
+
+      {extendedKnowledge && (
+        <details className="alc-extended pt-1 text-xs text-fg-tertiary">
+          <summary className="cursor-pointer text-fg-secondary">延伸理解</summary>
+          <p className="pt-2 leading-relaxed">{extendedKnowledge}</p>
+        </details>
       )}
 
       {/* Force advance notice */}

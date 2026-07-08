@@ -197,6 +197,6 @@ test.describe('Module route recovery', () => {
 
     await page.goto(`/learn/module/${mockModule.id}`)
     await expect(page.locator('text=导言')).toBeVisible()
-    await expect(page.locator('text=测试模块')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '测试模块' })).toBeVisible()
   })
 })

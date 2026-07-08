@@ -19,11 +19,29 @@ const EXPRESSION_LABELS: Record<1 | 2 | 3, string> = {
   3: '填空题',
 }
 
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`
+}
+
 export function QualitySummary({ report }: QualitySummaryProps) {
   const totalExpression =
     report.expressionDistribution[1] +
     report.expressionDistribution[2] +
     report.expressionDistribution[3]
+  const pedagogy = report.pedagogyCoverage ?? {
+    quizCount: 0,
+    backgroundCoverage: 0,
+    extendedKnowledgeCoverage: 0,
+    fillBlankAcceptableAnswerCoverage: 0,
+    averageExplanationLength: 0,
+  }
+  const mapperFixStats = report.mapperFixStats ?? { totalFixes: 0 }
+  const semanticEvalStats = report.semanticEvalStats ?? {
+    calls: 0,
+    cacheHits: 0,
+    semanticAccepted: 0,
+    providerFailures: 0,
+  }
 
   return (
     <div className="alc-card-elevated p-4 space-y-3 text-sm">
@@ -66,6 +84,50 @@ export function QualitySummary({ report }: QualitySummaryProps) {
           </div>
         </div>
       )}
+
+      <div className="space-y-1">
+        <p className="alc-label">教学字段覆盖</p>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded border border-border-subtle bg-bg-surface px-2 py-1.5">
+            <p className="text-fg-secondary">题目前背景</p>
+            <p className="text-fg-primary tabular-nums">
+              {formatPercent(pedagogy.backgroundCoverage)}
+            </p>
+          </div>
+          <div className="rounded border border-border-subtle bg-bg-surface px-2 py-1.5">
+            <p className="text-fg-secondary">延伸理解</p>
+            <p className="text-fg-primary tabular-nums">
+              {formatPercent(pedagogy.extendedKnowledgeCoverage)}
+            </p>
+          </div>
+          <div className="rounded border border-border-subtle bg-bg-surface px-2 py-1.5">
+            <p className="text-fg-secondary">填空可接受答案</p>
+            <p className="text-fg-primary tabular-nums">
+              {formatPercent(pedagogy.fillBlankAcceptableAnswerCoverage)}
+            </p>
+          </div>
+          <div className="rounded border border-border-subtle bg-bg-surface px-2 py-1.5">
+            <p className="text-fg-secondary">解析平均长度</p>
+            <p className="text-fg-primary tabular-nums">
+              {Math.round(pedagogy.averageExplanationLength)} 字
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded border border-border-subtle bg-bg-surface px-2 py-1.5">
+          <p className="text-fg-secondary">Mapper 修复次数</p>
+          <p className="text-fg-primary tabular-nums">{mapperFixStats.totalFixes}</p>
+        </div>
+        <div className="rounded border border-border-subtle bg-bg-surface px-2 py-1.5">
+          <p className="text-fg-secondary">LLM 语义判分</p>
+          <p className="text-fg-primary tabular-nums">
+            {semanticEvalStats.calls}
+            <span className="alc-muted"> / 缓存 {semanticEvalStats.cacheHits}</span>
+          </p>
+        </div>
+      </div>
 
       {report.challengeCoverage.length > 0 && (
         <div className="space-y-1">

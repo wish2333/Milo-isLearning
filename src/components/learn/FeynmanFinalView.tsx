@@ -81,11 +81,11 @@ export function FeynmanFinalView() {
   const canRetry = submitCount < MAX_SUBMITS
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
+    <div className="text-fg-primary">
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
         {/* Header */}
         <div className="space-y-1">
-          <p className="text-xs text-neutral-600 uppercase tracking-wider">费曼最终任务</p>
+          <p className="text-xs text-fg-quaternary uppercase tracking-wider">费曼最终任务</p>
           <h2 className="text-xl font-semibold">{finalPrompt}</h2>
         </div>
 
@@ -96,11 +96,11 @@ export function FeynmanFinalView() {
             onChange={(e) => setOutput(e.target.value)}
             disabled={hasResult && !canRetry}
             placeholder="用你自己的话，写出对以上知识的完整解释..."
-            className="w-full h-64 bg-neutral-900 border border-neutral-800 rounded-lg p-4 text-sm text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-600 resize-none"
+            className="w-full h-64 bg-bg-surface border border-border-default rounded-lg p-4 text-sm text-fg-primary placeholder-fg-tertiary focus:outline-none focus:border-border-default resize-none"
           />
           <div className="flex items-center justify-between text-xs">
-            <span className="text-neutral-600">{charCount} 字</span>
-            <span className={charCount < MIN_CHARS ? 'text-amber-500/60' : 'text-neutral-600'}>
+            <span className="text-fg-quaternary">{charCount} 字</span>
+            <span className={charCount < MIN_CHARS ? 'text-warning' : 'text-fg-quaternary'}>
               建议 {MIN_CHARS}-{MAX_CHARS} 字
             </span>
           </div>
@@ -111,37 +111,37 @@ export function FeynmanFinalView() {
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="w-full py-3 rounded-lg bg-neutral-100 text-neutral-900 font-medium text-sm hover:bg-white disabled:bg-neutral-800 disabled:text-neutral-600 transition-colors"
+            className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover disabled:bg-bg-elevated disabled:text-fg-tertiary transition-colors"
           >
             {evaluating ? '正在评估...' : '提交评估'}
           </button>
         )}
 
         {/* Error */}
-        {error && <p className="text-sm text-red-400/80">{error}</p>}
+        {error && <p className="text-sm text-danger/80">{error}</p>}
 
         {/* Evaluation result */}
         {result && (
           <div className="space-y-4">
             {/* Score */}
-            <div className="flex items-center gap-4 py-4 border-y border-neutral-800">
+            <div className="flex items-center gap-4 py-4 border-y border-border-default">
               <div className="text-3xl font-light tabular-nums">
                 {result.score}
-                <span className="text-sm text-neutral-600">/100</span>
+                <span className="text-sm text-fg-quaternary">/100</span>
               </div>
               <div className="flex-1">
-                <p className="text-xs text-neutral-600">费曼得分</p>
+                <p className="text-xs text-fg-quaternary">费曼得分</p>
               </div>
             </div>
 
             {/* Rubric results */}
             <div className="space-y-2">
-              <p className="text-xs text-neutral-600 uppercase tracking-wider">评分细则</p>
+              <p className="text-xs text-fg-quaternary uppercase tracking-wider">评分细则</p>
               {result.rubricResults.map((r) => (
                 <div key={r.point} className="flex items-start justify-between gap-3 py-2">
                   <div className="flex-1">
-                    <p className="text-sm text-neutral-300">{r.point}</p>
-                    <p className="text-xs text-neutral-600 mt-0.5">{r.comment}</p>
+                    <p className="text-sm text-fg-secondary">{r.point}</p>
+                    <p className="text-xs text-fg-quaternary mt-0.5">{r.comment}</p>
                   </div>
                   <span
                     className={`text-xs px-2 py-0.5 rounded ${
@@ -149,7 +149,7 @@ export function FeynmanFinalView() {
                         ? 'bg-emerald-950/30 text-emerald-400/70'
                         : r.hit === 'partial'
                           ? 'bg-amber-950/30 text-amber-400/70'
-                          : 'bg-neutral-800/50 text-neutral-500'
+                          : 'bg-bg-elevated/50 text-fg-tertiary'
                     }`}
                   >
                     {r.hit === 'full' ? '完全命中' : r.hit === 'partial' ? '部分命中' : '未命中'}
@@ -160,9 +160,9 @@ export function FeynmanFinalView() {
 
             {/* Sample answer */}
             <div className="space-y-2">
-              <p className="text-xs text-neutral-600 uppercase tracking-wider">参考范文</p>
-              <div className="bg-neutral-900/50 rounded-lg p-4 border border-neutral-800/50">
-                <p className="text-sm text-neutral-400 leading-relaxed whitespace-pre-wrap">
+              <p className="text-xs text-fg-quaternary uppercase tracking-wider">参考范文</p>
+              <div className="bg-bg-surface/50 rounded-lg p-4 border border-border-subtle">
+                <p className="text-sm text-fg-secondary leading-relaxed whitespace-pre-wrap">
                   {result.sampleAnswer}
                 </p>
               </div>
@@ -176,14 +176,14 @@ export function FeynmanFinalView() {
                     setResult(null)
                     setOutput('')
                   }}
-                  className="flex-1 py-3 rounded-lg border border-neutral-700 text-neutral-300 font-medium text-sm hover:bg-neutral-900 transition-colors"
+                  className="flex-1 py-3 rounded-lg border border-border-strong text-fg-secondary font-medium text-sm hover:bg-bg-elevated transition-colors"
                 >
                   重写一次 ({submitCount}/{MAX_SUBMITS})
                 </button>
               ) : null}
               <button
                 onClick={handleFinish}
-                className="flex-1 py-3 rounded-lg bg-neutral-100 text-neutral-900 font-medium text-sm hover:bg-white transition-colors"
+                className="flex-1 py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover transition-colors"
               >
                 完成学习
               </button>

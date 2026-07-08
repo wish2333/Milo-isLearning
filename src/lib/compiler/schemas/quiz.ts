@@ -25,8 +25,18 @@ const quizCoreSchema = z.object({
   stem: z.string().min(5, 'stem 至少 5 字符'),
   options: z.union([z.array(z.string().min(1)).min(3).max(5), z.null()]),
   answer: z.string().min(1),
-  explanation: z.string().min(20, 'explanation 至少 20 字').max(500, 'explanation ≤ 500 字'),
+  explanation: z.string().min(40, 'explanation 至少 40 字').max(1200, 'explanation ≤ 1200 字'),
   distractors: z.array(distractorItemSchema).min(1, '至少 1 个 distractor 候选'),
+  background: z.string().min(20).max(800).optional(),
+  answerHint: z.string().min(2).max(120).optional(),
+  acceptableAnswers: z.array(z.string().min(1)).min(1).max(8).optional(),
+  misconception: z.string().min(10).max(500).optional(),
+  extendedKnowledge: z
+    .string()
+    .max(1200)
+    .transform((s) => (s.trim().length < 20 ? undefined : s))
+    .optional(),
+  evaluationMode: z.enum(['exact', 'normalized', 'semantic']).optional(),
 })
 
 /**
@@ -74,6 +84,13 @@ export const quizItemSchema = quizCoreSchema.superRefine((val, ctx) => {
         code: z.ZodIssueCode.custom,
         message: `Fill Blank 题 options 必须为 null`,
         path: ['options'],
+      })
+    }
+    if (val.acceptableAnswers && !val.acceptableAnswers.includes(val.answer)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'acceptableAnswers 必须包含标准 answer',
+        path: ['acceptableAnswers'],
       })
     }
   }

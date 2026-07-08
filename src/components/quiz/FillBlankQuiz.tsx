@@ -57,7 +57,10 @@ export function FillBlankQuiz({ quiz, disabled, onAnswer }: FillBlankQuizProps) 
   return (
     <div className="space-y-4">
       {/* Stem with inline input */}
-      <div className="text-base text-neutral-200 leading-relaxed">
+      <div className="alc-question-stem">
+        {quiz.answerHint && (
+          <p className="mb-3 text-xs text-fg-tertiary">提示：{quiz.answerHint}</p>
+        )}
         {parts.length > 1 ? (
           <div className="flex flex-wrap items-center gap-1">
             {parts.map((part, i) => (
@@ -71,11 +74,11 @@ export function FillBlankQuiz({ quiz, disabled, onAnswer }: FillBlankQuizProps) 
                     onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                     disabled={disabled}
                     placeholder="填写..."
-                    className={`inline-block mx-1 px-2 py-0.5 bg-neutral-900 border-b-2 ${
+                    className={`inline-block mx-1 px-2 py-0.5 bg-bg-surface border-b-2 ${
                       disabled
-                        ? 'border-neutral-700'
-                        : 'border-neutral-500 focus:border-neutral-300'
-                    } text-neutral-100 text-base outline-none transition-colors text-center min-w-[80px]`}
+                        ? 'border-border-strong'
+                        : 'border-border-default focus:border-accent-primary'
+                    } text-fg-primary text-base outline-none transition-colors text-center min-w-[80px]`}
                     style={{ width: `${Math.max(values[i]?.length ?? 0, 4) + 2}ch` }}
                   />
                 )}
@@ -92,7 +95,7 @@ export function FillBlankQuiz({ quiz, disabled, onAnswer }: FillBlankQuizProps) 
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
               disabled={disabled}
               placeholder="输入你的答案..."
-              className="w-full px-3 py-2.5 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-neutral-600 text-sm"
+              className="w-full px-3 py-2.5 bg-bg-surface border border-border-default rounded-lg text-fg-primary placeholder-fg-tertiary focus:outline-none focus:border-border-default text-sm"
             />
           </>
         )}
@@ -103,7 +106,7 @@ export function FillBlankQuiz({ quiz, disabled, onAnswer }: FillBlankQuizProps) 
         <button
           onClick={handleSubmit}
           disabled={!allFilled}
-          className="w-full py-2.5 rounded-lg bg-neutral-100 text-neutral-900 text-sm font-medium hover:bg-white disabled:bg-neutral-800 disabled:text-neutral-600 transition-colors"
+          className="alc-button-primary w-full disabled:bg-bg-elevated disabled:text-fg-tertiary"
         >
           确认答案
         </button>

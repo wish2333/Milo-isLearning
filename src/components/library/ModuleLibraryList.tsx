@@ -30,7 +30,7 @@ interface ModuleLibraryListProps {
 }
 
 function formatDate(ts: number): string {
-  if (!ts) return '从未学习'
+  if (!ts) return '未开始'
   const d = new Date(ts)
   const yyyy = d.getFullYear()
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -38,6 +38,20 @@ function formatDate(ts: number): string {
   const hh = String(d.getHours()).padStart(2, '0')
   const mi = String(d.getMinutes()).padStart(2, '0')
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
+}
+
+/** 根据完成状态和更新时间推导学习状态标签 */
+function getStatusBadge(
+  completed: boolean,
+  updatedAt: number,
+): { label: string; className: string } {
+  if (completed) {
+    return { label: '已完成', className: 'text-success bg-success-soft' }
+  }
+  if (updatedAt > 0) {
+    return { label: '学习中', className: 'text-fg-secondary bg-bg-elevated' }
+  }
+  return { label: '未开始', className: 'text-fg-tertiary bg-bg-elevated' }
 }
 
 export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps) {
@@ -149,11 +163,9 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
                 </p>
               </div>
               <span
-                className={`text-xs px-2 py-0.5 rounded shrink-0 ${
-                  m.completed ? 'text-success bg-success-soft' : 'text-fg-secondary bg-bg-elevated'
-                }`}
+                className={`text-xs px-2 py-0.5 rounded shrink-0 ${getStatusBadge(m.completed, m.updatedAt).className}`}
               >
-                {m.completed ? '已完成' : '学习中'}
+                {getStatusBadge(m.completed, m.updatedAt).label}
               </span>
             </div>
 
@@ -163,7 +175,14 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
                 onClick={() => handleOpen(m)}
                 className="alc-button-primary text-xs px-3 py-1.5"
               >
-                {m.completed ? '查看' : '继续'}
+                {m.completed ? '查看' : m.updatedAt > 0 ? '继续' : '开始学习'}
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(`/learn/history/${m.id}`)}
+                className="alc-button-secondary text-xs px-3 py-1.5"
+              >
+                作答记录
               </button>
               <button
                 type="button"

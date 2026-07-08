@@ -1,16 +1,10 @@
 /**
- * Quota Management — 容量预警与历史 Module 淘汰
+ * Quota Management — 容量预警与显式 Module 删除
  *
  * 对应 docs/PRD.md §6.1 NFR / FR-08 AC4 和 docs/Technical-Specification.md §6.1。
  *
- * 策略：
- *   1. 预警阈值 STORAGE_WARN_BYTES（4.5MB）→ UI 提示用户
- *   2. 硬限 STORAGE_HARD_LIMIT_BYTES（5MB）→ 写入前触发 eviction
- *   3. 历史 Module 数超过 STORAGE_MAX_HISTORY_MODULES（3）→ 淘汰最旧
- *
- * 淘汰顺序：按 ProgressState.updatedAt 升序（最久未访问的先淘汰）。
- * 淘汰一个 Module 时连带清除其全部关联数据：
- *   source / module / mastery / attempts(每道题) / feynman / progress
+ * M7.6 起不再在编译或导入时静默淘汰旧题库。
+ * 容量接近上限只通过 UI 提示用户导出/删除；删除必须由用户二次确认触发。
  */
 
 import type { Module, ProgressState } from '@/types/domain'
@@ -22,6 +16,21 @@ import {
   STORAGE_WARN_BYTES,
 } from './keys'
 import type { StorageRepository } from './repository'
+
+export const MAX_STORED_MODULES = 12
+
+export interface CapacitySummary {
+  moduleCount: number
+  maxModules: number
+  nearLimit: boolean
+}
+
+interface PersistedAttemptsState {
+  state?: {
+    attemptsBySlot?: Record<string, unknown>
+  }
+  version?: number
+}
 
 // =================================================================
 // 容量计算
@@ -59,6 +68,15 @@ export function isStorageFull(repo: StorageRepository): boolean {
   return getStorageUsage(repo) >= STORAGE_HARD_LIMIT_BYTES
 }
 
+export function getStorageCapacitySummary(repo: StorageRepository): CapacitySummary {
+  const moduleCount = listModuleIds(repo).length
+  return {
+    moduleCount,
+    maxModules: MAX_STORED_MODULES,
+    nearLimit: moduleCount >= MAX_STORED_MODULES - 1 || isStorageNearLimit(repo),
+  }
+}
+
 // =================================================================
 // Module 枚举与淘汰
 // =================================================================
@@ -72,6 +90,31 @@ export function listModuleIds(repo: StorageRepository): string[] {
     .keys()
     .filter((k) => k.startsWith(`${prefix}:`))
     .map((k) => k.slice(`${prefix}:`.length))
+}
+
+function removeGlobalAttemptsForModule(repo: StorageRepository, moduleId: string): void {
+  const attemptsKey = 'alc:state:attempts'
+  const persisted = repo.get<PersistedAttemptsState>(attemptsKey)
+  const attemptsBySlot = persisted?.state?.attemptsBySlot
+  if (!persisted || !attemptsBySlot) return
+
+  const nextAttemptsBySlot = { ...attemptsBySlot }
+  let changed = false
+  for (const slotId of Object.keys(nextAttemptsBySlot)) {
+    if (slotId.startsWith(`${moduleId}:`)) {
+      delete nextAttemptsBySlot[slotId]
+      changed = true
+    }
+  }
+
+  if (!changed) return
+  repo.set(attemptsKey, {
+    ...persisted,
+    state: {
+      ...persisted.state,
+      attemptsBySlot: nextAttemptsBySlot,
+    },
+  })
 }
 
 /**
@@ -93,6 +136,7 @@ export function removeModule(repo: StorageRepository, moduleId: string): string 
   repo.remove(StorageKeys.progress(moduleId))
   repo.remove(StorageKeys.attemptsModule(moduleId))
   repo.remove(StorageKeys.qualityReport(moduleId))
+  removeGlobalAttemptsForModule(repo, moduleId)
 
   return moduleId
 }
@@ -122,42 +166,22 @@ export function evictOldestModule(repo: StorageRepository): string | null {
 }
 
 /**
- * 确保有足够的容量写入即将到来的数据。
+ * Legacy compatibility hook for call sites that used to request automatic cleanup.
  *
- * 策略：
- *   1. 若 Module 数已超过 MAX_HISTORY_MODULES → 淘汰最旧的
- *   2. 若用量仍超过预警阈值 → 继续淘汰直到低于阈值或无 Module 可淘汰
+ * It intentionally does not delete anything. Silent eviction made older题库 disappear after
+ * compiling a new module, which violates the M7.6 product rule that cleanup must be explicit.
  *
- * @param neededBytes 即将写入的数据量预估（当前未使用，预留扩展）
- * @returns 被淘汰的 moduleId 列表（可能为空）
+ * @param repo repository kept for signature compatibility
+ * @param neededBytes upcoming write size kept for future IndexedDB migration
+ * @returns always empty because no module was deleted
  */
-export function ensureCapacity(repo: StorageRepository, neededBytes = 0): string[] {
-  const evicted: string[] = []
-
-  // Step 1: 超过历史 Module 数限制 → 淘汰最旧的
-  while (listModuleIds(repo).length > STORAGE_MAX_HISTORY_MODULES) {
-    const evictedId = evictOldestModule(repo)
-    if (evictedId) {
-      evicted.push(evictedId)
-    } else {
-      break
-    }
-  }
-
-  // Step 2: 用量超过预警阈值 → 继续淘汰
-  const projectedUsage = getStorageUsage(repo) + neededBytes
-  if (projectedUsage > STORAGE_WARN_BYTES) {
-    while (getStorageUsage(repo) > STORAGE_WARN_BYTES && listModuleIds(repo).length > 0) {
-      const evictedId = evictOldestModule(repo)
-      if (evictedId) {
-        evicted.push(evictedId)
-      } else {
-        break
-      }
-    }
-  }
-
-  return evicted
+export function ensureCapacity(_repo: StorageRepository, _neededBytes = 0): string[] {
+  return []
 }
 
-export { STORAGE_WARN_BYTES, STORAGE_HARD_LIMIT_BYTES, STORAGE_MAX_HISTORY_MODULES }
+export {
+  STORAGE_WARN_BYTES,
+  STORAGE_HARD_LIMIT_BYTES,
+  STORAGE_MAX_HISTORY_MODULES,
+  STORAGE_MAX_HISTORY_MODULES as LEGACY_STORAGE_MAX_HISTORY_MODULES,
+}

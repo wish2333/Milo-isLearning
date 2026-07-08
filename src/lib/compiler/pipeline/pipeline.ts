@@ -18,6 +18,7 @@
  *   - Import 用 lightweightModel，其他 6 Agent 用 compileModel
  */
 import type { Concept, FeynmanTask, Module, Quiz } from '@/types/domain'
+import type { ZodIssue } from 'zod'
 import type {
   ChunkAgentOutput,
   ConceptAgentOutput,
@@ -464,7 +465,125 @@ function salvageQuizBatch(raw: string, placeholders: unknown[]): Quiz[] | null {
 }
 
 /**
- * 执行 Quiz stage（按 concept 分批，每 concept 一次 prompt）。
+ * quiz-batch 的 autoFix 回调：在 schema 校验失败后、重试前尝试自动修复已知问题。
+ *
+ * 修复项：
+ *   - distractor.text === answer 且 used === true → 设为 used: false
+ *   - extendedKnowledge 不足 20 字符 → 删除该字段
+ *   - misconception 不足 10 字符 → 删除该字段
+ *
+ * @returns 修复后的值（有修改则返回对象），或 null 表示无法修复
+ */
+function autoFixQuizBatch(value: unknown, _issues: ZodIssue[]): unknown | null {
+  if (!value || typeof value !== 'object') return null
+  const data = value as Record<string, unknown>
+  if (!Array.isArray(data.quizzes)) return null
+
+  let modified = false
+  const quizzes = data.quizzes as Array<Record<string, unknown>>
+
+  for (const quiz of quizzes) {
+    if (!quiz || typeof quiz !== 'object') continue
+
+    // 修复 distractor.text === answer（会导致两个选项都是正解）
+    const answer = quiz.answer
+    const distractors = quiz.distractors
+    if (typeof answer === 'string' && Array.isArray(distractors)) {
+      for (const d of distractors) {
+        if (d && typeof d === 'object' && 'text' in d && 'used' in d) {
+          const dd = d as { text: unknown; used: unknown }
+          if (dd.text === answer && dd.used === true) {
+            dd.used = false
+            modified = true
+          }
+        }
+      }
+    }
+
+    // 修复 extendedKnowledge 短串（兜底，transform 应已处理大部分）
+    if (typeof quiz.extendedKnowledge === 'string' && quiz.extendedKnowledge.trim().length < 20) {
+      delete quiz.extendedKnowledge
+      modified = true
+    }
+
+    // 修复 misconception 短串
+    if (typeof quiz.misconception === 'string' && quiz.misconception.trim().length < 10) {
+      delete quiz.misconception
+      modified = true
+    }
+  }
+
+  return modified ? data : null
+}
+
+/** quiz-batch concept 级并行度（保守值，避免 API rate limit） */
+const QUIZ_BATCH_CONCURRENCY = 3
+
+/**
+ * 执行单个 concept 的 quiz-batch 请求（含重试 + salvage 容错 + autoFix）。
+ *
+ * 从 runQuizStage 提取，使并行化时每个 concept 独立执行。
+ */
+async function runQuizBatchForConcept(
+  concept: Concept,
+  conceptId: string,
+  placeholders: MissionAgentOutput['seriesByConcept'][string],
+  input: QuizStageInput,
+): Promise<{ ok: boolean; quizzes: Quiz[]; error: unknown }> {
+  let batchOk = false
+  let batchError: unknown
+  let batchQuizzes: Quiz[] = []
+
+  for (let retry = 0; retry <= MAX_RETRIES; retry++) {
+    try {
+      const out = await runAgent(
+        'quiz-batch',
+        {
+          placeholders: placeholders,
+          concept: conceptRawForQuiz(concept),
+          moduleContext: input.moduleContext,
+          total: placeholders.length,
+          conceptName: concept.name,
+          conceptId,
+        },
+        input.provider,
+        quizBatchSchema,
+        { disableThinking: input.disableThinking, autoFix: autoFixQuizBatch },
+      )
+      const batchOut = out as QuizBatchAgentOutput
+      batchQuizzes = batchOut.quizzes.map((q) => assembleQuiz(q))
+      batchOk = true
+      break
+    } catch (e: unknown) {
+      batchError = e
+      if (e instanceof AgentOutputError) {
+        console.error(
+          `[quiz-batch] ${concept.name}: ${e.message} (attempt ${retry + 1}/${MAX_RETRIES + 1})`,
+        )
+        // 尝试从原始输出中修复部分有效的 quiz
+        const salvaged = salvageQuizBatch(e.raw, placeholders)
+        if (salvaged !== null) {
+          batchQuizzes = salvaged
+          batchOk = true
+          const placeholdersArr = placeholders as Array<{ id: string }>
+          console.warn(
+            `[quiz-batch] ${concept.name}: 已修复 ${salvaged.length}/${placeholdersArr.length} 道题（部分容错）`,
+          )
+          break
+        }
+      }
+      if (!isTransientError(e) || retry >= MAX_RETRIES) break
+      const delay = backoffDelay(retry)
+      console.warn(`[quiz-batch] ${concept.name} 瞬时错误，${delay}ms 后第 ${retry + 1} 次重试...`)
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
+  }
+
+  return { ok: batchOk, quizzes: batchQuizzes, error: batchError }
+}
+
+/**
+ * 执行 Quiz stage（按 concept 分批，chunked 并行执行）。
  *
  * 流程：
  *   1. yield stage_enter
@@ -511,116 +630,80 @@ async function* runQuizStage(input: QuizStageInput): AsyncGenerator<CompileEvent
   const allResults: QuizSlotResult[] = []
   let completedCount = 0
 
-  // 按 concept 分组，每 concept 一次 batch 请求
-  for (const [conceptId, placeholders] of Object.entries(input.seriesByConcept)) {
-    const concept = conceptMap.get(conceptId)
-    if (!concept) {
-      // 兜底：concept 不存在时跳过
-      for (let idx = 0; idx < placeholders.length; idx++) {
-        const p = placeholders[idx]
-        if (p) {
-          allResults.push({
-            slot: { conceptId, slotIndex: idx, placeholder: p },
-            ok: false,
-            error: new Error(`未找到 concept: ${conceptId}`),
-          })
-        }
-      }
-      completedCount += placeholders.length
-      continue
-    }
+  // 按 concept 分组，chunked 并行执行（每 chunk QUIZ_BATCH_CONCURRENCY 个 concept）
+  const conceptEntries = Object.entries(input.seriesByConcept)
 
-    let batchOk = false
-    let batchError: unknown
-    let batchQuizzes: Quiz[] = []
+  for (
+    let chunkStart = 0;
+    chunkStart < conceptEntries.length;
+    chunkStart += QUIZ_BATCH_CONCURRENCY
+  ) {
+    const chunk = conceptEntries.slice(chunkStart, chunkStart + QUIZ_BATCH_CONCURRENCY)
 
-    for (let retry = 0; retry <= MAX_RETRIES; retry++) {
-      try {
-        const out = await runAgent(
-          'quiz-batch',
-          {
-            placeholders: placeholders,
-            concept: conceptRawForQuiz(concept),
-            moduleContext: input.moduleContext,
-            total: placeholders.length,
-            conceptName: concept.name,
+    const chunkResults = await Promise.all(
+      chunk.map(async ([conceptId, placeholders]) => {
+        const concept = conceptMap.get(conceptId)
+        if (!concept) {
+          return {
             conceptId,
-          },
-          input.provider,
-          quizBatchSchema,
-          { disableThinking: input.disableThinking },
-        )
-        const batchOut = out as QuizBatchAgentOutput
-        batchQuizzes = batchOut.quizzes.map((q) => assembleQuiz(q))
-        batchOk = true
-        break
-      } catch (e: unknown) {
-        batchError = e
-        if (e instanceof AgentOutputError) {
-          console.error(
-            `[quiz-batch] ${concept.name}: ${e.message} (attempt ${retry + 1}/${MAX_RETRIES + 1})`,
-          )
-          // 尝试从原始输出中修复部分有效的 quiz
-          const salvaged = salvageQuizBatch(e.raw, placeholders)
-          if (salvaged !== null) {
-            batchQuizzes = salvaged
-            batchOk = true
-            const placeholdersArr = placeholders as Array<{ id: string }>
-            console.warn(
-              `[quiz-batch] ${concept.name}: 已修复 ${salvaged.length}/${placeholdersArr.length} 道题（部分容错）`,
-            )
-            break
+            placeholders,
+            ok: false as const,
+            quizzes: [] as Quiz[],
+            error: new Error(`未找到 concept: ${conceptId}`) as unknown,
           }
         }
-        if (!isTransientError(e) || retry >= MAX_RETRIES) break
-        const delay = backoffDelay(retry)
-        console.warn(
-          `[quiz-batch] ${concept.name} 瞬时错误，${delay}ms 后第 ${retry + 1} 次重试...`,
-        )
-        await new Promise((resolve) => setTimeout(resolve, delay))
-      }
-    }
+        const result = await runQuizBatchForConcept(concept, conceptId, placeholders, input)
+        return { conceptId, placeholders, ...result }
+      }),
+    )
 
-    if (batchOk) {
-      // 按 placeholder.id 匹配返回的 quiz
-      const quizById = new Map<string, Quiz>(batchQuizzes.map((q) => [q.id, q]))
-      for (let idx = 0; idx < placeholders.length; idx++) {
-        const p = placeholders[idx]
-        if (!p) continue
-        const quiz = quizById.get(p.id)
-        if (quiz) {
-          allResults.push({ slot: { conceptId, slotIndex: idx, placeholder: p }, ok: true, quiz })
-        } else {
-          allResults.push({
-            slot: { conceptId, slotIndex: idx, placeholder: p },
-            ok: false,
-            error: new Error(`Batch 未生成与 placeholder "${p.id}" 对应的 quiz`),
-          })
+    for (const result of chunkResults) {
+      if (result.ok) {
+        // 按 placeholder.id 匹配返回的 quiz
+        const quizById = new Map<string, Quiz>(result.quizzes.map((q) => [q.id, q]))
+        for (let idx = 0; idx < result.placeholders.length; idx++) {
+          const p = result.placeholders[idx]
+          if (!p) continue
+          const quiz = quizById.get(p.id)
+          if (quiz) {
+            allResults.push({
+              slot: { conceptId: result.conceptId, slotIndex: idx, placeholder: p },
+              ok: true,
+              quiz,
+            })
+          } else {
+            allResults.push({
+              slot: { conceptId: result.conceptId, slotIndex: idx, placeholder: p },
+              ok: false,
+              error: new Error(`Batch 未生成与 placeholder "${p.id}" 对应的 quiz`),
+            })
+          }
+        }
+      } else {
+        for (let idx = 0; idx < result.placeholders.length; idx++) {
+          const p = result.placeholders[idx]
+          if (p) {
+            allResults.push({
+              slot: { conceptId: result.conceptId, slotIndex: idx, placeholder: p },
+              ok: false,
+              error: result.error,
+            })
+          }
         }
       }
-    } else {
-      for (let idx = 0; idx < placeholders.length; idx++) {
-        const p = placeholders[idx]
-        if (p) {
-          allResults.push({
-            slot: { conceptId, slotIndex: idx, placeholder: p },
-            ok: false,
-            error: batchError,
-          })
-        }
-      }
-    }
 
-    completedCount += placeholders.length
+      completedCount += result.placeholders.length
+    }
 
     const pct =
       QUIZ_PERCENT_START +
       Math.round((completedCount / totalSlots) * (QUIZ_PERCENT_END - QUIZ_PERCENT_START))
+    const conceptNames = chunk.map(([cid]) => conceptMap.get(cid)?.name ?? cid).join(', ')
     yield {
       kind: 'progress',
       stage: 'quiz',
       percent: pct,
-      message: `已完成 ${completedCount}/${totalSlots} 题（概念 "${concept.name}": ${batchOk ? placeholders.length : 0} 道）`,
+      message: `已完成 ${completedCount}/${totalSlots} 题（本批概念: ${conceptNames}）`,
     }
   }
 

@@ -1,0 +1,85 @@
+'use client'
+
+/**
+ * 作答记录页 — 查看某 Module 的全部答题历史
+ *
+ * 从题库列表的"作答记录"按钮进入。
+ * 读取 Module 本体（storage）+ 作答记录（attempts-store），
+ * 通过 AnswerHistoryList 展示每道已作答题的详情。
+ */
+
+import { useRouter, useParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
+
+import { useHydrated } from '@/lib/hooks/useHydrated'
+import { StorageKeys } from '@/lib/persistence/keys'
+import { storage } from '@/lib/persistence/local-storage'
+import type { Module } from '@/types/domain'
+
+import { AnswerHistoryList } from '@/components/learn/AnswerHistoryList'
+
+export default function HistoryPage() {
+  const router = useRouter()
+  const params = useParams<{ id: string }>()
+  const hydrated = useHydrated()
+
+  const [moduleData, setModuleData] = useState<Module | null>(null)
+  const [notFound, setNotFound] = useState(false)
+
+  useEffect(() => {
+    if (!hydrated || !params.id) return
+    const stored = storage.get<Module>(StorageKeys.module(params.id))
+    if (stored) {
+      setModuleData(stored)
+    } else {
+      setNotFound(true)
+    }
+  }, [hydrated, params.id])
+
+  if (!hydrated) return null
+
+  if (notFound) {
+    return (
+      <main className="alc-page">
+        <div className="max-w-2xl mx-auto px-6 py-16 text-center space-y-4">
+          <p className="text-sm text-fg-secondary">Module 不存在或已被删除</p>
+          <button
+            type="button"
+            onClick={() => router.push('/learn/library')}
+            className="alc-button-secondary text-sm px-4 py-2"
+          >
+            返回题库
+          </button>
+        </div>
+      </main>
+    )
+  }
+
+  if (!moduleData) return null
+
+  return (
+    <main className="alc-page">
+      {/* Header */}
+      <header className="border-b border-border-subtle px-6 py-4">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <div>
+            <p className="alc-label">作答记录</p>
+            <h1 className="text-lg font-medium text-fg-primary mt-0.5">{moduleData.title}</h1>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push('/learn/library')}
+            className="alc-muted text-sm hover:text-fg-secondary"
+          >
+            返回题库
+          </button>
+        </div>
+      </header>
+
+      {/* Content */}
+      <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 space-y-6">
+        <AnswerHistoryList module={moduleData} />
+      </div>
+    </main>
+  )
+}

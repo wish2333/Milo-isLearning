@@ -12,6 +12,7 @@ import type { KnowledgeSource, Module } from '@/types/domain'
 import { StorageKeys } from '../keys'
 import type { StorageRepository } from '../repository'
 import {
+  assignLocalModuleIdentity,
   createModulePackage,
   importModulePackage,
   parseModulePackage,
@@ -312,13 +313,17 @@ describe('importModulePackage', () => {
     const pkgWithReport = createModulePackage({
       source: makeSource(),
       module: makeModule(),
-      qualityReport: { score: 0.88, warnings: ['low coverage'] },
+      qualityReport: { moduleId: 'module-1', score: 0.88, warnings: ['low coverage'] },
     })
 
     const imported = importModulePackage(repo, pkgWithReport)
 
     const storedReport = repo.get(StorageKeys.qualityReport(imported.id))
-    expect(storedReport).toEqual({ score: 0.88, warnings: ['low coverage'] })
+    expect(storedReport).toEqual({
+      moduleId: imported.id,
+      score: 0.88,
+      warnings: ['low coverage'],
+    })
   })
 
   it('does not write qualityReport when absent', () => {
@@ -350,5 +355,59 @@ describe('importModulePackage', () => {
     expect(storedSource!.createdAt).toBeGreaterThan(0)
     // Original source should still have createdAt=1
     expect(pkg.source.createdAt).toBe(1)
+  })
+})
+
+describe('assignLocalModuleIdentity', () => {
+  it('assigns fresh local module/source ids without mutating the compiled module', () => {
+    const compiled = makeModule()
+
+    const first = assignLocalModuleIdentity(compiled, {
+      moduleId: 'module-local-a',
+      sourceId: 'source-local-a',
+    })
+    const second = assignLocalModuleIdentity(compiled, {
+      moduleId: 'module-local-b',
+      sourceId: 'source-local-b',
+    })
+
+    expect(first.id).toBe('module-local-a')
+    expect(first.sourceId).toBe('source-local-a')
+    expect(second.id).toBe('module-local-b')
+    expect(second.sourceId).toBe('source-local-b')
+    expect(compiled.id).toBe('module-1')
+    expect(compiled.sourceId).toBe('source-1')
+  })
+
+  it('prefixes concept and challenge quiz slot ids with the local module id', () => {
+    const compiled: Module = {
+      ...makeModule(),
+      challengeQuizzes: [
+        {
+          id: 'challenge-1',
+          conceptId: 'challenge',
+          ladderLevel: 3,
+          expressionLevel: 1,
+          interactionType: 'choice',
+          stem: 'Challenge?',
+          options: ['A', 'B', 'C', 'D'],
+          answer: 'A',
+          explanation: 'Because this explanation is long enough for tests.',
+          distractors: ['B', 'C', 'D'],
+          involvedConceptIds: ['concept-1', 'concept-2'],
+        },
+      ],
+    }
+    compiled.concepts[0]!.quizSeries.quizzes[0]!.id = 'concept-1:slot-1'
+
+    const local = assignLocalModuleIdentity(compiled, {
+      moduleId: 'module-local',
+      sourceId: 'source-local',
+    })
+
+    expect(local.concepts[0]!.moduleId).toBe('module-local')
+    expect(local.concepts[0]!.quizSeries.quizzes[0]!.id).toBe('module-local:concept-1:slot-1')
+    expect(local.challengeQuizzes![0]!.id).toBe('module-local:challenge-1')
+    expect(local.feynmanTask.moduleId).toBe('module-local')
   })
 })

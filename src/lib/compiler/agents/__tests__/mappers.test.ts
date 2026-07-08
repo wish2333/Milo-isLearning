@@ -113,7 +113,13 @@ const quizOutput: QuizAgentOutput = {
     stem: '题干？',
     options: ['A', 'B', 'C', 'D'],
     answer: 'A',
-    explanation: '解释。' + 'x'.repeat(20),
+    explanation: '解释。' + 'x'.repeat(40),
+    background: '这是一段题目前背景，用于说明用户需要先进入哪个问题情境。',
+    answerHint: '提示用户该选择哪类概念',
+    acceptableAnswers: ['A', '选项 A'],
+    misconception: '用户可能会把 A 与 B 的适用场景混淆。',
+    extendedKnowledge: '延伸知识帮助用户把本题判断线索迁移到新的问题场景。',
+    evaluationMode: 'semantic',
     distractors: [
       { text: 'B', type: 'A_Overcorrection', used: false },
       { text: 'C', type: 'B_Outdated', used: false },
@@ -132,7 +138,10 @@ const feynmanOutput: FeynmanAgentOutput = {
       stem: `Step ${i + 1}`,
       options: i === 4 ? null : ['A', 'B', 'C', 'D'],
       answer: i === 4 ? 'ans' : 'A',
-      explanation: 'x'.repeat(20),
+      explanation: 'x'.repeat(40),
+      answerHint: i === 4 ? '补全一个关键短语' : undefined,
+      acceptableAnswers: i === 4 ? ['ans', 'answer'] : undefined,
+      evaluationMode: i === 4 ? 'semantic' : undefined,
     })),
     finalPrompt: '请完整解释 X',
     rubric: ['点 1', '点 2', '点 3'],
@@ -226,11 +235,23 @@ describe('assemble helpers', () => {
     expect(q.interactionType).toBe('choice')
   })
 
+  it('assembleQuiz preserves enriched pedagogy fields', () => {
+    const q = assembleQuiz(quizOutput.quiz)
+    expect(q.background).toBe(quizOutput.quiz.background)
+    expect(q.answerHint).toBe(quizOutput.quiz.answerHint)
+    expect(q.acceptableAnswers).toEqual(['A', '选项 A'])
+    expect(q.misconception).toBe(quizOutput.quiz.misconception)
+    expect(q.extendedKnowledge).toBe(quizOutput.quiz.extendedKnowledge)
+    expect(q.evaluationMode).toBe('semantic')
+  })
+
   it('assembleFeynmanTask preserves all 6 steps + rubric', () => {
     const ft = assembleFeynmanTask(feynmanOutput.feynmanTask)
     expect(ft.steps).toHaveLength(6)
     expect(ft.steps[4]?.type).toBe('fill_blank')
     expect(ft.steps[4]?.options).toBeNull()
+    expect(ft.steps[4]?.acceptableAnswers).toEqual(['ans', 'answer'])
+    expect(ft.steps[4]?.evaluationMode).toBe('semantic')
     expect(ft.rubric).toEqual(['点 1', '点 2', '点 3'])
     expect(ft.finalPrompt).toBe('请完整解释 X')
   })

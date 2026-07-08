@@ -13,6 +13,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useParams } from 'next/navigation'
+import type React from 'react'
 import { useEffect } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
@@ -21,6 +22,7 @@ import { storage } from '@/lib/persistence/local-storage'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import type { Module } from '@/types/domain'
+import type { ModuleStage } from '@/types/domain'
 
 import { ConceptView } from '@/components/learn/ConceptView'
 import { ChallengeView } from '@/components/learn/ChallengeView'
@@ -28,6 +30,24 @@ import { FeynmanIntroView } from '@/components/learn/FeynmanIntroView'
 import { FeynmanStepView } from '@/components/learn/FeynmanStepView'
 import { FeynmanFinalView } from '@/components/learn/FeynmanFinalView'
 import { ModuleIntroView } from '@/components/learn/ModuleIntroView'
+import { LearnShell } from '@/components/learn/LearnShell'
+
+function getStageLabel(stage: ModuleStage): string {
+  switch (stage.kind) {
+    case 'concept':
+      return 'Concept'
+    case 'challenge':
+      return 'Challenge'
+    case 'feynman_intro':
+    case 'feynman_step':
+    case 'feynman_final':
+      return 'Feynman'
+    case 'done':
+      return 'Done'
+    case 'module_intro':
+      return 'Intro'
+  }
+}
 
 export default function ModulePage() {
   const router = useRouter()
@@ -72,34 +92,47 @@ export default function ModulePage() {
 
   if (!currentModule || !stage) return null
 
+  let content: React.ReactNode
   switch (stage.kind) {
     case 'module_intro':
-      return <ModuleIntroView />
+      content = <ModuleIntroView />
+      break
 
     case 'concept':
-      return <ConceptView conceptIndex={stage.conceptIndex} quizIndex={stage.quizIndex} />
+      content = <ConceptView conceptIndex={stage.conceptIndex} quizIndex={stage.quizIndex} />
+      break
 
     case 'challenge':
-      return <ChallengeView quizIndex={stage.quizIndex} />
+      content = <ChallengeView quizIndex={stage.quizIndex} />
+      break
 
     case 'feynman_intro':
-      return <FeynmanIntroView />
+      content = <FeynmanIntroView />
+      break
 
     case 'feynman_step':
-      return <FeynmanStepView stepOrder={stage.stepOrder} />
+      content = <FeynmanStepView stepOrder={stage.stepOrder} />
+      break
 
     case 'feynman_final':
-      return <FeynmanFinalView />
+      content = <FeynmanFinalView />
+      break
 
     case 'done':
       return null // redirect handled by useEffect
 
     default:
       // exhaustive check
-      return (
-        <div className="min-h-screen flex items-center justify-center text-neutral-500">
+      content = (
+        <div className="min-h-screen flex items-center justify-center text-fg-tertiary">
           <p>未知学习阶段</p>
         </div>
       )
   }
+
+  return (
+    <LearnShell moduleId={currentModule.id} stageLabel={getStageLabel(stage)}>
+      {content}
+    </LearnShell>
+  )
 }

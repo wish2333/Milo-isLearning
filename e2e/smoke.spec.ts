@@ -126,13 +126,9 @@ test.describe('Learning flow smoke test', () => {
     await expect(page.locator('text=再试一题，重点看解析里的关键关系。')).toBeVisible({
       timeout: 5000,
     })
-    await page.locator('button:has-text("换一道题")').click()
-
-    await expect(page.locator('text=重新出题')).toBeVisible({ timeout: 5000 })
-    await page.locator('button:has-text("正确答案")').click()
-    await page.locator('button:has-text("确认选择")').click()
-    await expect(page.locator('text=答对！继续保持这个节奏。')).toBeVisible({ timeout: 5000 })
-    await page.locator('button:has-text("继续")').click()
+    await expect(page.getByText('解析', { exact: true })).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=下一步安排')).toBeVisible({ timeout: 5000 })
+    await page.locator('button:has-text("继续下一步")').click()
 
     await expect(page.locator('text=费曼任务')).toBeVisible({ timeout: 5000 })
     await page.locator('button:has-text("开始费曼练习")').click()

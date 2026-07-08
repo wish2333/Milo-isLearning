@@ -223,6 +223,41 @@ describe('B. populated module', () => {
     expect(report.challengeCoverage[0]!.quizId).toBe('challenge-1')
     expect(report.challengeCoverage[0]!.involvedConceptIds).toEqual(['c1', 'c2'])
   })
+
+  it('reports pedagogy coverage for background, extended knowledge, and fill blank answers', () => {
+    const mod = populatedModule()
+    mod.concepts[0]!.quizSeries.quizzes[0] = {
+      ...mod.concepts[0]!.quizSeries.quizzes[0]!,
+      background: '这是一段足够长的题目前背景，用来说明题目场景。',
+      extendedKnowledge: '这是一段足够长的延伸知识，用来帮助迁移理解。',
+      explanation: 'x'.repeat(100),
+    }
+    mod.concepts[1]!.quizSeries.quizzes[1] = {
+      ...mod.concepts[1]!.quizSeries.quizzes[1]!,
+      acceptableAnswers: ['Answer 4', 'answer four'],
+      explanation: 'x'.repeat(80),
+    }
+
+    const report = buildQualityReport(mod, DEFAULT_META)
+
+    expect(report.pedagogyCoverage.quizCount).toBe(5)
+    expect(report.pedagogyCoverage.backgroundCoverage).toBe(0.2)
+    expect(report.pedagogyCoverage.extendedKnowledgeCoverage).toBe(0.2)
+    expect(report.pedagogyCoverage.fillBlankAcceptableAnswerCoverage).toBe(1)
+    expect(report.pedagogyCoverage.averageExplanationLength).toBeGreaterThan(20)
+  })
+
+  it('accepts mapper fix and semantic eval stats in report metadata', () => {
+    const report = buildQualityReport(populatedModule(), {
+      ...DEFAULT_META,
+      mapperFixStats: { totalFixes: 2, answerMovedToFirstOption: 1, duplicateOptionsRemoved: 1 },
+      semanticEvalStats: { calls: 3, cacheHits: 1, semanticAccepted: 1, providerFailures: 0 },
+    })
+
+    expect(report.mapperFixStats.totalFixes).toBe(2)
+    expect(report.semanticEvalStats.calls).toBe(3)
+    expect(report.estimatedRuntimeEvalCost.semanticCalls).toBe(3)
+  })
 })
 
 // =================================================================

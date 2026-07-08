@@ -10,7 +10,7 @@ import { quizItemSchema } from './quiz'
 
 export const quizBatchSchema = z.object({
   reasoning: z.string().min(1, '私有 CoT 不能为空'),
-  quizzes: z.array(quizItemSchema).min(6).max(16), // 与 missionSchema 的 min(8).max(15) 对齐并留有弹性
+  quizzes: z.array(quizItemSchema).min(6).max(10), // 缩小批量上限避免 batch tail degradation
 })
 
 export type QuizBatchAgentOutput = z.infer<typeof quizBatchSchema>

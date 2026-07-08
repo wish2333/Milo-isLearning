@@ -13,6 +13,8 @@
 
 import type { Module } from '@/types/domain'
 
+import { buildPedagogyReport, type PedagogyReport } from './pedagogy-report'
+
 // =================================================================
 // 类型
 // =================================================================
@@ -27,6 +29,30 @@ export interface CompileQualityReport {
   ladderDistribution: Record<1 | 2 | 3, number>
   avgDistractorsPerQuiz: number
   challengeCoverage: { quizId: string; involvedConceptIds: string[] }[]
+  pedagogyCoverage: PedagogyReport
+  mapperFixStats: MapperFixStats
+  semanticEvalStats: SemanticEvalStats
+  estimatedRuntimeEvalCost: EstimatedRuntimeEvalCost
+}
+
+export interface MapperFixStats {
+  totalFixes: number
+  answerMovedToFirstOption?: number
+  duplicateOptionsRemoved?: number
+  missingExplanationFallback?: number
+  challengeInvolvedConceptIdsMissing?: number
+}
+
+export interface SemanticEvalStats {
+  calls: number
+  cacheHits: number
+  semanticAccepted: number
+  providerFailures: number
+}
+
+export interface EstimatedRuntimeEvalCost {
+  semanticCalls: number
+  cacheHits: number
 }
 
 // =================================================================
@@ -80,7 +106,11 @@ function countFeynmanSteps(module: Module): number {
  */
 export function buildQualityReport(
   module: Module,
-  meta: { generatedAt: number },
+  meta: {
+    generatedAt: number
+    mapperFixStats?: Partial<MapperFixStats>
+    semanticEvalStats?: Partial<SemanticEvalStats>
+  },
 ): CompileQualityReport {
   const allQuizzes = collectAllQuizzes(module)
   const challenges = module.challengeQuizzes ?? []
@@ -103,6 +133,17 @@ export function buildQualityReport(
   }))
 
   const quizCount = allQuizzes.length + countFeynmanSteps(module)
+  const mapperFixStats: MapperFixStats = {
+    totalFixes: 0,
+    ...meta.mapperFixStats,
+  }
+  const semanticEvalStats: SemanticEvalStats = {
+    calls: 0,
+    cacheHits: 0,
+    semanticAccepted: 0,
+    providerFailures: 0,
+    ...meta.semanticEvalStats,
+  }
 
   return {
     moduleId: module.id,
@@ -114,5 +155,12 @@ export function buildQualityReport(
     ladderDistribution,
     avgDistractorsPerQuiz,
     challengeCoverage,
+    pedagogyCoverage: buildPedagogyReport(module),
+    mapperFixStats,
+    semanticEvalStats,
+    estimatedRuntimeEvalCost: {
+      semanticCalls: semanticEvalStats.calls,
+      cacheHits: semanticEvalStats.cacheHits,
+    },
   }
 }

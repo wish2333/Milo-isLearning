@@ -17,7 +17,7 @@
 import { useEffect, useState, useCallback } from 'react'
 
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
-import { evaluateAnswer } from '@/lib/runtime/evaluate-answer'
+import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
 import {
   shouldForceAdvance,
   getConsecutiveFailures,
@@ -31,7 +31,9 @@ import type { AttemptRecord, Concept, Quiz } from '@/types/domain'
 
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
-import { ReviewPanel } from '@/components/learn/ReviewPanel'
+import { BackgroundPanel } from '@/components/learn/BackgroundPanel'
+import { AnswerHistoryList } from '@/components/learn/AnswerHistoryList'
+import { StaircaseProgress } from '@/components/learn/StaircaseProgress'
 
 interface ChallengeViewProps {
   quizIndex: number
@@ -58,7 +60,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
   const [forceAdvance, setForceAdvance] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [reviewOpen, setReviewOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   // 获取当前应该显示的 Challenge quiz
   const slotQuiz = currentModule?.challengeQuizzes?.[quizIndex]
@@ -70,7 +72,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
     setFeedback(null)
     setForceAdvance(false)
     setError(null)
-    setReviewOpen(false)
+    setHistoryOpen(false)
     // 如果 currentQuiz 不属于当前 challenge slot，重置为 slot quiz
     if (slotQuiz && (!currentQuiz || currentQuiz.id !== slotQuiz.id)) {
       if (!currentQuiz || currentQuiz.conceptId !== 'challenge') {
@@ -81,8 +83,6 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
   }, [quizIndex])
 
   const slotId = slotQuiz?.id ?? ''
-  const previousQuiz = quizIndex > 0 ? currentModule?.challengeQuizzes?.[quizIndex - 1] : null
-  const previousAttempt = previousQuiz ? getAttempts(previousQuiz.id).at(-1) : undefined
 
   const handleAnswer = useCallback(
     async (userAnswer: string) => {
@@ -96,7 +96,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
       const attemptVersion = getNextAttemptVersion(slotId)
 
       try {
-        const result = evaluateAnswer(quiz, userAnswer)
+        const result = await evaluateAnswerAsync(quiz, userAnswer)
 
         // 记录 AttemptRecord（attemptVersion 已在函数入口快照）
         const attempt: AttemptRecord = {
@@ -200,7 +200,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
 
   if (!quiz) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-neutral-500">
+      <div className="min-h-screen flex items-center justify-center text-fg-tertiary">
         <p>题目加载中...</p>
       </div>
     )
@@ -210,7 +210,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
   const challengeCount = currentModule?.challengeQuizzes?.length ?? 0
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
+    <div className="text-fg-primary">
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
         {/* Progress indicator — amber 色调区分 */}
         <div className="flex items-center gap-2 text-xs text-amber-500/70">
@@ -220,6 +220,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
           <span>·</span>
           <span>跨概念综合题</span>
         </div>
+        <StaircaseProgress total={challengeCount || 1} current={quizIndex} stage="challenge" />
 
         {/* Challenge banner */}
         <div className="border-l-2 border-amber-700/40 pl-4 py-1">
@@ -227,40 +228,33 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
           <p className="text-sm text-amber-300/60 mt-0.5">以下题目涉及多个概念的综合应用</p>
         </div>
 
-        {previousQuiz && !reviewOpen && (
-          <button
-            type="button"
-            onClick={() => setReviewOpen(true)}
-            className="alc-button-secondary text-xs px-3 py-1.5"
-          >
-            回看上一题
-          </button>
-        )}
+        {/* Answer history toggle */}
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((v) => !v)}
+          className="alc-button-secondary text-xs px-3 py-1.5"
+        >
+          {historyOpen ? '收起答题历史' : '答题历史'}
+        </button>
 
-        {previousQuiz && reviewOpen && (
-          <ReviewPanel
-            title="上一题"
-            stem={previousQuiz.stem}
-            userAnswer={previousAttempt?.userAnswer}
-            answer={previousQuiz.answer}
-            explanation={previousQuiz.explanation}
-            onClose={() => setReviewOpen(false)}
-          />
+        {historyOpen && currentModule && (
+          <AnswerHistoryList module={currentModule} currentSlotId={slotId} />
         )}
 
         {/* Quiz */}
-        <div className="pt-2">
+        <div className="pt-2 space-y-4">
+          <BackgroundPanel background={quiz.background} />
           <QuizRenderer quiz={quiz} disabled={phase !== 'answering'} onAnswer={handleAnswer} />
         </div>
 
         {/* Evaluating */}
         {phase === 'evaluating' && (
-          <p className="text-sm text-neutral-500 animate-pulse">正在评估...</p>
+          <p className="text-sm text-fg-tertiary animate-pulse">正在评估...</p>
         )}
 
         {/* Regenerating */}
         {phase === 'regenerating' && (
-          <p className="text-sm text-neutral-500 animate-pulse">正在生成新题...</p>
+          <p className="text-sm text-fg-tertiary animate-pulse">正在生成新题...</p>
         )}
 
         {/* Feedback */}
@@ -269,6 +263,8 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
             <FeedbackPanel
               feedback={feedback}
               explanation={quiz.explanation}
+              misconception={quiz.misconception}
+              extendedKnowledge={quiz.extendedKnowledge}
               forceAdvance={forceAdvance}
             />
 
@@ -294,11 +290,11 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
         )}
 
         {/* Error */}
-        {error && <p className="text-sm text-red-400/80">{error}</p>}
+        {error && <p className="text-sm text-danger/80">{error}</p>}
 
         {/* Retry hint */}
         {phase === 'feedback' && !isAdvancing && !forceAdvance && (
-          <p className="text-xs text-neutral-600 text-center">
+          <p className="text-xs text-fg-quaternary text-center">
             {getConsecutiveFailures(getAttempts(slotId))} / {MAX_CONSECUTIVE_FAILURES} 次尝试
           </p>
         )}

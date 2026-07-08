@@ -199,6 +199,21 @@ describe('buildPrompt — 全 Agent 模板渲染', () => {
     expect(user).not.toContain('{originalQuiz}')
   })
 
+  it('quiz prompts include M7.6 pedagogy contracts and enriched fields', () => {
+    const quiz = sysUser('quiz', SAMPLE_INPUTS.quiz).system
+    const batch = sysUser('quiz-batch', SAMPLE_INPUTS['quiz-batch']).system
+    const challenge = sysUser('challenge-batch', SAMPLE_INPUTS['challenge-batch']).system
+
+    for (const system of [quiz, batch, challenge]) {
+      expect(system).toContain('背景引导契约')
+      expect(system).toContain('解析契约')
+      expect(system).toContain('extendedKnowledge')
+      expect(system).toContain('misconception')
+    }
+    expect(quiz).toContain('acceptableAnswers')
+    expect(batch).toContain('answerHint')
+  })
+
   it('模板缺少 ## System 或 ## User 时抛错（防模板编写错误）', () => {
     setExpandedTemplate('import', '# 只有标题\n\n没有 System/User 段')
     try {

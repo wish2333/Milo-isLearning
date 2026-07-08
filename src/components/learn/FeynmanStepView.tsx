@@ -13,7 +13,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 
-import { isFillBlankCorrect } from '@/lib/runtime/fill-blank'
+import { isFillBlankAnswerAccepted } from '@/lib/runtime/fill-blank'
 import type { Quiz } from '@/types/domain'
 
 import { useModuleStore } from '@/lib/state/module-store'
@@ -21,7 +21,9 @@ import { useProgressStore } from '@/lib/state/progress-store'
 
 import { ChoiceQuiz } from '@/components/quiz/ChoiceQuiz'
 import { FillBlankQuiz } from '@/components/quiz/FillBlankQuiz'
+import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { ReviewPanel } from '@/components/learn/ReviewPanel'
+import { StaircaseProgress } from '@/components/learn/StaircaseProgress'
 
 interface FeynmanStepViewProps {
   stepOrder: 1 | 2 | 3 | 4 | 5
@@ -53,7 +55,7 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
       // fill_blank 使用标准化匹配（大小写/全角/空白）
       const score =
         step.type === 'fill_blank'
-          ? isFillBlankCorrect(answer, step.answer)
+          ? isFillBlankAnswerAccepted(answer, step.answer, step.acceptableAnswers)
             ? 100
             : 0
           : answer.trim() === step.answer.trim()
@@ -83,32 +85,31 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
     options: step.options,
     answer: step.answer,
     explanation: step.explanation,
+    answerHint: step.answerHint,
+    acceptableAnswers: step.acceptableAnswers,
+    misconception: step.misconception,
+    extendedKnowledge: step.extendedKnowledge,
+    evaluationMode: step.evaluationMode,
     distractors: [],
   }
 
-  const passed = userAnswer !== null && userAnswer.trim() === step.answer.trim()
+  const passed =
+    userAnswer !== null &&
+    (step.type === 'fill_blank'
+      ? isFillBlankAnswerAccepted(userAnswer, step.answer, step.acceptableAnswers)
+      : userAnswer.trim() === step.answer.trim())
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
+    <div className="text-fg-primary">
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
         {/* Progress */}
-        <div className="flex items-center gap-2 text-xs text-neutral-600">
+        <div className="flex items-center gap-2 text-xs text-fg-quaternary">
           <span>费曼练习</span>
           <span>·</span>
           <span>步骤 {stepOrder} / 5</span>
         </div>
 
-        {/* Step indicator */}
-        <div className="flex gap-1.5">
-          {[1, 2, 3, 4, 5].map((s) => (
-            <div
-              key={s}
-              className={`h-0.5 flex-1 rounded-full ${
-                s <= stepOrder ? 'bg-neutral-300' : 'bg-neutral-800'
-              }`}
-            />
-          ))}
-        </div>
+        <StaircaseProgress total={5} current={stepOrder - 1} stage="feynman" />
 
         {previousStep && !reviewOpen && (
           <button
@@ -143,22 +144,21 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
         {/* Feedback */}
         {submitted && (
           <div className="space-y-3">
-            <div
-              className={`rounded-lg border p-4 space-y-2 ${
-                passed
-                  ? 'border-emerald-700/30 bg-emerald-950/10'
-                  : 'border-amber-700/30 bg-amber-950/10'
-              }`}
-            >
-              <p className={`text-sm ${passed ? 'text-emerald-300/80' : 'text-amber-300/80'}`}>
-                {passed ? '答对了' : '再看看'}
-              </p>
-              <p className="text-xs text-neutral-500 leading-relaxed">{step.explanation}</p>
-            </div>
+            <FeedbackPanel
+              feedback={{
+                score: passed ? 100 : 0,
+                gaps: passed ? [] : [`标准答案：${step.answer}`],
+                nextAction: passed ? 'advance' : 'retry',
+                feedbackText: passed ? '答对了' : '再看看',
+              }}
+              explanation={step.explanation}
+              misconception={step.misconception}
+              extendedKnowledge={step.extendedKnowledge}
+            />
 
             <button
               onClick={advance}
-              className="w-full py-3 rounded-lg bg-neutral-100 text-neutral-900 font-medium text-sm hover:bg-white transition-colors"
+              className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover transition-colors"
             >
               {stepOrder < 5 ? '下一步' : '进入最终任务'}
             </button>
