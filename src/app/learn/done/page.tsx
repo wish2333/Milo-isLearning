@@ -24,16 +24,9 @@ import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { storage } from '@/lib/persistence/local-storage'
-import type { Module } from '@/types/domain'
 
 /** conceptMastery 低于此阈值的概念被视为"待复习" */
 const REVIEW_THRESHOLD = 50
-
-interface HistoryModule {
-  id: string
-  title: string
-  sourceId: string
-}
 
 export default function DonePage() {
   const router = useRouter()
@@ -48,7 +41,6 @@ export default function DonePage() {
   const clearAttempts = useAttemptsStore((s) => s.clearAll)
 
   const [showClearConfirm, setShowClearConfirm] = useState(false)
-  const [historyModules, setHistoryModules] = useState<HistoryModule[]>([])
 
   // 未完成时回到首页（等 hydration 完成后再检查）
   useEffect(() => {
@@ -56,21 +48,6 @@ export default function DonePage() {
       router.replace('/')
     }
   }, [hydrated, currentModule, stage, router])
-
-  // 加载历史 Module 列表
-  useEffect(() => {
-    if (!hydrated) return
-    const allKeys = storage.keys()
-    const moduleKeys = allKeys.filter((k) => k.startsWith('alc:module:'))
-    const modules: HistoryModule[] = []
-    for (const key of moduleKeys) {
-      const mod = storage.get<Module>(key)
-      if (mod && mod.id !== currentModule?.id) {
-        modules.push({ id: mod.id, title: mod.title, sourceId: mod.sourceId })
-      }
-    }
-    setHistoryModules(modules)
-  }, [hydrated, currentModule])
 
   const mastery = useMemo(() => {
     if (!currentModule) return null
@@ -111,11 +88,9 @@ export default function DonePage() {
       <div className="max-w-2xl mx-auto px-6 py-12 space-y-10">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 mx-auto rounded-full border border-neutral-700 flex items-center justify-center">
-            <span className="text-neutral-300 text-lg">{'✓'}</span>
-          </div>
-          <h1 className="text-2xl font-semibold">学习完成</h1>
-          <p className="text-sm text-neutral-500">{currentModule.title}</p>
+          <p className="text-xs text-neutral-600 uppercase tracking-wider">学习完成</p>
+          <h1 className="text-2xl font-semibold">{currentModule.title}</h1>
+          <p className="text-sm text-neutral-500">从选择题走到完整解释</p>
         </div>
 
         {/* Overall completion + Challenge + Feynman scores */}
@@ -205,22 +180,17 @@ export default function DonePage() {
           </div>
         )}
 
-        {/* History modules */}
-        {historyModules.length > 0 && (
-          <div className="space-y-3">
-            <p className="text-xs text-neutral-600 uppercase tracking-wider">历史 Module</p>
-            <div className="space-y-2">
-              {historyModules.map((mod) => (
-                <div
-                  key={mod.id}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg border border-neutral-800/50 bg-neutral-900/20"
-                >
-                  <span className="flex-1 text-sm text-neutral-400">{mod.title}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* History modules → Library entry */}
+        <div className="space-y-3">
+          <p className="text-xs text-neutral-600 uppercase tracking-wider">题库</p>
+          <button
+            onClick={() => router.push('/learn/library')}
+            className="w-full px-4 py-3 rounded-lg border border-neutral-800/50 bg-neutral-900/20 text-sm text-neutral-300 hover:bg-neutral-900 hover:border-neutral-700 transition-colors text-left flex items-center justify-between"
+          >
+            <span>查看全部已保存的 Module</span>
+            <span className="text-neutral-500">→</span>
+          </button>
+        </div>
 
         {/* Actions */}
         <div className="space-y-3 pt-4">

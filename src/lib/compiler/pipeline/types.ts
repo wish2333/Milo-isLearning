@@ -19,6 +19,7 @@
  *   - 错误码到文案的映射（见 errors.ts）
  */
 import type { Module } from '@/types/domain'
+import type { CompileQualityReport } from '@/lib/compiler/quality/quality-report'
 import type { LLMConfig } from '@/lib/providers'
 
 // =================================================================
@@ -54,7 +55,7 @@ export type CompileStage =
 export type CompileEvent =
   | { kind: 'stage_enter'; stage: CompileStage }
   | { kind: 'progress'; stage: CompileStage; percent: number; message?: string }
-  | { kind: 'complete'; module: Module }
+  | { kind: 'complete'; module: Module; qualityReport?: CompileQualityReport }
   | { kind: 'error'; error: CompileErrorPayload }
 
 // =================================================================

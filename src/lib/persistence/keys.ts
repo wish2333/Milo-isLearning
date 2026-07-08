@@ -26,6 +26,12 @@ export const StorageKeys = {
   feynman: (moduleId: string) => `${STORAGE_NAMESPACE}:feynman:${moduleId}`,
   /** ProgressState：学习状态机当前态 */
   progress: (moduleId: string) => `${STORAGE_NAMESPACE}:progress:${moduleId}`,
+  /** Module 范围 attempts 归档（M7.5：按 module 隔离的 attempts） */
+  attemptsModule: (moduleId: string) => `${STORAGE_NAMESPACE}:attempts-module:${moduleId}`,
+  /** Module 编译质量报告（M7.5） */
+  qualityReport: (moduleId: string) => `${STORAGE_NAMESPACE}:quality:${moduleId}`,
+  /** 编译 job 状态（M7.5：刷新恢复用，不存 stage outputs） */
+  compileJob: (jobId: string) => `${STORAGE_NAMESPACE}:compile-job:${jobId}`,
   /** 用户设置（LLM Provider / API Key 等），单一全局 key */
   settings: `${STORAGE_NAMESPACE}:settings`,
 } as const

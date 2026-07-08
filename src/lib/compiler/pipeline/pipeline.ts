@@ -65,6 +65,7 @@ import {
   type CompileEvent,
   type CompileStage,
 } from './types'
+import { buildQualityReport } from '@/lib/compiler/quality/quality-report'
 import { makeError, makeInputError, makeQuizBatchError, translateError } from './errors'
 
 // =================================================================
@@ -285,7 +286,9 @@ export async function* compileMarkdown(
     message: '编译完成',
   }
 
-  yield { kind: 'complete', module: partialModule }
+  const qualityReport = buildQualityReport(partialModule, { generatedAt: Date.now() })
+  partialModule.generatedAt = qualityReport.generatedAt
+  yield { kind: 'complete', module: partialModule, qualityReport }
 }
 
 // =================================================================

@@ -39,6 +39,10 @@ export interface Module {
   order: number
   /** Module Challenge 综合题（3-5 道），编译产物。可选字段保持向后兼容 */
   challengeQuizzes?: Quiz[]
+  /** 编译产物生成时间戳（M7.5 package 元数据，可选以兼容旧数据） */
+  generatedAt?: number
+  /** 通过 Library 导入的时间戳（M7.5 package 元数据，可选以兼容旧数据） */
+  importedAt?: number
 }
 
 /**
@@ -83,6 +87,11 @@ export interface Quiz {
   answer: string
   explanation: string
   distractors: string[]
+  /**
+   * Challenge 综合题涉及的 Concept id 列表（M7.5 质量报告使用）。
+   * 仅 Challenge 题有值；Concept 题 undefined。可选以兼容旧数据。
+   */
+  involvedConceptIds?: string[]
 }
 
 /**

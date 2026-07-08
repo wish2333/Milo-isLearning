@@ -188,7 +188,7 @@ export function assembleQuiz(output: QuizAgentOutput['quiz']): Quiz {
  * 把 Challenge Batch Agent 输出补全为 domain.Quiz。
  *
  * 与 assembleQuiz 类似，但输入是 ChallengeBatchAgentOutput 的单个 quiz 项
- * （含额外的 involvedConceptIds 字段，该字段不进入 domain.Quiz）。
+ * （含 involvedConceptIds 字段，该字段进入 domain.Quiz.involvedConceptIds）。
  */
 export function assembleChallengeQuiz(output: ChallengeBatchAgentOutput['quizzes'][number]): Quiz {
   // 自动修复 options[0] !== answer
@@ -215,6 +215,7 @@ export function assembleChallengeQuiz(output: ChallengeBatchAgentOutput['quizzes
     answer: output.answer,
     explanation: output.explanation,
     distractors: output.distractors.map((d) => d.text),
+    involvedConceptIds: output.involvedConceptIds,
   }
 }
 

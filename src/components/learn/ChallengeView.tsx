@@ -31,6 +31,7 @@ import type { AttemptRecord, Concept, Quiz } from '@/types/domain'
 
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
+import { ReviewPanel } from '@/components/learn/ReviewPanel'
 
 interface ChallengeViewProps {
   quizIndex: number
@@ -57,6 +58,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
   const [forceAdvance, setForceAdvance] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
 
   // 获取当前应该显示的 Challenge quiz
   const slotQuiz = currentModule?.challengeQuizzes?.[quizIndex]
@@ -68,6 +70,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
     setFeedback(null)
     setForceAdvance(false)
     setError(null)
+    setReviewOpen(false)
     // 如果 currentQuiz 不属于当前 challenge slot，重置为 slot quiz
     if (slotQuiz && (!currentQuiz || currentQuiz.id !== slotQuiz.id)) {
       if (!currentQuiz || currentQuiz.conceptId !== 'challenge') {
@@ -78,6 +81,8 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
   }, [quizIndex])
 
   const slotId = slotQuiz?.id ?? ''
+  const previousQuiz = quizIndex > 0 ? currentModule?.challengeQuizzes?.[quizIndex - 1] : null
+  const previousAttempt = previousQuiz ? getAttempts(previousQuiz.id).at(-1) : undefined
 
   const handleAnswer = useCallback(
     async (userAnswer: string) => {
@@ -221,6 +226,27 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
           <p className="text-xs text-amber-600/80 uppercase tracking-wider">综合挑战</p>
           <p className="text-sm text-amber-300/60 mt-0.5">以下题目涉及多个概念的综合应用</p>
         </div>
+
+        {previousQuiz && !reviewOpen && (
+          <button
+            type="button"
+            onClick={() => setReviewOpen(true)}
+            className="alc-button-secondary text-xs px-3 py-1.5"
+          >
+            回看上一题
+          </button>
+        )}
+
+        {previousQuiz && reviewOpen && (
+          <ReviewPanel
+            title="上一题"
+            stem={previousQuiz.stem}
+            userAnswer={previousAttempt?.userAnswer}
+            answer={previousQuiz.answer}
+            explanation={previousQuiz.explanation}
+            onClose={() => setReviewOpen(false)}
+          />
+        )}
 
         {/* Quiz */}
         <div className="pt-2">

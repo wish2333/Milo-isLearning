@@ -21,6 +21,7 @@ import { useProgressStore } from '@/lib/state/progress-store'
 
 import { ChoiceQuiz } from '@/components/quiz/ChoiceQuiz'
 import { FillBlankQuiz } from '@/components/quiz/FillBlankQuiz'
+import { ReviewPanel } from '@/components/learn/ReviewPanel'
 
 interface FeynmanStepViewProps {
   stepOrder: 1 | 2 | 3 | 4 | 5
@@ -28,13 +29,19 @@ interface FeynmanStepViewProps {
 
 export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
   const currentModule = useModuleStore((s) => s.currentModule)
+  const feynmanAttempt = useProgressStore((s) => s.feynmanAttempt)
   const recordFeynmanStep = useProgressStore((s) => s.recordFeynmanStep)
   const advance = useProgressStore((s) => s.advance)
 
   const [submitted, setSubmitted] = useState(false)
   const [userAnswer, setUserAnswer] = useState<string | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
 
   const step = currentModule?.feynmanTask.steps[stepOrder - 1] ?? null
+  const previousStep = stepOrder > 1 ? currentModule?.feynmanTask.steps[stepOrder - 2] : null
+  const previousScore = previousStep
+    ? feynmanAttempt?.stepResults.find((result) => result.stepOrder === previousStep.order)?.score
+    : undefined
 
   const handleAnswer = useCallback(
     (answer: string) => {
@@ -60,6 +67,7 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
   useEffect(() => {
     setSubmitted(false)
     setUserAnswer(null)
+    setReviewOpen(false)
   }, [stepOrder])
 
   if (!currentModule || !step) return null
@@ -101,6 +109,27 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
             />
           ))}
         </div>
+
+        {previousStep && !reviewOpen && (
+          <button
+            type="button"
+            onClick={() => setReviewOpen(true)}
+            className="alc-button-secondary text-xs px-3 py-1.5"
+          >
+            回看上一题
+          </button>
+        )}
+
+        {previousStep && reviewOpen && (
+          <ReviewPanel
+            title="上一步"
+            stem={previousStep.stem}
+            userAnswer={previousScore !== undefined ? `得分：${previousScore}` : undefined}
+            answer={previousStep.answer}
+            explanation={previousStep.explanation}
+            onClose={() => setReviewOpen(false)}
+          />
+        )}
 
         {/* Quiz */}
         <div className="pt-2">

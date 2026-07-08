@@ -60,6 +60,16 @@ export default function OverviewPage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100">
       <div className="max-w-2xl mx-auto px-6 py-12 space-y-10">
+        {/* Top bar: lightweight library entry */}
+        <div className="flex justify-end">
+          <button
+            onClick={() => router.push('/learn/library')}
+            className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+          >
+            ← 返回题库
+          </button>
+        </div>
+
         {/* Header */}
         <div className="space-y-3">
           <p className="text-xs text-neutral-600 uppercase tracking-wider">学习模块</p>

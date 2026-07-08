@@ -13,7 +13,7 @@
  *   source / module / mastery / attempts(每道题) / feynman / progress
  */
 
-import type { ProgressState } from '@/types/domain'
+import type { Module, ProgressState } from '@/types/domain'
 
 import {
   StorageKeys,
@@ -77,23 +77,22 @@ export function listModuleIds(repo: StorageRepository): string[] {
 /**
  * 删除一个 Module 及其全部关联数据。
  *
- * 需要扫描所有 `alc:attempts:*` key，因为 attempts 是按 quizId 存储的，
- * 而 quizId 包含 conceptId，conceptId 包含 moduleId 信息。
- * 但 quizId 格式为 `concept-N:slot-N`，不含 moduleId，无法直接反查。
- *
- * 因此淘汰策略：删除 module / source / mastery / feynman / progress，
- * attempts 留待下次写入时的 quota 触发清理（或在 clearAll 中统一清除）。
+ * 删除范围：module / source（通过 module.sourceId） / mastery / feynman /
+ * progress / module-scoped attempts / quality report。
  *
  * @returns 被删除的 moduleId（若不存在则 null）
  */
 export function removeModule(repo: StorageRepository, moduleId: string): string | null {
-  if (!repo.has(StorageKeys.module(moduleId))) return null
+  const storedModule = repo.get<Module>(StorageKeys.module(moduleId))
+  if (!storedModule) return null
 
   repo.remove(StorageKeys.module(moduleId))
-  repo.remove(StorageKeys.source(moduleId))
+  repo.remove(StorageKeys.source(storedModule.sourceId))
   repo.remove(StorageKeys.mastery(moduleId))
   repo.remove(StorageKeys.feynman(moduleId))
   repo.remove(StorageKeys.progress(moduleId))
+  repo.remove(StorageKeys.attemptsModule(moduleId))
+  repo.remove(StorageKeys.qualityReport(moduleId))
 
   return moduleId
 }

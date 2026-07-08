@@ -1,3 +1,169 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* =================================================================
+ * AI Learning Compiler — Design Tokens (M7.5)
+ *
+ * 暖色暗底配色（参考 docs/M7.5-Plan.md §Task 7）。
+ * 不重写全部 UI；这里只提供 token + .alc-* 基础类，
+ * 后续页面/组件迁移到 token，禁止新写大面积 neutral-* 主视觉。
+ * ================================================================= */
+
+:root {
+  /* 背景层级 */
+  --bg-base: #0e1311;
+  --bg-surface: #161c19;
+  --bg-elevated: #1e2622;
+
+  /* 前景层级 */
+  --fg-primary: #ece6d4;
+  --fg-secondary: #b5ae9c;
+  --fg-tertiary: #7a7466;
+
+  /* 强调色（暖琥珀） */
+  --accent-primary: #d4a574;
+  --accent-primary-soft: rgba(212, 165, 116, 0.14);
+
+  /* 状态色 */
+  --success: #7fa88c;
+  --success-soft: rgba(127, 168, 140, 0.14);
+  --warning: #c99a6e;
+  --warning-soft: rgba(201, 154, 110, 0.14);
+  --danger: #c97a6e;
+  --danger-soft: rgba(201, 122, 110, 0.14);
+
+  /* 边框/分隔 */
+  --border-subtle: rgba(236, 230, 212, 0.08);
+  --border-default: rgba(236, 230, 212, 0.14);
+
+  /* 字体 */
+  --font-serif: 'Fraunces', 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', 'SimSun', Georgia,
+    serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: 'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--bg-base);
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+}
+
+/* =================================================================
+ * .alc-* 复用类
+ *
+ * 设计意图：让页面级 layout 不必每次重写一长串 Tailwind class，
+ * 也避免新增组件机械地把 neutral-* 改成自定义色。
+ * ================================================================= */
+
+.alc-page {
+  min-height: 100vh;
+  background: var(--bg-base);
+  color: var(--fg-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.alc-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+}
+
+.alc-card-elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+}
+
+.alc-button-primary {
+  background: var(--accent-primary);
+  color: var(--bg-base);
+  font-weight: 500;
+  padding: 0.625rem 1rem;
+  border-radius: 0.375rem;
+  transition: opacity 0.2s;
+}
+.alc-button-primary:hover {
+  opacity: 0.9;
+}
+.alc-button-primary:disabled {
+  background: var(--bg-elevated);
+  color: var(--fg-tertiary);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.alc-button-secondary {
+  background: transparent;
+  color: var(--fg-secondary);
+  border: 1px solid var(--border-default);
+  padding: 0.625rem 1rem;
+  border-radius: 0.375rem;
+  transition: background 0.2s, color 0.2s;
+}
+.alc-button-secondary:hover {
+  background: var(--bg-elevated);
+  color: var(--fg-primary);
+}
+
+.alc-button-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger-soft);
+  padding: 0.625rem 1rem;
+  border-radius: 0.375rem;
+  transition: background 0.2s;
+}
+.alc-button-danger:hover {
+  background: var(--danger-soft);
+}
+
+.alc-option {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.375rem;
+  padding: 0.75rem 1rem;
+  color: var(--fg-primary);
+  transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
+}
+.alc-option:hover {
+  border-color: var(--border-default);
+  background: var(--bg-elevated);
+}
+.alc-option[aria-pressed='true'],
+.alc-option[data-selected='true'] {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary-soft);
+}
+
+.alc-label {
+  color: var(--fg-secondary);
+  font-size: 0.75rem;
+}
+
+.alc-muted {
+  color: var(--fg-tertiary);
+}
+
+.alc-success {
+  color: var(--success);
+}
+.alc-warning {
+  color: var(--warning);
+}
+.alc-danger {
+  color: var(--danger);
+}
+
+.alc-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+.alc-link:hover {
+  opacity: 0.8;
+}

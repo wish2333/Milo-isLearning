@@ -97,10 +97,11 @@ function makeProgress(moduleId: string, updatedAt: number): ProgressState {
 }
 
 function seedModule(repo: StorageRepository, moduleId: string, updatedAt: number): void {
-  repo.set(StorageKeys.module(moduleId), makeModule(moduleId))
+  const storedModule = makeModule(moduleId)
+  repo.set(StorageKeys.module(moduleId), storedModule)
   repo.set(StorageKeys.progress(moduleId), makeProgress(moduleId, updatedAt))
-  repo.set(StorageKeys.source(moduleId), {
-    id: `source-${moduleId}`,
+  repo.set(StorageKeys.source(storedModule.sourceId), {
+    id: storedModule.sourceId,
     type: 'markdown',
     content: 'x',
     createdAt: updatedAt,
@@ -168,12 +169,13 @@ describe('removeModule', () => {
   it('removes module and all associated data', () => {
     const repo = new MockRepo()
     seedModule(repo, 'm1', 1000)
+    const storedModule = repo.get<Module>(StorageKeys.module('m1'))!
 
     const removed = removeModule(repo, 'm1')
 
     expect(removed).toBe('m1')
     expect(repo.has(StorageKeys.module('m1'))).toBe(false)
-    expect(repo.has(StorageKeys.source('m1'))).toBe(false)
+    expect(repo.has(StorageKeys.source(storedModule.sourceId))).toBe(false)
     expect(repo.has(StorageKeys.mastery('m1'))).toBe(false)
     expect(repo.has(StorageKeys.feynman('m1'))).toBe(false)
     expect(repo.has(StorageKeys.progress('m1'))).toBe(false)
@@ -182,6 +184,26 @@ describe('removeModule', () => {
   it('returns null for non-existent module', () => {
     const repo = new MockRepo()
     expect(removeModule(repo, 'nonexistent')).toBe(null)
+  })
+
+  it('removes source by module.sourceId instead of moduleId', () => {
+    const repo = new MockRepo()
+    seedModule(repo, 'm1', 1000)
+    const storedModule = repo.get<Module>(StorageKeys.module('m1'))!
+
+    removeModule(repo, 'm1')
+
+    expect(repo.has(StorageKeys.source(storedModule.sourceId))).toBe(false)
+  })
+
+  it('removes module-scoped attempts archive', () => {
+    const repo = new MockRepo()
+    seedModule(repo, 'm1', 1000)
+    repo.set(StorageKeys.attemptsModule('m1'), { attemptsBySlot: { q1: [] } })
+
+    removeModule(repo, 'm1')
+
+    expect(repo.has(StorageKeys.attemptsModule('m1'))).toBe(false)
   })
 })
 

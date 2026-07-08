@@ -17,6 +17,8 @@ import { useRouter } from 'next/navigation'
 import { useState, useCallback } from 'react'
 
 import { INPUT_MAX_LENGTH, INPUT_MIN_LENGTH } from '@/lib/compiler/pipeline/types'
+import { storage } from '@/lib/persistence/local-storage'
+import { createCompileJob } from '@/lib/state/compile-job-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
 
 const STORAGE_KEY = 'alc:compile-source'
@@ -40,11 +42,17 @@ export default function ImportPage() {
       return
     }
 
-    // 存入 sessionStorage 供编译中页读取
+    // 保留 sessionStorage（兼容现有 compiling 页逻辑）
     sessionStorage.setItem(STORAGE_KEY, markdown)
 
+    // M7.5：写入 compile job store，刷新后可恢复
+    const job = createCompileJob(storage, {
+      sourceContent: markdown,
+      configSummary: { provider: config.provider, model: config.model },
+    })
+
     setSubmitting(true)
-    router.push('/learn/compiling')
+    router.push(`/learn/compiling?jobId=${job.jobId}`)
   }, [isValid, submitting, config, markdown, router])
 
   return (
@@ -53,12 +61,20 @@ export default function ImportPage() {
       <header className="border-b border-neutral-800 px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <h1 className="text-lg font-medium text-neutral-200">导入知识</h1>
-          <button
-            onClick={() => router.push('/settings')}
-            className="text-sm text-neutral-400 hover:text-neutral-200 transition-colors"
-          >
-            {config ? '设置' : '配置 LLM'}
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push('/learn/library')}
+              className="text-sm text-neutral-400 hover:text-neutral-200 transition-colors"
+            >
+              我的题库
+            </button>
+            <button
+              onClick={() => router.push('/settings')}
+              className="text-sm text-neutral-400 hover:text-neutral-200 transition-colors"
+            >
+              {config ? '设置' : '配置 LLM'}
+            </button>
+          </div>
         </div>
       </header>
 

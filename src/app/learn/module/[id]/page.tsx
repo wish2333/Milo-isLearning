@@ -12,11 +12,15 @@
  */
 
 import { useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { useEffect } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
+import { StorageKeys } from '@/lib/persistence/keys'
+import { storage } from '@/lib/persistence/local-storage'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
+import type { Module } from '@/types/domain'
 
 import { ConceptView } from '@/components/learn/ConceptView'
 import { ChallengeView } from '@/components/learn/ChallengeView'
@@ -27,16 +31,37 @@ import { ModuleIntroView } from '@/components/learn/ModuleIntroView'
 
 export default function ModulePage() {
   const router = useRouter()
+  const params = useParams<{ id: string }>()
   const hydrated = useHydrated()
   const currentModule = useModuleStore((s) => s.currentModule)
+  const setModule = useModuleStore((s) => s.setModule)
   const stage = useProgressStore((s) => s.stage)
+  const routeModuleId = params.id
 
-  // 无 Module 数据时回到导入页（等 hydration 完成后再检查）
   useEffect(() => {
-    if (hydrated && !currentModule) {
-      router.replace('/learn/import')
+    if (!hydrated || !routeModuleId) return
+    if (currentModule?.id === routeModuleId) return
+
+    const storedModule = storage.get<Module>(StorageKeys.module(routeModuleId))
+    if (storedModule) {
+      setModule(storedModule)
+      return
     }
-  }, [hydrated, currentModule, router])
+
+    router.replace('/learn/library')
+  }, [hydrated, routeModuleId, currentModule?.id, setModule, router])
+
+  // 无 Module 数据时回到题库页（等 hydration 和 route 恢复完成后再检查）
+  useEffect(() => {
+    if (
+      hydrated &&
+      routeModuleId &&
+      !currentModule &&
+      !storage.has(StorageKeys.module(routeModuleId))
+    ) {
+      router.replace('/learn/library')
+    }
+  }, [hydrated, routeModuleId, currentModule, router])
 
   // done → 重定向
   useEffect(() => {

@@ -117,19 +117,21 @@ test.describe('Learning flow smoke test', () => {
     await expect(page.locator('text=下面哪一项是核心概念的定义？')).toBeVisible({ timeout: 5000 })
     await page.locator('button:has-text("正确答案")').click()
     await page.locator('button:has-text("确认选择")').click()
-    await expect(page.locator('text=答得不错')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=答对！继续保持这个节奏。')).toBeVisible({ timeout: 5000 })
     await page.locator('button:has-text("继续")').click()
 
     await expect(page.locator('text=核心概念的关键要点')).toBeVisible({ timeout: 5000 })
     await page.locator('button:has-text("要点三")').click()
     await page.locator('button:has-text("确认选择")').click()
-    await expect(page.locator('text=差一点')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=再试一题，重点看解析里的关键关系。')).toBeVisible({
+      timeout: 5000,
+    })
     await page.locator('button:has-text("换一道题")').click()
 
     await expect(page.locator('text=重新出题')).toBeVisible({ timeout: 5000 })
     await page.locator('button:has-text("正确答案")').click()
     await page.locator('button:has-text("确认选择")').click()
-    await expect(page.locator('text=这次理解到位了')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=答对！继续保持这个节奏。')).toBeVisible({ timeout: 5000 })
     await page.locator('button:has-text("继续")').click()
 
     await expect(page.locator('text=费曼任务')).toBeVisible({ timeout: 5000 })
@@ -157,7 +159,8 @@ test.describe('Learning flow smoke test', () => {
     await page.locator('button:has-text("完成学习")').click()
 
     await page.waitForURL('**/learn/done', { timeout: 5000 })
-    await expect(page.locator('h1')).toContainText('学习完成')
+    await expect(page.locator('text=学习完成')).toBeVisible()
+    await expect(page.locator('h1')).toContainText('测试模块')
     await expect(page.locator('text=模块完成度')).toBeVisible()
   })
 })

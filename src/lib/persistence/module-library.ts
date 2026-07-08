@@ -1,0 +1,74 @@
+/**
+ * Module Library repository helpers (M7.5)
+ *
+ * 提供读取本地 Module 列表、打开、重新学习、删除的纯 repository 操作。
+ * 不包含 UI 状态管理（由 Zustand store 负责）。
+ */
+
+import type { Module, ProgressState } from '@/types/domain'
+
+import { StorageKeys } from './keys'
+import type { StorageRepository } from './repository'
+
+/**
+ * Library 列表中单条 Module 的摘要视图。
+ */
+export interface StoredModuleSummary {
+  id: string
+  sourceId: string
+  title: string
+  conceptCount: number
+  quizCount: number
+  updatedAt: number
+  completed: boolean
+}
+
+/**
+ * 列出所有已存储的 Module（按 updatedAt 降序）。
+ *
+ * quizCount 统计：Concept quiz + Challenge quiz + Feynman steps。
+ * 无 progress 的 Module 视为 updatedAt=0（最旧）。
+ */
+export function listStoredModules(repo: StorageRepository): StoredModuleSummary[] {
+  return repo
+    .keys()
+    .filter((key) => key.startsWith('alc:module:'))
+    .map((key) => repo.get<Module>(key))
+    .filter((module): module is Module => module !== null)
+    .map((module) => {
+      const progress = repo.get<ProgressState>(StorageKeys.progress(module.id))
+      const conceptQuizCount = module.concepts.reduce(
+        (sum, concept) => sum + concept.quizSeries.quizzes.length,
+        0,
+      )
+      const challengeCount = module.challengeQuizzes?.length ?? 0
+      const feynmanStepCount = module.feynmanTask.steps.length
+      return {
+        id: module.id,
+        sourceId: module.sourceId,
+        title: module.title,
+        conceptCount: module.concepts.length,
+        quizCount: conceptQuizCount + challengeCount + feynmanStepCount,
+        updatedAt: progress?.updatedAt ?? 0,
+        completed: progress?.stage.kind === 'done',
+      }
+    })
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
+/**
+ * 按 id 加载单个 Module；不存在返回 null。
+ */
+export function loadStoredModule(repo: StorageRepository, moduleId: string): Module | null {
+  return repo.get<Module>(StorageKeys.module(moduleId))
+}
+
+/**
+ * 重置 Module 的学习进度（progress / feynman / module-scoped attempts），
+ * 但保留 Module 本体和 source，允许用户重新学习。
+ */
+export function resetStoredModuleProgress(repo: StorageRepository, moduleId: string): void {
+  repo.remove(StorageKeys.progress(moduleId))
+  repo.remove(StorageKeys.feynman(moduleId))
+  repo.remove(StorageKeys.attemptsModule(moduleId))
+}
