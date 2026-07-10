@@ -233,7 +233,7 @@ describe('computeMastery', () => {
     expect(mastery.moduleCompletion).toBe(14)
   })
 
-  it('excludes guessed-correct from concept mastery calculation', () => {
+  it('conceptMastery includes guessed-correct, conceptMasteryExcludingGuessed excludes it', () => {
     const mod = makeModule(2, 1)
     const attempts: Record<string, AttemptRecord[]> = {
       'concept-1:0': [{ ...makeAttempt('concept-1:0', 0, 100, 'advance'), guessed: true }],
@@ -242,11 +242,13 @@ describe('computeMastery', () => {
 
     const mastery = computeMastery(mod, attempts)
 
-    // concept-1: 1/2 first-attempt passed (guessed excluded) = 50%
-    expect(mastery.conceptMastery[0]?.mastery).toBe(50)
+    // conceptMastery: 2/2 first-attempt passed (includes guessed) = 100%
+    expect(mastery.conceptMastery[0]?.mastery).toBe(100)
+    // conceptMasteryExcludingGuessed: 1/2 passed (excludes guessed) = 50%
+    expect(mastery.conceptMasteryExcludingGuessed?.[0]?.mastery).toBe(50)
   })
 
-  it('concept mastery is lower when guesses are present', () => {
+  it('conceptMasteryExcludingGuessed is lower when guesses are present', () => {
     const mod = makeModule(2, 1)
     const attemptsWithoutGuessed: Record<string, AttemptRecord[]> = {
       'concept-1:0': [makeAttempt('concept-1:0', 0, 100, 'advance')],
@@ -260,8 +262,12 @@ describe('computeMastery', () => {
     const masteryWithout = computeMastery(mod, attemptsWithoutGuessed)
     const masteryWith = computeMastery(mod, attemptsWithGuessed)
 
+    // conceptMastery includes guessed — both should be 100
     expect(masteryWithout.conceptMastery[0]?.mastery).toBe(100)
-    expect(masteryWith.conceptMastery[0]?.mastery).toBe(50)
+    expect(masteryWith.conceptMastery[0]?.mastery).toBe(100)
+    // conceptMasteryExcludingGuessed excludes guessed — should differ
+    expect(masteryWithout.conceptMasteryExcludingGuessed?.[0]?.mastery).toBe(100)
+    expect(masteryWith.conceptMasteryExcludingGuessed?.[0]?.mastery).toBe(50)
   })
 
   it('excludes guessed-correct from challenge mastery calculation', () => {
@@ -299,6 +305,9 @@ describe('computeMastery', () => {
 
     const mastery = computeMastery(mod, attempts)
 
-    expect(mastery.challengeMastery).toBe(50)
+    // challengeMastery includes guessed = 100%
+    expect(mastery.challengeMastery).toBe(100)
+    // challengeMasteryExcludingGuessed excludes guessed = 50%
+    expect(mastery.challengeMasteryExcludingGuessed).toBe(50)
   })
 })

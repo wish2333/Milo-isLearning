@@ -91,6 +91,7 @@ export function flushEvents(): AnalyticsEvent[] {
 
 function ensureFlushTimer(): void {
   if (flushTimer !== null) return
+  if (!ENDPOINT) return
   flushTimer = setTimeout(() => {
     flushTimer = null
     flushEvents()

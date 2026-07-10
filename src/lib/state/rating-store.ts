@@ -18,12 +18,11 @@ interface RatingEntry {
 interface RatingStoreState {
   ratings: Record<string, RatingEntry>
   setRating: (moduleId: string, score: number) => void
-  getRating: (moduleId: string) => RatingEntry | undefined
 }
 
 export const useRatingStore = create<RatingStoreState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ratings: {},
 
       setRating: (moduleId, score) =>
@@ -33,8 +32,6 @@ export const useRatingStore = create<RatingStoreState>()(
             [moduleId]: { score, ratedAt: Date.now() },
           },
         })),
-
-      getRating: (moduleId) => get().ratings[moduleId],
     }),
     {
       name: StorageKeys.ratings,

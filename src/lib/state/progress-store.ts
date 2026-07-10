@@ -340,7 +340,8 @@ export const useProgressStore = create<ProgressStoreState>()(
  *   - 切换 Module 时保存前一个 Module 的最终进度
  *   - reset 时不写（避免 clearAll 后又写入）
  */
-useProgressStore.subscribe((state, prevState) => {
+/** @internal 保留 unsubscribe 引用，测试 / HMR 可调用清理 */
+export const _unsubscribeProgressSync = useProgressStore.subscribe((state, prevState) => {
   // reset 后 state 为初始态，不写 per-module key
   if (!state.moduleId || !state.stage) return
 

@@ -98,7 +98,7 @@ function getCorrectAnswer(quiz: Quiz): string {
 }
 
 function escapeMarkdown(text: string): string {
-  return text.replace(/[*_`#\[\]]/g, '\\$&')
+  return text.replace(/[*_`~#\[\]()|>]/g, '\\$&')
 }
 
 /**

@@ -9,7 +9,7 @@
  */
 
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
@@ -41,27 +41,26 @@ export default function ReviewPage() {
   const [notFound, setNotFound] = useState(false)
   const [empty, setEmpty] = useState(false)
 
+  // 初始化只依赖 hydrated + moduleId，不依赖 session（避免重触发）
+  const initializedFor = useRef<string | null>(null)
+
   useEffect(() => {
     if (!hydrated || !params.moduleId) return
+    if (initializedFor.current === params.moduleId) return
+    initializedFor.current = params.moduleId
+
     const moduleData = storage.get(StorageKeys.module(params.moduleId))
     if (!moduleData) {
       setNotFound(true)
       return
     }
-    if (!session || session.moduleId !== params.moduleId) {
-      endSession()
-      startSession(params.moduleId)
-      // Check if session was actually started (has wrong questions)
-      // We check after a tick since startSession is sync
-    }
-  }, [hydrated, params.moduleId, session, startSession, endSession])
 
-  // Detect empty session (no wrong questions)
-  useEffect(() => {
-    if (session && session.queue.length === 0 && session.results.length === 0) {
+    // startSession 返回 false 说明没有错题 → 直接展示空状态
+    const started = startSession(params.moduleId)
+    if (!started) {
       setEmpty(true)
     }
-  }, [session])
+  }, [hydrated, params.moduleId, startSession])
 
   const currentQuiz = session ? session.queue[session.currentIndex] : null
   const isFinished = session !== null && session.currentIndex >= session.queue.length
@@ -107,10 +106,6 @@ export default function ReviewPage() {
 
   const handleNext = useCallback(() => {
     if (!session) return
-    if (session.currentIndex + 1 >= session.queue.length) {
-      // Finished
-      return
-    }
     setPhase('answering')
     setFeedback(null)
     nextQuestion()

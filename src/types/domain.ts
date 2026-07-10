@@ -191,9 +191,14 @@ export interface Mastery {
   moduleId: string
   /** 0-100 */
   moduleCompletion: number
+  /** Concept 首次答对率（含蒙对，乐观值） */
   conceptMastery: { conceptId: string; mastery: number }[]
-  /** Challenge 题首次答对率（无 Challenge 题时为 undefined） */
+  /** Concept 首次答对率（排除蒙对，真实掌握度） */
+  conceptMasteryExcludingGuessed?: { conceptId: string; mastery: number }[]
+  /** Challenge 题首次答对率（含蒙对，无 Challenge 题时为 undefined） */
   challengeMastery?: number
+  /** Challenge 题首次答对率（排除蒙对，无 Challenge 题时为 undefined） */
+  challengeMasteryExcludingGuessed?: number
   feynmanCompleted: boolean
   feynmanScore?: number
 }

@@ -33,6 +33,7 @@ const PASS_THRESHOLD = 80
 function computeConceptMastery(
   conceptQuizzes: Module['concepts'][number]['quizSeries']['quizzes'],
   attemptsBySlot: Record<string, AttemptRecord[]>,
+  excludeGuessed = false,
 ): number {
   if (conceptQuizzes.length === 0) return 0
 
@@ -42,8 +43,10 @@ function computeConceptMastery(
     if (!slotAttempts || slotAttempts.length === 0) continue
 
     const firstAttempt = slotAttempts.find((a) => a.attemptVersion === 0)
-    if (firstAttempt && firstAttempt.score >= PASS_THRESHOLD && !firstAttempt.guessed) {
-      firstAttemptPassed++
+    if (firstAttempt && firstAttempt.score >= PASS_THRESHOLD) {
+      if (!excludeGuessed || !firstAttempt.guessed) {
+        firstAttemptPassed++
+      }
     }
   }
 
@@ -63,10 +66,14 @@ export function computeMastery(
   attemptsBySlot: Record<string, AttemptRecord[]>,
   feynmanAttempt?: FeynmanAttempt,
 ): Mastery {
-  // --- 1. conceptMastery：每 Concept 的首次答对率 ---
+  // --- 1. conceptMastery：每 Concept 的首次答对率（含蒙对）+ 排除蒙对版本 ---
   const conceptMastery = module.concepts.map((concept) => ({
     conceptId: concept.id,
     mastery: computeConceptMastery(concept.quizSeries.quizzes, attemptsBySlot),
+  }))
+  const conceptMasteryExcludingGuessed = module.concepts.map((concept) => ({
+    conceptId: concept.id,
+    mastery: computeConceptMastery(concept.quizSeries.quizzes, attemptsBySlot, true),
   }))
 
   // --- 2. moduleCompletion：已完成 Quiz / 总 Quiz ---
@@ -113,17 +120,25 @@ export function computeMastery(
 
   // --- 3. Challenge 掌握度（首次答对率，无 Challenge 题时为 undefined）---
   let challengeMastery: number | undefined
+  let challengeMasteryExcludingGuessed: number | undefined
   if (module.challengeQuizzes && module.challengeQuizzes.length > 0) {
     let challengeFirstPassed = 0
+    let challengeFirstPassedExcludingGuessed = 0
     for (const quiz of module.challengeQuizzes) {
       const slotAttempts = attemptsBySlot[quiz.id]
       if (!slotAttempts || slotAttempts.length === 0) continue
       const firstAttempt = slotAttempts.find((a) => a.attemptVersion === 0)
-      if (firstAttempt && firstAttempt.score >= PASS_THRESHOLD && !firstAttempt.guessed) {
+      if (firstAttempt && firstAttempt.score >= PASS_THRESHOLD) {
         challengeFirstPassed++
+        if (!firstAttempt.guessed) {
+          challengeFirstPassedExcludingGuessed++
+        }
       }
     }
     challengeMastery = Math.round((challengeFirstPassed / module.challengeQuizzes.length) * 100)
+    challengeMasteryExcludingGuessed = Math.round(
+      (challengeFirstPassedExcludingGuessed / module.challengeQuizzes.length) * 100,
+    )
   }
 
   // --- 4. Feynman 完成状态与得分 ---
@@ -134,7 +149,9 @@ export function computeMastery(
     moduleId: module.id,
     moduleCompletion,
     conceptMastery,
+    conceptMasteryExcludingGuessed,
     challengeMastery,
+    challengeMasteryExcludingGuessed,
     feynmanCompleted,
     feynmanScore,
   }

@@ -9,7 +9,7 @@
  *   - 导入由父页面持有（ModuleImportExport）
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import type { StoredModuleSummary } from '@/lib/persistence/module-library'
@@ -264,7 +264,7 @@ function ModuleReviewButton({
   const router = useRouter()
   const [hasWrong, setHasWrong] = useState(false)
 
-  useMemo(() => {
+  useEffect(() => {
     const moduleData = loadStoredModule(storage, moduleId)
     if (!moduleData) return
     setHasWrong(hasWrongQuestions(moduleData, attemptsBySlot))
