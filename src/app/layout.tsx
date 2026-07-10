@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 
 import { Fraunces } from 'next/font/google'
 import { EnvConfigLoader } from '@/components/EnvConfigLoader'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import './globals.css'
 
 const fraunces = Fraunces({
@@ -21,7 +22,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning className={fraunces.variable}>
       <body>
-        <EnvConfigLoader />
+        {!isShowcaseMode && <EnvConfigLoader />}
         {children}
       </body>
     </html>

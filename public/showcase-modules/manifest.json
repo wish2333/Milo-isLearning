@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "modules": [
+    {
+      "id": "intro-to-alc",
+      "package": "intro-to-alc.alc-module.json",
+      "title": "什么是 AI 学习编译器",
+      "description": "用 3 个概念理解 AI Learning Compiler 的核心闭环",
+      "featured": true,
+      "order": 1
+    }
+  ]
+}

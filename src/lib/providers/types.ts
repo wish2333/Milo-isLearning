@@ -10,7 +10,7 @@
  */
 
 /** MVP 支持的供应商枚举（V2 可扩展） */
-export type ProviderKind = 'deepseek' | 'glm' | 'sensenova'
+export type ProviderKind = 'deepseek' | 'glm' | 'openai-compat'
 
 /** 单条聊天消息 */
 export interface ChatMessage {

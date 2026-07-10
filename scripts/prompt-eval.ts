@@ -8,18 +8,18 @@
  * 用法：
  *   bun --env-file=.env.local run scripts/prompt-eval.ts \
  *     --agent concept \
- *     --provider sensenova \
- *     --model deepseek-v4-flash \
+ *     --provider deepseek \
+ *     --model deepseek-chat \
  *     --fixture rag-chunks \
  *     --runs 5 \
  *     --thinking off
  *
  * 环境变量（从 .env.local 自动加载，bun 默认不读，需 --env-file 显式指定）：
- *   SENSENOVA_API_KEY / DEEPSEEK_API_KEY / GLM_API_KEY
+ *   OPENAI_COMPAT_API_KEY / DEEPSEEK_API_KEY / GLM_API_KEY
  *     — 缺所选 provider 的 key 自动 skip / 退出
- *   SENSENOVA_MODEL / DEEPSEEK_MODEL / GLM_MODEL
+ *   OPENAI_COMPAT_MODEL / DEEPSEEK_MODEL / GLM_MODEL
  *     — 默认模型覆盖（实际模型由 --model 决定，此 env 仅用于 ping 脚本）
- *   SENSENOVA_BASE_URL / DEEPSEEK_BASE_URL / GLM_BASE_URL
+ *   OPENAI_COMPAT_BASE_URL / DEEPSEEK_BASE_URL / GLM_BASE_URL
  *     — 可选自定义 baseURL
  *
  * 对应 docs/M2.5-Plan.md §2.W2 / §3 验收 / docs/prompt-evaluation.md §4-§5。
@@ -112,7 +112,7 @@ function printUsageAndExit(): never {
       'Usage: bun run scripts/prompt-eval.ts --agent <kind> --provider <p> --model <m> --fixture <f> [--runs N] [--thinking on|off]',
       '',
       `  --agent     ${AGENTS.join(' | ')}`,
-      '  --provider  deepseek | glm | sensenova',
+      '  --provider  deepseek | glm | openai-compat',
       '  --model     模型 ID，如 glm-5.2 / deepseek-v4-flash',
       '  --fixture   fixture 名（不含扩展）：',
       '                rag-medium | feynman-medium | gitflow-medium',
@@ -169,7 +169,7 @@ function parseArgs(argv: string[]): CliArgs {
     printUsageAndExit()
   }
   if (!out.provider || !isSupportedProvider(out.provider)) {
-    console.error('--provider 缺失或非法（合法值：deepseek | glm | sensenova）')
+    console.error('--provider 缺失或非法（合法值：deepseek | glm | openai-compat）')
     printUsageAndExit()
   }
   if (!out.model) {
@@ -208,9 +208,13 @@ function buildLLMConfig(args: CliArgs): LLMConfig {
   if (args.provider === 'deepseek') {
     apiKey = env.DEEPSEEK_API_KEY
     baseURL = env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com'
-  } else if (args.provider === 'sensenova') {
-    apiKey = env.SENSENOVA_API_KEY
-    baseURL = env.SENSENOVA_BASE_URL ?? 'https://token.sensenova.cn/v1'
+  } else if (args.provider === 'openai-compat') {
+    apiKey = env.OPENAI_COMPAT_API_KEY
+    baseURL = env.OPENAI_COMPAT_BASE_URL ?? ''
+    if (!baseURL) {
+      console.error(`[env] OPENAI_COMPAT_BASE_URL 未设置，OpenAI 兼容供应商必须提供 baseURL。`)
+      process.exit(3)
+    }
   } else {
     apiKey = env.GLM_API_KEY
     baseURL = env.GLM_BASE_URL ?? 'https://open.bigmodel.cn/api/coding/paas/v4'

@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
 
 const NAV_ITEMS = [
   { href: '/', label: '首页' },
   { href: '/learn/library', label: '我的题库' },
-  { href: '/learn/import', label: '导入新内容' },
+  ...(isShowcaseMode ? [] : [{ href: '/learn/import', label: '导入新内容' }]),
 ]
 
 export function GlobalNav() {

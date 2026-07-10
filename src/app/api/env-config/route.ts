@@ -10,9 +10,9 @@
  *   - Response: { config: LLMConfig | null }
  *
  * 环境变量映射：
- *   DEFAULT_LLM_PROVIDER  → provider (默认 sensenova)
- *   DEFAULT_LLM_MODEL     → model (默认 deepseek-v4-flash)
- *   SENSENOVA_API_KEY / DEEPSEEK_API_KEY / GLM_API_KEY → apiKey
+ *   DEFAULT_LLM_PROVIDER  → provider (默认 deepseek)
+ *   DEFAULT_LLM_MODEL     → model (默认 deepseek-chat)
+ *   OPENAI_COMPAT_API_KEY / DEEPSEEK_API_KEY / GLM_API_KEY → apiKey
  *   *_BASE_URL            → baseURL (可选覆盖)
  */
 
@@ -24,7 +24,7 @@ export const runtime = 'nodejs'
 const PROVIDER_DEFAULT_BASE_URL: Record<ProviderKind, string> = {
   deepseek: 'https://api.deepseek.com',
   glm: 'https://open.bigmodel.cn/api/coding/paas/v4',
-  sensenova: 'https://token.sensenova.cn/v1',
+  'openai-compat': '',
 }
 
 /**
@@ -34,14 +34,14 @@ function readAllApiKeys(): Record<ProviderKind, string | null> {
   return {
     deepseek: process.env.DEEPSEEK_API_KEY ?? null,
     glm: process.env.GLM_API_KEY ?? null,
-    sensenova: process.env.SENSENOVA_API_KEY ?? null,
+    'openai-compat': process.env.OPENAI_COMPAT_API_KEY ?? null,
   }
 }
 
 export async function GET() {
   const allApiKeys = readAllApiKeys()
-  const provider = (process.env.DEFAULT_LLM_PROVIDER ?? 'sensenova') as ProviderKind
-  const model = process.env.DEFAULT_LLM_MODEL ?? 'deepseek-v4-flash'
+  const provider = (process.env.DEFAULT_LLM_PROVIDER ?? 'deepseek') as ProviderKind
+  const model = process.env.DEFAULT_LLM_MODEL ?? 'deepseek-chat'
 
   const apiKey = allApiKeys[provider]
 
@@ -54,7 +54,7 @@ export async function GET() {
   const baseURLByProvider: Record<ProviderKind, string | undefined> = {
     deepseek: process.env.DEEPSEEK_BASE_URL,
     glm: process.env.GLM_BASE_URL,
-    sensenova: process.env.SENSENOVA_BASE_URL,
+    'openai-compat': process.env.OPENAI_COMPAT_BASE_URL,
   }
   const baseURLOverride = baseURLByProvider[provider]
   const baseURL = baseURLOverride ?? PROVIDER_DEFAULT_BASE_URL[provider]

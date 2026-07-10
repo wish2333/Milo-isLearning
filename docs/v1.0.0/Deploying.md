@@ -7,7 +7,7 @@
 
 本项目（ai-learning-compiler）是 Next.js 15 + React 19 应用，零后端架构：
 
-- **6 个无状态 API 路由**：代理 LLM 调用（DeepSeek / GLM / SenseNova）
+- **6 个无状态 API 路由**：代理 LLM 调用（DeepSeek / GLM / OpenAI 兼容）
 - **LocalStorage 客户端存储**：所有用户数据留在浏览器，服务端不持久化
 - **SSE 流式编译**：`/api/compile` 使用 `text/event-stream` 实时推送 8 阶段编译进度
 
@@ -18,7 +18,7 @@ Vercel 是该架构的理想部署平台——无需数据库、无需 WebSocket
 | 条目 | 要求 |
 |------|------|
 | GitHub 仓库 | 代码已推送至 GitHub（Vercel 通过 Git 集成自动部署） |
-| LLM API Key | 至少一个供应商的密钥（推荐 SenseNova 默认通道） |
+| LLM API Key | 至少一个供应商的密钥（推荐 DeepSeek） |
 | Vercel 账号 | [vercel.com](https://vercel.com) 注册（Hobby 免费计划即可） |
 | Node.js | 本地开发用 20.x+（Vercel 运行时自动提供） |
 
@@ -51,17 +51,17 @@ Vercel 自动识别 Next.js 项目，默认配置如下：
 
 | Key | 示例值 | 说明 |
 |-----|--------|------|
-| `SENSENOVA_API_KEY` | `sk-xxxxxxxx` | SenseNova（商汤）API 密钥，默认编译通道 |
-| `DEFAULT_LLM_PROVIDER` | `sensenova` | 默认供应商，取值：`deepseek` / `glm` / `sensenova` |
-| `DEFAULT_LLM_MODEL` | `deepseek-v4-flash` | SenseNova 托管的 DeepSeek 模型（推荐） |
+| `DEEPSEEK_API_KEY` | `sk-xxxxxxxx` | DeepSeek API 密钥，默认编译通道 |
+| `DEFAULT_LLM_PROVIDER` | `deepseek` | 默认供应商，取值：`deepseek` / `glm` / `openai-compat` |
+| `DEFAULT_LLM_MODEL` | `deepseek-chat` | DeepSeek 默认模型 |
 
 ### 可选配置（多供应商冗余）
 
 | Key | 说明 |
 |-----|------|
-| `DEEPSEEK_API_KEY` | 原生 DeepSeek 通道密钥 |
+| `OPENAI_COMPAT_API_KEY` | OpenAI 兼容端点密钥（如 OpenRouter / Groq / Ollama） |
+| `OPENAI_COMPAT_BASE_URL` | OpenAI 兼容端点 URL（必填，如 `https://openrouter.ai/api/v1`） |
 | `GLM_API_KEY` | 智谱 GLM 通道密钥（Coding Plan 端点） |
-| `SENSENOVA_BASE_URL` | 覆盖 SenseNova 默认端点（默认 `https://token.sensenova.cn/v1`） |
 | `DEEPSEEK_BASE_URL` | 覆盖 DeepSeek 默认端点（默认 `https://api.deepseek.com`） |
 | `GLM_BASE_URL` | 覆盖 GLM 默认端点（默认 Coding Plan 端点） |
 
@@ -78,7 +78,7 @@ Vercel 自动识别 Next.js 项目，默认配置如下：
 
 ```
 用户打开应用 → 前端请求 /api/env-config
-  → 服务端读取 process.env.SENSENOVA_API_KEY 等
+  → 服务端读取 process.env.DEEPSEEK_API_KEY 等
   → 返回 { config: { provider, apiKey, model, baseURL } }
   → 前端 Settings 自动填充，用户无需手动输入
 ```
@@ -254,10 +254,11 @@ main          ← 稳定生产代码
 
 ```bash
 # .env.local（本地开发，已在 .gitignore 中）
-DEFAULT_LLM_PROVIDER=sensenova
-DEFAULT_LLM_MODEL=deepseek-v4-flash
-SENSENOVA_API_KEY=your_key_here
-# DEEPSEEK_API_KEY=optional
+DEFAULT_LLM_PROVIDER=deepseek
+DEFAULT_LLM_MODEL=deepseek-chat
+DEEPSEEK_API_KEY=your_key_here
+# OPENAI_COMPAT_API_KEY=optional
+# OPENAI_COMPAT_BASE_URL=https://your-endpoint.com/v1
 # GLM_API_KEY=optional
 
 # Vercel Dashboard → Settings → Environment Variables
@@ -270,7 +271,7 @@ SENSENOVA_API_KEY=your_key_here
 npm i -g vercel
 vercel login
 vercel link          # 关联本地项目到 Vercel
-vercel env add SENSENOVA_API_KEY
+vercel env add DEEPSEEK_API_KEY
 vercel env add DEFAULT_LLM_PROVIDER
 vercel env add DEFAULT_LLM_MODEL
 ```

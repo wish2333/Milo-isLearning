@@ -13,6 +13,9 @@
  *   3. 已有配置 → 不覆盖 config（用户手动配置优先）
  *
  * 此组件不渲染任何 UI，仅作为副作用加载器挂在 layout 中。
+ *
+ * @param enabled - 默认 true。展示模式传 false 跳过 fetch（双重保险，
+ *   即使 layout.tsx 忘了条件渲染也能阻止）。
  */
 
 import { useEffect } from 'react'
@@ -21,12 +24,17 @@ import { useHydrated } from '@/lib/hooks/useHydrated'
 import { useSettingsStore } from '@/lib/state/settings-store'
 import type { LLMConfig } from '@/lib/providers/types'
 
-export function EnvConfigLoader() {
+interface EnvConfigLoaderProps {
+  enabled?: boolean // 默认 true；展示模式传 false 跳过
+}
+
+export function EnvConfigLoader({ enabled = true }: EnvConfigLoaderProps = {}) {
   const hydrated = useHydrated()
   const setConfig = useSettingsStore((s) => s.setConfig)
   const setAvailableKeys = useSettingsStore((s) => s.setAvailableKeys)
 
   useEffect(() => {
+    if (!enabled) return
     if (!hydrated) return
 
     let cancelled = false
@@ -51,7 +59,7 @@ export function EnvConfigLoader() {
     return () => {
       cancelled = true
     }
-  }, [hydrated, setConfig, setAvailableKeys])
+  }, [enabled, hydrated, setConfig, setAvailableKeys])
 
   return null
 }

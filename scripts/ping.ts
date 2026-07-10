@@ -5,9 +5,9 @@
  *   bun --env-file=.env.local run scripts/ping.ts
  *
  * 环境变量（从 .env.local 读取，bun 默认不自动加载，需 --env-file 显式指定）：
- *   DEEPSEEK_API_KEY   - 若设置，则 ping 原生 DeepSeek
+ *   DEEPSEEK_API_KEY   - 若设置，则 ping 原生 DeepSeek（默认）
  *   GLM_API_KEY        - 若设置，则 ping GLM（默认 Coding Plan 端点）
- *   SENSENOVA_API_KEY  - 若设置，则 ping SenseNova（默认测试通道，托管 deepseek-v4-flash）
+ *   OPENAI_COMPAT_API_KEY - 若设置，则 ping OpenAI 兼容端点（需同时设 OPENAI_COMPAT_BASE_URL）
  *
  * 未设置的供应商会被自动 skip。全部未设置时输出指引。
  *
@@ -26,14 +26,15 @@ interface ProviderCheck {
 
 const CHECKS: ProviderCheck[] = [
   {
-    kind: 'sensenova', // 默认测试通道，放第一位便于快速验证
-    apiKey: process.env.SENSENOVA_API_KEY,
-    model: process.env.SENSENOVA_MODEL ?? 'deepseek-v4-flash',
+    kind: 'deepseek', // 默认测试通道，放第一位便于快速验证
+    apiKey: process.env.DEEPSEEK_API_KEY,
+    model: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
   },
   {
-    kind: 'deepseek',
-    apiKey: process.env.DEEPSEEK_API_KEY,
-    model: process.env.DEEPSEEK_MODEL ?? 'deepseek-v4-flash',
+    kind: 'openai-compat',
+    apiKey: process.env.OPENAI_COMPAT_API_KEY,
+    model: process.env.OPENAI_COMPAT_MODEL ?? 'deepseek-chat',
+    baseURL: process.env.OPENAI_COMPAT_BASE_URL,
   },
   {
     kind: 'glm',
@@ -60,7 +61,7 @@ async function main(): Promise<void> {
     console.log('')
     console.log('配置方法：')
     console.log('  1. 复制 .env.example 为 .env.local')
-    console.log('  2. 填入 SENSENOVA_API_KEY / DEEPSEEK_API_KEY / GLM_API_KEY 至少一项')
+    console.log('  2. 填入 DEEPSEEK_API_KEY / GLM_API_KEY / OPENAI_COMPAT_API_KEY 至少一项')
     console.log('  3. 重新运行 bun --env-file=.env.local run scripts/ping.ts')
     process.exit(0)
   }

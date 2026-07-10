@@ -9,7 +9,7 @@
  *     --provider deepseek --model deepseek-v4-flash --fixture rag-medium --runs 1 --thinking off
  *
  * Env (loaded via bun --env-file):
- *   SENSENOVA_API_KEY / DEEPSEEK_API_KEY / GLM_API_KEY
+ *   OPENAI_COMPAT_API_KEY / DEEPSEEK_API_KEY / GLM_API_KEY
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -73,7 +73,7 @@ function printUsageAndExit(): never {
     [
       'Usage: bun run scripts/m3-smoke.ts [--provider <p>] [--model <m>] [--fixture <f>] [--runs N] [--thinking on|off]',
       '',
-      '  --provider  deepseek | glm | sensenova  (default: deepseek)',
+      '  --provider  deepseek | glm | openai-compat  (default: deepseek)',
       '  --model     model ID, e.g. deepseek-v4-flash / glm-5.2  (default: deepseek-v4-flash)',
       '  --fixture   fixture name (without .md)  (default: rag-medium)',
       '  --runs      repeat count  (default: 1)',
@@ -125,7 +125,7 @@ function parseArgs(argv: string[]): CliArgs {
     }
   }
   if (!out.provider || !isSupportedProvider(out.provider)) {
-    console.error('--provider invalid (valid: deepseek | glm | sensenova)')
+    console.error('--provider invalid (valid: deepseek | glm | openai-compat)')
     process.exit(2)
   }
   if (!out.model) {
