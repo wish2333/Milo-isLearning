@@ -18,6 +18,7 @@ import { useEffect, useState, useCallback } from 'react'
 
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
 import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
+import { track } from '@/lib/runtime/analytics'
 import {
   shouldForceAdvance,
   getConsecutiveFailures,
@@ -55,10 +56,12 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
   const addAttempt = useAttemptsStore((s) => s.addAttempt)
   const getAttempts = useAttemptsStore((s) => s.getAttempts)
   const getNextAttemptVersion = useAttemptsStore((s) => s.getNextAttemptVersion)
+  const markGuessed = useAttemptsStore((s) => s.markGuessed)
 
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
   const [forceAdvance, setForceAdvance] = useState(false)
+  const [isGuessed, setIsGuessed] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
 
@@ -71,6 +74,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
     setPhase('answering')
     setFeedback(null)
     setForceAdvance(false)
+    setIsGuessed(false)
     setError(null)
     setHistoryOpen(false)
     // 如果 currentQuiz 不属于当前 challenge slot，重置为 slot quiz
@@ -114,6 +118,13 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
           timestamp: Date.now(),
         }
         addAttempt(attempt)
+
+        track('quiz_attempt', {
+          interactionType: quiz.interactionType,
+          score: result.score,
+          conceptId: 'challenge',
+          guessed: false,
+        })
 
         // 检查 retry-policy
         const attempts = getAttempts(slotId)
@@ -266,6 +277,11 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
               misconception={quiz.misconception}
               extendedKnowledge={quiz.extendedKnowledge}
               forceAdvance={forceAdvance}
+              isGuessed={isGuessed}
+              onMarkGuessed={() => {
+                markGuessed(slotId)
+                setIsGuessed(true)
+              }}
             />
 
             {/* Action buttons */}

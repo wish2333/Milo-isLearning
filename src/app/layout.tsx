@@ -1,8 +1,16 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
+import { Fraunces } from 'next/font/google'
 import { EnvConfigLoader } from '@/components/EnvConfigLoader'
 import './globals.css'
+
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-fraunces',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'AI Learning Compiler',
@@ -11,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="zh-CN" suppressHydrationWarning className={fraunces.variable}>
       <body>
         <EnvConfigLoader />
         {children}

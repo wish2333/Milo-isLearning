@@ -16,6 +16,7 @@
 import { useState, useCallback } from 'react'
 
 import type { FeynmanEvalOutput } from '@/lib/compiler/schemas/feynman-eval'
+import { track } from '@/lib/runtime/analytics'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
@@ -69,6 +70,10 @@ export function FeynmanFinalView() {
 
   const handleFinish = useCallback(() => {
     if (!result || !currentModule) return
+    track('feynman_final_submit', {
+      finalScore: result.score,
+      rubricHits: result.gaps?.length ?? 0,
+    })
     submitFeynman(output, result.score, result.gaps)
   }, [result, output, submitFeynman, currentModule])
 

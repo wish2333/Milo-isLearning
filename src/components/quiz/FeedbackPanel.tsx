@@ -20,6 +20,8 @@ interface FeedbackPanelProps {
   extendedKnowledge?: string
   /** 是否被强制推进（retry-policy 触发） */
   forceAdvance?: boolean
+  isGuessed?: boolean
+  onMarkGuessed?: () => void
 }
 
 export function FeedbackPanel({
@@ -28,6 +30,8 @@ export function FeedbackPanel({
   misconception,
   extendedKnowledge,
   forceAdvance,
+  isGuessed,
+  onMarkGuessed,
 }: FeedbackPanelProps) {
   const passed = feedback.nextAction === 'advance'
   const showAmber = !passed && !forceAdvance
@@ -86,6 +90,22 @@ export function FeedbackPanel({
 
       {/* Force advance notice */}
       {forceAdvance && <p className="text-xs text-amber-400/60 pt-1">已尝试多次，自动进入下一题</p>}
+
+      {/* Guessed marking */}
+      {passed && !forceAdvance && onMarkGuessed && (
+        <button
+          type="button"
+          onClick={onMarkGuessed}
+          disabled={isGuessed}
+          className={`text-xs transition-colors ${
+            isGuessed
+              ? 'text-fg-quaternary cursor-default'
+              : 'text-fg-tertiary hover:text-fg-secondary'
+          }`}
+        >
+          {isGuessed ? '✓ 已标记蒙对' : '其实是蒙对的'}
+        </button>
+      )}
     </div>
   )
 }

@@ -34,6 +34,10 @@ export const StorageKeys = {
   compileJob: (jobId: string) => `${STORAGE_NAMESPACE}:compile-job:${jobId}`,
   /** 用户设置（LLM Provider / API Key 等），单一全局 key */
   settings: `${STORAGE_NAMESPACE}:settings`,
+  /** 埋点事件批量缓冲 */
+  events: `${STORAGE_NAMESPACE}:events`,
+  /** 完成页评分（moduleId → score） */
+  ratings: `${STORAGE_NAMESPACE}:ratings`,
 } as const
 
 /**

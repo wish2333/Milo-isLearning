@@ -9,7 +9,7 @@
  *   - 导入由父页面持有（ModuleImportExport）
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import type { StoredModuleSummary } from '@/lib/persistence/module-library'
@@ -19,7 +19,9 @@ import { removeModule } from '@/lib/persistence/quota'
 import { storage } from '@/lib/persistence/local-storage'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
-import type { ProgressState } from '@/types/domain'
+import { useAttemptsStore } from '@/lib/state/attempts-store'
+import { hasWrongQuestions } from '@/lib/persistence/wrong-question-book'
+import type { AttemptRecord, ProgressState } from '@/types/domain'
 
 import { exportModuleToBrowserDownload } from './ModuleImportExport'
 
@@ -58,6 +60,7 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
   const router = useRouter()
   const setModule = useModuleStore((s) => s.setModule)
   const startModule = useProgressStore((s) => s.startModule)
+  const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -198,6 +201,7 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
               >
                 导出
               </button>
+              <ModuleReviewButton moduleId={m.id} attemptsBySlot={attemptsBySlot} />
               <button
                 type="button"
                 onClick={() => handleDeleteRequest(m)}
@@ -243,5 +247,38 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
         </div>
       )}
     </>
+  )
+}
+
+// =================================================================
+// ModuleReviewButton — 条件渲染的"重刷错题"按钮
+// =================================================================
+
+function ModuleReviewButton({
+  moduleId,
+  attemptsBySlot,
+}: {
+  moduleId: string
+  attemptsBySlot: Record<string, AttemptRecord[]>
+}) {
+  const router = useRouter()
+  const [hasWrong, setHasWrong] = useState(false)
+
+  useMemo(() => {
+    const moduleData = loadStoredModule(storage, moduleId)
+    if (!moduleData) return
+    setHasWrong(hasWrongQuestions(moduleData, attemptsBySlot))
+  }, [moduleId, attemptsBySlot])
+
+  if (!hasWrong) return null
+
+  return (
+    <button
+      type="button"
+      onClick={() => router.push(`/learn/review/${moduleId}`)}
+      className="alc-button-secondary text-xs px-3 py-1.5"
+    >
+      重刷错题
+    </button>
   )
 }

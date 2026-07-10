@@ -1,9 +1,34 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
+import { listStoredModules } from '@/lib/persistence/module-library'
+import { storage } from '@/lib/persistence/local-storage'
 
 /**
  * 首页 — 引导用户进入学习流程
  */
 export default function HomePage() {
+  const router = useRouter()
+  const [buttonLabel, setButtonLabel] = useState('开始学习')
+  const [targetHref, setTargetHref] = useState('/learn/import')
+
+  useEffect(() => {
+    const modules = listStoredModules(storage)
+    if (modules.length === 0) return
+    const recent = modules[0]!
+    if (!recent.completed) {
+      setButtonLabel('继续学习')
+      setTargetHref(`/learn/module/${recent.id}`)
+    } else {
+      setButtonLabel('前往题库')
+      setTargetHref('/learn/library')
+    }
+  }, [])
+
+  const handleStart = () => router.push(targetHref)
+
   return (
     <main className="alc-page items-center justify-center p-8">
       <section className="w-full max-w-2xl space-y-8 text-center">
@@ -16,9 +41,9 @@ export default function HomePage() {
         </div>
 
         <div className="mx-auto grid max-w-sm grid-cols-2 gap-3">
-          <Link href="/learn/import" className="alc-button-primary text-sm">
-            开始学习
-          </Link>
+          <button onClick={handleStart} className="alc-button-primary text-sm">
+            {buttonLabel}
+          </button>
           <Link href="/settings" className="alc-button-secondary text-sm">
             设置
           </Link>

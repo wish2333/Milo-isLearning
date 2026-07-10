@@ -9,11 +9,13 @@
  */
 
 import { useRouter, useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { StorageKeys } from '@/lib/persistence/keys'
 import { storage } from '@/lib/persistence/local-storage'
+import { downloadWrongQuestionBook, hasWrongQuestions } from '@/lib/persistence/wrong-question-book'
+import { useAttemptsStore } from '@/lib/state/attempts-store'
 import type { Module } from '@/types/domain'
 
 import { AnswerHistoryList } from '@/components/learn/AnswerHistoryList'
@@ -26,6 +28,8 @@ export default function HistoryPage() {
   const [moduleData, setModuleData] = useState<Module | null>(null)
   const [notFound, setNotFound] = useState(false)
 
+  const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
+
   useEffect(() => {
     if (!hydrated || !params.id) return
     const stored = storage.get<Module>(StorageKeys.module(params.id))
@@ -35,6 +39,16 @@ export default function HistoryPage() {
       setNotFound(true)
     }
   }, [hydrated, params.id])
+
+  const hasWrong = useMemo(
+    () => (moduleData ? hasWrongQuestions(moduleData, attemptsBySlot) : false),
+    [moduleData, attemptsBySlot],
+  )
+
+  const handleExportWrongBook = () => {
+    if (!moduleData) return
+    downloadWrongQuestionBook(moduleData, attemptsBySlot)
+  }
 
   if (!hydrated) return null
 
@@ -59,25 +73,32 @@ export default function HistoryPage() {
 
   return (
     <main className="alc-page">
-      {/* Header */}
-      <header className="border-b border-border-subtle px-6 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div>
-            <p className="alc-label">作答记录</p>
-            <h1 className="text-lg font-medium text-fg-primary mt-0.5">{moduleData.title}</h1>
-          </div>
-          <button
-            type="button"
-            onClick={() => router.push('/learn/library')}
-            className="alc-muted text-sm hover:text-fg-secondary"
-          >
-            返回题库
-          </button>
-        </div>
-      </header>
-
       {/* Content */}
       <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 space-y-6">
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <p className="alc-label">作答记录</p>
+            <h1 className="text-lg font-medium text-fg-primary">{moduleData.title}</h1>
+          </div>
+          {hasWrong && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleExportWrongBook}
+                className="alc-button-secondary text-xs px-3 py-1.5"
+              >
+                导出错题本
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(`/learn/review/${moduleData.id}`)}
+                className="alc-button-secondary text-xs px-3 py-1.5"
+              >
+                重刷错题
+              </button>
+            </div>
+          )}
+        </div>
         <AnswerHistoryList module={moduleData} />
       </div>
     </main>

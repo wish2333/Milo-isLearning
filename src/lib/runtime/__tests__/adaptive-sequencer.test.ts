@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import type { AttemptRecord, Quiz } from '@/types/domain'
+import type { AttemptRecord, Module, Quiz } from '@/types/domain'
 
-import { buildAdaptiveQueue } from '../adaptive-sequencer'
+import {
+  buildAdaptiveQueue,
+  collectReviewSlots,
+  collectConfirmSlots,
+  collectCarriedReviewSlots,
+  findQuizInModule,
+  PASS_THRESHOLD,
+} from '../adaptive-sequencer'
 
 function makeSlots(count: number): Quiz[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -86,5 +93,192 @@ describe('buildAdaptiveQueue', () => {
       'concept-1:slot-3',
       'concept-1:slot-4',
     ])
+  })
+})
+
+function makeQuiz(id: string, conceptId: string): Quiz {
+  return {
+    id,
+    conceptId,
+    ladderLevel: 1,
+    expressionLevel: 1,
+    interactionType: 'choice',
+    stem: `Q: ${id}`,
+    options: ['A', 'B', 'C', 'D'],
+    answer: 'A',
+    explanation: 'A is correct',
+    distractors: ['B'],
+  }
+}
+
+function makeModule(conceptCount: number, quizzesPerConcept: number): Module {
+  const concepts = Array.from({ length: conceptCount }, (_, ci) => ({
+    id: `concept-${ci}`,
+    moduleId: 'module-1',
+    name: `Concept ${ci}`,
+    definition: 'def',
+    type: 'fact' as const,
+    keyPoints: [],
+    quizSeries: {
+      conceptId: `concept-${ci}`,
+      quizzes: Array.from({ length: quizzesPerConcept }, (_, qi) =>
+        makeQuiz(`concept-${ci}:slot-${qi}`, `concept-${ci}`),
+      ),
+    },
+    order: ci,
+  }))
+  return {
+    id: 'module-1',
+    sourceId: 'src-1',
+    title: 'Test Module',
+    intro: 'intro',
+    goal: 'goal',
+    concepts,
+    feynmanTask: {
+      moduleId: 'module-1',
+      steps: [],
+      finalPrompt: 'explain',
+      rubric: ['good'],
+    },
+    order: 1,
+  }
+}
+
+describe('collectReviewSlots', () => {
+  it('identifies slots with wrong attempts', () => {
+    const testModule = makeModule(2, 3)
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      'concept-0:slot-0': [attempt('concept-0:slot-0', 30, 1)],
+      'concept-0:slot-1': [attempt('concept-0:slot-1', 100, 1)],
+      'concept-0:slot-2': [attempt('concept-0:slot-2', 100, 2)],
+    }
+    const result = collectReviewSlots(testModule, 0, attemptsBySlot)
+    expect(result).toEqual(['concept-0:slot-0'])
+  })
+
+  it('identifies slots with guessed attempts', () => {
+    const testModule = makeModule(1, 2)
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      'concept-0:slot-0': [{ ...attempt('concept-0:slot-0', 100, 1), guessed: true }],
+      'concept-0:slot-1': [attempt('concept-0:slot-1', 100, 2)],
+    }
+    const result = collectReviewSlots(testModule, 0, attemptsBySlot)
+    expect(result).toEqual(['concept-0:slot-0'])
+  })
+
+  it('returns empty array for concept with all correct', () => {
+    const testModule = makeModule(1, 3)
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      'concept-0:slot-0': [attempt('concept-0:slot-0', 100, 1)],
+      'concept-0:slot-1': [attempt('concept-0:slot-1', 90, 2)],
+      'concept-0:slot-2': [attempt('concept-0:slot-2', PASS_THRESHOLD, 3)],
+    }
+    const result = collectReviewSlots(testModule, 0, attemptsBySlot)
+    expect(result).toEqual([])
+  })
+
+  it('returns empty array for out-of-range conceptIndex', () => {
+    const testModule = makeModule(1, 2)
+    const result = collectReviewSlots(testModule, 5, {})
+    expect(result).toEqual([])
+  })
+})
+
+describe('collectConfirmSlots', () => {
+  it('finds first-pass-correct non-guessed slots', () => {
+    const testModule = makeModule(2, 3)
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      'concept-0:slot-0': [attempt('concept-0:slot-0', 100, 1)],
+      'concept-0:slot-1': [attempt('concept-0:slot-1', 30, 1), attempt('concept-0:slot-1', 100, 2)],
+      'concept-0:slot-2': [attempt('concept-0:slot-2', 100, 1)],
+    }
+    const result = collectConfirmSlots(testModule, 0, attemptsBySlot)
+    expect(result).toEqual(['concept-0:slot-0', 'concept-0:slot-2'])
+  })
+
+  it('excludes guessed-correct slots', () => {
+    const testModule = makeModule(1, 2)
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      'concept-0:slot-0': [{ ...attempt('concept-0:slot-0', 100, 1), guessed: true }],
+      'concept-0:slot-1': [attempt('concept-0:slot-1', 100, 1)],
+    }
+    const result = collectConfirmSlots(testModule, 0, attemptsBySlot)
+    expect(result).toEqual(['concept-0:slot-1'])
+  })
+
+  it('returns empty for conceptIndex < 0', () => {
+    const testModule = makeModule(1, 2)
+    const result = collectConfirmSlots(testModule, -1, {})
+    expect(result).toEqual([])
+  })
+
+  it('returns empty for non-existent concept', () => {
+    const testModule = makeModule(1, 2)
+    const result = collectConfirmSlots(testModule, 5, {})
+    expect(result).toEqual([])
+  })
+})
+
+describe('collectCarriedReviewSlots', () => {
+  it('carries forward unanswered review slots', () => {
+    const carried = collectCarriedReviewSlots(['concept-0:slot-0', 'concept-0:slot-1'], {})
+    expect(carried).toEqual(['concept-0:slot-0', 'concept-0:slot-1'])
+  })
+
+  it('carries forward wrong-answered review slots', () => {
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      'concept-0:slot-0': [attempt('concept-0:slot-0', 30, 1)],
+      'concept-0:slot-1': [attempt('concept-0:slot-1', 100, 1)],
+    }
+    const carried = collectCarriedReviewSlots(
+      ['concept-0:slot-0', 'concept-0:slot-1'],
+      attemptsBySlot,
+    )
+    expect(carried).toEqual(['concept-0:slot-0'])
+  })
+
+  it('does not carry forward correct-answered review slots', () => {
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      'concept-0:slot-0': [attempt('concept-0:slot-0', 100, 1)],
+      'concept-0:slot-1': [attempt('concept-0:slot-1', 100, 1)],
+    }
+    const carried = collectCarriedReviewSlots(
+      ['concept-0:slot-0', 'concept-0:slot-1'],
+      attemptsBySlot,
+    )
+    expect(carried).toEqual([])
+  })
+
+  it('returns empty for undefined reviewSlots', () => {
+    const carried = collectCarriedReviewSlots(undefined, {})
+    expect(carried).toEqual([])
+  })
+
+  it('returns empty for empty reviewSlots', () => {
+    const carried = collectCarriedReviewSlots([], {})
+    expect(carried).toEqual([])
+  })
+})
+
+describe('findQuizInModule', () => {
+  it('finds quiz in concepts', () => {
+    const testModule = makeModule(2, 3)
+    const quiz = findQuizInModule(testModule, 'concept-1:slot-2')
+    expect(quiz).toBeDefined()
+    expect(quiz!.id).toBe('concept-1:slot-2')
+  })
+
+  it('finds quiz in challenge quizzes', () => {
+    const testModule = makeModule(1, 2)
+    testModule.challengeQuizzes = [makeQuiz('challenge:slot-0', 'concept-0')]
+    const quiz = findQuizInModule(testModule, 'challenge:slot-0')
+    expect(quiz).toBeDefined()
+    expect(quiz!.id).toBe('challenge:slot-0')
+  })
+
+  it('returns undefined for non-existent id', () => {
+    const testModule = makeModule(1, 2)
+    const quiz = findQuizInModule(testModule, 'non-existent')
+    expect(quiz).toBeUndefined()
   })
 })

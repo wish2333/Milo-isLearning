@@ -15,11 +15,10 @@
    Schema aligns with PRD §8 data model; simplified for prototype use.
    ========================================================================= */
 
-'use strict';
+'use strict'
 
 /* @type {Readonly<{ module: object, quizzes: object, compileStages: array, errors: object, feedbackPhrases: object }>} */
 window.MOCK = Object.freeze({
-
   /* ======================================================================
      §1. RAG Module — main learning path
      ====================================================================== */
@@ -41,23 +40,17 @@ window.MOCK = Object.freeze({
         id: 'C1',
         name: '什么是检索',
         definition: '从大量信息中找到与查询相关内容的过程',
-        keyPoints: [
-          '检索的定义',
-          '检索在大模型中的作用',
-        ],
+        keyPoints: ['检索的定义', '检索在大模型中的作用'],
         quizCount: 8,
         masteryPercent: 87,
-        masteryLevel: 5,  // out of 6 (mini-staircase fill)
-        status: 'completed',  // 'completed' | 'active' | 'locked' | 'skipped'
+        masteryLevel: 5, // out of 6 (mini-staircase fill)
+        status: 'completed', // 'completed' | 'active' | 'locked' | 'skipped'
       },
       {
         id: 'C2',
         name: '什么是 Embedding',
         definition: '将文本转换为向量表示，让机器能计算语义相似度',
-        keyPoints: [
-          '向量表示',
-          '语义相似度',
-        ],
+        keyPoints: ['向量表示', '语义相似度'],
         quizCount: 7,
         masteryPercent: 75,
         masteryLevel: 4,
@@ -67,10 +60,7 @@ window.MOCK = Object.freeze({
         id: 'C3',
         name: 'RAG 完整流程',
         definition: '从用户提问到模型生成答案的完整链路',
-        keyPoints: [
-          '检索-生成串联',
-          '与微调的区别',
-        ],
+        keyPoints: ['检索-生成串联', '与微调的区别'],
         quizCount: 9,
         masteryPercent: 82,
         masteryLevel: 5,
@@ -131,7 +121,11 @@ window.MOCK = Object.freeze({
           stem: '解释 RAG 与微调的区别时，最关键的对比是？',
           options: [
             { letter: 'A', text: '微调用 Python，RAG 用 JavaScript。', correct: false },
-            { letter: 'B', text: '微调更新模型参数；RAG 不改模型，只在推理时提供上下文。', correct: true },
+            {
+              letter: 'B',
+              text: '微调更新模型参数；RAG 不改模型，只在推理时提供上下文。',
+              correct: true,
+            },
             { letter: 'C', text: '微调准确率更高，RAG 速度更快。', correct: false },
             { letter: 'D', text: '微调在线上用，RAG 在线下用。', correct: false },
           ],
@@ -216,7 +210,11 @@ window.MOCK = Object.freeze({
       totalStepsInStage: 3,
       stem: 'Embedding 与检索的关系是？',
       options: [
-        { letter: 'A', text: 'Embedding 是检索的前置步骤——把文档变成向量后才能做语义检索。', correct: true },
+        {
+          letter: 'A',
+          text: 'Embedding 是检索的前置步骤——把文档变成向量后才能做语义检索。',
+          correct: true,
+        },
         { letter: 'B', text: '检索是 Embedding 的前置步骤。', correct: false },
         { letter: 'C', text: '两者毫无关系。', correct: false },
         { letter: 'D', text: 'Embedding 取代了检索。', correct: false },
@@ -235,8 +233,20 @@ window.MOCK = Object.freeze({
   compileStages: [
     { id: 's1', name: '清洗', label: '清洗 Markdown...', agent: 'Import Agent', range: [0, 15] },
     { id: 's2', name: '切分', label: '语义切分...', agent: 'Chunk Agent', range: [15, 40] },
-    { id: 's3', name: '概念', label: '从知识块提取概念...', agent: 'Concept Agent', range: [40, 55] },
-    { id: 's4', name: '练习', label: '生成练习...', agent: 'Mission + Quiz Agent', range: [55, 80] },
+    {
+      id: 's3',
+      name: '概念',
+      label: '从知识块提取概念...',
+      agent: 'Concept Agent',
+      range: [40, 55],
+    },
+    {
+      id: 's4',
+      name: '练习',
+      label: '生成练习...',
+      agent: 'Mission + Quiz Agent',
+      range: [55, 80],
+    },
     { id: 's5', name: '费曼', label: '设计费曼任务...', agent: 'Feynman Agent', range: [80, 100] },
   ],
 
@@ -270,21 +280,10 @@ window.MOCK = Object.freeze({
      ====================================================================== */
 
   feedbackPhrases: {
-    correct: [
-      '很好。',
-      '正是这样。',
-      '对。',
-      '没错。',
-      '你已经掌握了。',
-    ],
-    wrong: [
-      '差一点。',
-      '再看一遍。',
-      '关键在于……',
-      '这次偏离了。',
-    ],
+    correct: ['很好。', '正是这样。', '对。', '没错。', '你已经掌握了。'],
+    wrong: ['差一点。', '再看一遍。', '关键在于……', '这次偏离了。'],
   },
-});
+})
 
 /* ---------- Convenience helpers (read-only) ---------- */
 
@@ -294,14 +293,14 @@ window.MOCK = Object.freeze({
  * @returns {string}
  */
 window.MOCKPickFeedback = function (kind) {
-  const list = window.MOCK.feedbackPhrases[kind] || [''];
-  return list[Math.floor(Math.random() * list.length)] || list[0];
-};
+  const list = window.MOCK.feedbackPhrases[kind] || ['']
+  return list[Math.floor(Math.random() * list.length)] || list[0]
+}
 
 /**
  * Find a Concept by id.
  * @param {string} id
  */
 window.MOCKFindConcept = function (id) {
-  return window.MOCK.module.concepts.find(c => c.id === id);
-};
+  return window.MOCK.module.concepts.find((c) => c.id === id)
+}

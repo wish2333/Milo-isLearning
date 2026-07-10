@@ -38,6 +38,7 @@ import { useCompileStore } from '@/lib/state/compile-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
+import { track } from '@/lib/runtime/analytics'
 
 const SOURCE_KEY = 'alc:compile-source'
 
@@ -92,6 +93,7 @@ function CompilingPageInner() {
   const startedRef = useRef(false)
   const controllerRef = useRef<AbortController | null>(null)
   const jobIdRef = useRef<string | null>(null)
+  const streamStartTimeRef = useRef(Date.now())
   const [, startTransition] = useTransition()
 
   // 等待 Zustand persist 水合完成（防止刷新页面时 config 为 null）
@@ -272,6 +274,15 @@ function CompilingPageInner() {
                 sessionStorage.removeItem(SOURCE_KEY)
                 sessionStorage.setItem('alc:module-saved-confirmation', '1')
 
+                track('compile_complete', {
+                  durationMs: Date.now() - streamStartTimeRef.current,
+                  conceptCount: compiledModule.concepts.length,
+                  quizCount: compiledModule.concepts.reduce(
+                    (sum, c) => sum + c.quizSeries.quizzes.length,
+                    0,
+                  ),
+                })
+
                 // 路由到概览页
                 startTransition(() => {
                   router.push('/learn/overview')
@@ -286,6 +297,10 @@ function CompilingPageInner() {
                     errorMessage: parsed.error.message,
                   })
                 }
+                track('compile_failed', {
+                  errorCode: parsed.error.code ?? 'unknown',
+                  durationMs: Date.now() - streamStartTimeRef.current,
+                })
                 setError(parsed.error.message)
                 return
               }
@@ -339,6 +354,7 @@ function CompilingPageInner() {
     resetCompile()
     setError(null)
     startedRef.current = false
+    streamStartTimeRef.current = Date.now()
     setRetryCount((c) => c + 1)
   }
 

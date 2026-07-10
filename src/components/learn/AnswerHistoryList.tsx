@@ -126,6 +126,9 @@ export function AnswerHistoryList({ module, currentSlotId }: AnswerHistoryListPr
               >
                 {isCorrect ? '对' : '错'}
               </span>
+              {isCorrect && latestAttempt?.guessed && (
+                <span className="shrink-0 text-xs text-fg-quaternary">（蒙）</span>
+              )}
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">

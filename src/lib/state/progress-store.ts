@@ -24,6 +24,12 @@ import type { FeynmanAttempt, ModuleStage, ProgressState } from '@/types/domain'
 import { StorageKeys } from '@/lib/persistence/keys'
 import { storage } from '@/lib/persistence/local-storage'
 
+import {
+  collectReviewSlots,
+  collectCarriedReviewSlots,
+  collectConfirmSlots,
+} from '@/lib/runtime/adaptive-sequencer'
+import { useAttemptsStore } from './attempts-store'
 import { useModuleStore } from './module-store'
 
 interface ProgressStoreState {
@@ -132,20 +138,42 @@ export const useProgressStore = create<ProgressStoreState>()(
             if (!concept) return
 
             const quizCount = concept.quizSeries.quizzes.length
+            const currentReviewSlots = stage.reviewSlots ?? []
+            const totalSlots = quizCount + currentReviewSlots.length
 
-            // 同一 Concept 内还有下一题
-            if (quizIndex + 1 < quizCount) {
+            // 同一 Concept 内还有下一题（含复习槽位）
+            if (quizIndex + 1 < totalSlots) {
               set({
-                stage: { kind: 'concept', conceptIndex, quizIndex: quizIndex + 1 },
+                stage: {
+                  kind: 'concept',
+                  conceptIndex,
+                  quizIndex: quizIndex + 1,
+                  ...(currentReviewSlots.length > 0 ? { reviewSlots: currentReviewSlots } : {}),
+                },
                 updatedAt: Date.now(),
               })
               return
             }
 
-            // 跳到下一 Concept
+            // 跳到下一 Concept — 注入跨概念复习槽位
             if (conceptIndex + 1 < currentModule.concepts.length) {
+              const attemptsBySlot = useAttemptsStore.getState().attemptsBySlot
+              const wrongSlots = collectReviewSlots(currentModule, conceptIndex, attemptsBySlot)
+              const carriedSlots = collectCarriedReviewSlots(currentReviewSlots, attemptsBySlot)
+              const confirmSlots = collectConfirmSlots(
+                currentModule,
+                conceptIndex - 1,
+                attemptsBySlot,
+              )
+              const nextReviewSlots = [...wrongSlots, ...carriedSlots, ...confirmSlots]
+
               set({
-                stage: { kind: 'concept', conceptIndex: conceptIndex + 1, quizIndex: 0 },
+                stage: {
+                  kind: 'concept',
+                  conceptIndex: conceptIndex + 1,
+                  quizIndex: 0,
+                  ...(nextReviewSlots.length > 0 ? { reviewSlots: nextReviewSlots } : {}),
+                },
                 updatedAt: Date.now(),
               })
               return

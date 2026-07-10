@@ -14,6 +14,7 @@
 import { useState, useCallback, useEffect } from 'react'
 
 import { isFillBlankAnswerAccepted } from '@/lib/runtime/fill-blank'
+import { track } from '@/lib/runtime/analytics'
 import type { Quiz } from '@/types/domain'
 
 import { useModuleStore } from '@/lib/state/module-store'
@@ -62,6 +63,7 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
             ? 100
             : 0
       recordFeynmanStep(stepOrder, score)
+      track('feynman_step_submit', { stepOrder, correct: score >= 80 })
     },
     [step, stepOrder, recordFeynmanStep],
   )

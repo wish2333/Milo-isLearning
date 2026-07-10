@@ -69,16 +69,6 @@ export default function OverviewPage() {
   return (
     <main className="min-h-screen bg-bg-base text-fg-primary">
       <div className="max-w-2xl mx-auto px-6 py-12 space-y-10">
-        {/* Top bar: lightweight library entry */}
-        <div className="flex justify-end">
-          <button
-            onClick={() => router.push('/learn/library')}
-            className="text-xs text-fg-tertiary hover:text-fg-secondary transition-colors"
-          >
-            ← 返回题库
-          </button>
-        </div>
-
         {/* Header */}
         <div className="space-y-3">
           {savedConfirmation && (

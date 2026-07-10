@@ -31,6 +31,8 @@ interface AttemptsStoreState {
   /** 获取某槽位当前连续失败次数对应的 attemptVersion（用于新建 AttemptRecord） */
   getNextAttemptVersion: (slotId: string) => number
 
+  markGuessed: (originalQuizId: string) => void
+
   /** 清除单个槽位的全部记录 */
   clearSlot: (slotId: string) => void
 
@@ -66,6 +68,21 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
           const next = { ...state.attemptsBySlot }
           delete next[slotId]
           return { attemptsBySlot: next }
+        }),
+
+      markGuessed: (originalQuizId) =>
+        set((state) => {
+          const attempts = state.attemptsBySlot[originalQuizId]
+          if (!attempts || attempts.length === 0) return state
+          const last = attempts[attempts.length - 1]
+          if (!last || last.guessed) return state
+          const updated: AttemptRecord = { ...last, guessed: true }
+          return {
+            attemptsBySlot: {
+              ...state.attemptsBySlot,
+              [originalQuizId]: [...attempts.slice(0, -1), updated],
+            },
+          }
         }),
 
       clearAll: () => set({ attemptsBySlot: {} }),

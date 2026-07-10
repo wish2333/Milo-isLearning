@@ -62,9 +62,9 @@
 
   /* ---- §1.2 字体 token ----------------------------------------------- */
 
-  --font-serif: 'Fraunces', 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', 'SimSun',
+  --font-serif: var(--font-fraunces), 'Fraunces', 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', 'SimSun',
     'LXGW WenKai', Georgia, serif;
-  --font-display: 'Fraunces', 'Source Han Serif SC', 'Noto Serif SC', serif;
+  --font-display: var(--font-fraunces), 'Fraunces', 'Source Han Serif SC', 'Noto Serif SC', serif;
   --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas,
     monospace;
   --font-sans: 'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
@@ -73,15 +73,15 @@
   /* 与 docs/ui-design/styles.css §1.2 完全一致；通过 tailwind.config
      暴露为 text-xs..text-4xl，让组件中已有的 Tailwind 字号类自动套用规范值。 */
 
-  --text-xs: 12px; /* 计数器 / 元信息 */
-  --text-sm: 14px; /* 次要正文 */
-  --text-base: 16px; /* 默认正文 */
-  --text-md: 18px; /* 反馈文案 */
+  --text-xs: 15px; /* 计数器 / 元信息 */
+  --text-sm: 16px; /* 次要正文 */
+  --text-base: 17px; /* 默认正文 */
+  --text-md: 19px; /* 反馈文案 */
   --text-lg: 22px; /* Module 导言 */
-  --text-xl: 28px; /* Quiz 题干 */
-  --text-2xl: 36px; /* Concept 名 / Section 标题 */
-  --text-3xl: 48px; /* Module 标题 */
-  --text-4xl: 64px; /* 完成页主标题 */
+  --text-xl: 26px; /* Quiz 题干 */
+  --text-2xl: 32px; /* Concept 名 / Section 标题 */
+  --text-3xl: 42px; /* Module 标题 */
+  --text-4xl: 54px; /* 完成页主标题 */
 
   /* ---- §1.4 字重 / 行高 / 字间距 ------------------------------------- */
 

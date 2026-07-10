@@ -163,6 +163,8 @@ export interface AttemptRecord {
   gaps: string[]
   nextAction: 'advance' | 'retry'
   timestamp: number
+  /** 用户自报"蒙对"，默认 undefined/false。蒙对题不计入真正掌握度。 */
+  guessed?: boolean
 }
 
 /**
@@ -204,7 +206,7 @@ export interface Mastery {
  */
 export type ModuleStage =
   | { kind: 'module_intro' }
-  | { kind: 'concept'; conceptIndex: number; quizIndex: number }
+  | { kind: 'concept'; conceptIndex: number; quizIndex: number; reviewSlots?: string[] }
   | { kind: 'challenge'; quizIndex: number }
   | { kind: 'feynman_intro' }
   | { kind: 'feynman_step'; stepOrder: 1 | 2 | 3 | 4 | 5 }

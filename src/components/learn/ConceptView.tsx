@@ -17,6 +17,8 @@ import { useEffect, useState, useCallback } from 'react'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
 import { createProvider } from '@/lib/providers'
 import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
+import { track } from '@/lib/runtime/analytics'
+import { findQuizInModule } from '@/lib/runtime/adaptive-sequencer'
 import {
   shouldForceAdvance,
   getConsecutiveFailures,
@@ -34,6 +36,8 @@ import { BackgroundPanel } from '@/components/learn/BackgroundPanel'
 import { AdaptivePlanPanel } from '@/components/learn/AdaptivePlanPanel'
 import { AnswerHistoryList } from '@/components/learn/AnswerHistoryList'
 import { StaircaseProgress } from '@/components/learn/StaircaseProgress'
+import { ReviewSlotBadge } from '@/components/learn/ReviewSlotBadge'
+import { ReviewQueueIndicator } from '@/components/learn/ReviewQueueIndicator'
 
 interface ConceptViewProps {
   conceptIndex: number
@@ -50,31 +54,47 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
   const config = useSettingsStore((s) => s.config)
 
   const advance = useProgressStore((s) => s.advance)
+  const stage = useProgressStore((s) => s.stage)
 
   const addAttempt = useAttemptsStore((s) => s.addAttempt)
   const getAttempts = useAttemptsStore((s) => s.getAttempts)
   const getNextAttemptVersion = useAttemptsStore((s) => s.getNextAttemptVersion)
+  const markGuessed = useAttemptsStore((s) => s.markGuessed)
 
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
   const [forceAdvance, setForceAdvance] = useState(false)
+  const [isGuessed, setIsGuessed] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
 
   // 获取当前应该显示的 quiz
   const concept = currentModule?.concepts[conceptIndex]
-  const slotQuiz = concept?.quizSeries.quizzes[quizIndex]
-  const quiz: Quiz | null = currentQuiz ?? slotQuiz ?? null
+  const quizCount = concept?.quizSeries.quizzes.length ?? 0
+  const reviewSlots = stage?.kind === 'concept' ? (stage.reviewSlots ?? []) : []
+  const isReviewQuiz = quizIndex >= quizCount && reviewSlots.length > 0
+  const reviewSlotIndex = isReviewQuiz ? quizIndex - quizCount : -1
+  const reviewSlotId = isReviewQuiz ? reviewSlots[reviewSlotIndex] : undefined
+  const reviewQuiz =
+    reviewSlotId && currentModule ? findQuizInModule(currentModule, reviewSlotId) : undefined
+
+  const slotQuiz = isReviewQuiz ? null : concept?.quizSeries.quizzes[quizIndex]
+  const quiz: Quiz | null = currentQuiz ?? slotQuiz ?? reviewQuiz ?? null
 
   // 进入新题时重置状态并同步 currentQuiz
   useEffect(() => {
     setPhase('answering')
     setFeedback(null)
     setForceAdvance(false)
+    setIsGuessed(false)
     setError(null)
     setHistoryOpen(false)
     // 如果 currentQuiz 与当前 slot 不匹配，重置为 slot quiz
-    if (slotQuiz && (!currentQuiz || currentQuiz.id !== slotQuiz.id)) {
+    if (isReviewQuiz && reviewQuiz) {
+      if (!currentQuiz || currentQuiz.id !== reviewQuiz.id) {
+        setCurrentQuiz(reviewQuiz)
+      }
+    } else if (slotQuiz && (!currentQuiz || currentQuiz.id !== slotQuiz.id)) {
       // currentQuiz 可能是跨 view 切换遗留的（如从 Challenge 切回 Concept）
       // 只有 currentQuiz 不属于当前 slot 时才重置
       if (currentQuiz && currentQuiz.conceptId !== slotQuiz.conceptId) {
@@ -86,7 +106,7 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conceptIndex, quizIndex])
 
-  const slotId = slotQuiz?.id ?? ''
+  const slotId = isReviewQuiz ? (reviewSlotId ?? '') : (slotQuiz?.id ?? '')
 
   const handleAnswer = useCallback(
     async (userAnswer: string) => {
@@ -120,6 +140,13 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
           timestamp: Date.now(),
         }
         addAttempt(attempt)
+
+        track('quiz_attempt', {
+          interactionType: quiz.interactionType,
+          score: result.score,
+          conceptId: quiz.conceptId,
+          guessed: false,
+        })
 
         // 检查 retry-policy
         const attempts = getAttempts(slotId)
@@ -162,13 +189,18 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
             概念 {conceptIndex + 1}/{currentModule?.concepts.length ?? 0}
           </span>
           <span>·</span>
-          <span>题目 {quizIndex + 1}</span>
+          <span>
+            {isReviewQuiz
+              ? `复习题 ${reviewSlotIndex + 1}/${reviewSlots.length}`
+              : `题目 ${quizIndex + 1}`}
+          </span>
         </div>
         <StaircaseProgress
-          total={concept?.quizSeries.quizzes.length ?? 1}
+          total={quizCount + reviewSlots.length}
           current={quizIndex}
           stage="concept"
         />
+        {!isReviewQuiz && <ReviewQueueIndicator count={reviewSlots.length} />}
 
         {/* Concept name */}
         {concept && (
@@ -190,6 +222,7 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
 
         {/* Quiz */}
         <div className="pt-2 space-y-4">
+          {isReviewQuiz && <ReviewSlotBadge />}
           <BackgroundPanel background={quiz.background} />
           <QuizRenderer quiz={quiz} disabled={phase !== 'answering'} onAnswer={handleAnswer} />
         </div>
@@ -208,6 +241,11 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
               misconception={quiz.misconception}
               extendedKnowledge={quiz.extendedKnowledge}
               forceAdvance={forceAdvance}
+              isGuessed={isGuessed}
+              onMarkGuessed={() => {
+                markGuessed(slotId)
+                setIsGuessed(true)
+              }}
             />
 
             {!isAdvancing && (

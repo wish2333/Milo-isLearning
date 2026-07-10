@@ -16,6 +16,8 @@
 import { useRouter } from 'next/navigation'
 import { useState, useCallback } from 'react'
 
+import { track } from '@/lib/runtime/analytics'
+
 import { INPUT_MAX_LENGTH, INPUT_MIN_LENGTH } from '@/lib/compiler/pipeline/types'
 import { storage } from '@/lib/persistence/local-storage'
 import { createCompileJob } from '@/lib/state/compile-job-store'
@@ -52,26 +54,15 @@ export default function ImportPage() {
     })
 
     setSubmitting(true)
+    track('compile_start', {
+      sourceLength: markdown.length,
+      provider: config.provider ?? 'unknown',
+    })
     router.push(`/learn/compiling?jobId=${job.jobId}`)
   }, [isValid, submitting, config, markdown, router])
 
   return (
     <main className="alc-page">
-      {/* Header */}
-      <header className="alc-app-header px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <h1 className="text-lg font-medium text-fg-primary">导入知识</h1>
-          <div className="flex items-center gap-4">
-            <button onClick={() => router.push('/learn/library')} className="alc-link text-sm">
-              我的题库
-            </button>
-            <button onClick={() => router.push('/settings')} className="alc-link text-sm">
-              {config ? '设置' : '配置 LLM'}
-            </button>
-          </div>
-        </div>
-      </header>
-
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-3xl space-y-6">

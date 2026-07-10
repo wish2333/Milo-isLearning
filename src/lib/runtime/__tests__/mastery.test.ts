@@ -232,4 +232,73 @@ describe('computeMastery', () => {
     // 1 slot completed (not 2 attempts) → 1/7 = ~14%
     expect(mastery.moduleCompletion).toBe(14)
   })
+
+  it('excludes guessed-correct from concept mastery calculation', () => {
+    const mod = makeModule(2, 1)
+    const attempts: Record<string, AttemptRecord[]> = {
+      'concept-1:0': [{ ...makeAttempt('concept-1:0', 0, 100, 'advance'), guessed: true }],
+      'concept-1:1': [makeAttempt('concept-1:1', 0, 100, 'advance')],
+    }
+
+    const mastery = computeMastery(mod, attempts)
+
+    // concept-1: 1/2 first-attempt passed (guessed excluded) = 50%
+    expect(mastery.conceptMastery[0]?.mastery).toBe(50)
+  })
+
+  it('concept mastery is lower when guesses are present', () => {
+    const mod = makeModule(2, 1)
+    const attemptsWithoutGuessed: Record<string, AttemptRecord[]> = {
+      'concept-1:0': [makeAttempt('concept-1:0', 0, 100, 'advance')],
+      'concept-1:1': [makeAttempt('concept-1:1', 0, 100, 'advance')],
+    }
+    const attemptsWithGuessed: Record<string, AttemptRecord[]> = {
+      'concept-1:0': [{ ...makeAttempt('concept-1:0', 0, 100, 'advance'), guessed: true }],
+      'concept-1:1': [makeAttempt('concept-1:1', 0, 100, 'advance')],
+    }
+
+    const masteryWithout = computeMastery(mod, attemptsWithoutGuessed)
+    const masteryWith = computeMastery(mod, attemptsWithGuessed)
+
+    expect(masteryWithout.conceptMastery[0]?.mastery).toBe(100)
+    expect(masteryWith.conceptMastery[0]?.mastery).toBe(50)
+  })
+
+  it('excludes guessed-correct from challenge mastery calculation', () => {
+    const mod = makeModule(0, 0)
+    mod.challengeQuizzes = [
+      {
+        id: 'challenge-0',
+        conceptId: 'challenge',
+        ladderLevel: 1,
+        expressionLevel: 1,
+        interactionType: 'choice',
+        stem: 'C1',
+        options: ['A', 'B', 'C', 'D'],
+        answer: 'A',
+        explanation: 'exp',
+        distractors: ['B', 'C', 'D'],
+      },
+      {
+        id: 'challenge-1',
+        conceptId: 'challenge',
+        ladderLevel: 2,
+        expressionLevel: 2,
+        interactionType: 'choice',
+        stem: 'C2',
+        options: ['A', 'B', 'C', 'D'],
+        answer: 'A',
+        explanation: 'exp',
+        distractors: ['B', 'C', 'D'],
+      },
+    ]
+    const attempts: Record<string, AttemptRecord[]> = {
+      'challenge-0': [{ ...makeAttempt('challenge-0', 0, 100, 'advance'), guessed: true }],
+      'challenge-1': [makeAttempt('challenge-1', 0, 100, 'advance')],
+    }
+
+    const mastery = computeMastery(mod, attempts)
+
+    expect(mastery.challengeMastery).toBe(50)
+  })
 })

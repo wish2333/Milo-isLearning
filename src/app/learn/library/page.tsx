@@ -13,7 +13,6 @@
  * 不调用 /api/compile：导入 JSON 即立即学习（M7.5 §Global Constraints）。
  */
 
-import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
@@ -29,7 +28,6 @@ import { ModuleLibraryList } from '@/components/library/ModuleLibraryList'
 import { QualitySummary } from '@/components/library/QualitySummary'
 
 export default function LibraryPage() {
-  const router = useRouter()
   const hydrated = useHydrated()
 
   const [modules, setModules] = useState<StoredModuleSummary[]>([])
@@ -75,28 +73,6 @@ export default function LibraryPage() {
 
   return (
     <main className="alc-page">
-      <header className="border-b border-border-subtle px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <h1 className="text-lg font-medium text-fg-primary">我的题库</h1>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => router.push('/learn/import')}
-              className="alc-link text-sm"
-            >
-              编译新 Module
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push('/')}
-              className="alc-muted text-sm hover:text-fg-secondary"
-            >
-              返回首页
-            </button>
-          </div>
-        </div>
-      </header>
-
       <div className="flex-1 max-w-3xl w-full mx-auto px-6 py-8 space-y-6">
         {/* 导入区 */}
         <div className="alc-card p-4 flex items-center justify-between gap-3">

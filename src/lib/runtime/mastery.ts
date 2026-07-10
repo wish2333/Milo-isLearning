@@ -42,7 +42,7 @@ function computeConceptMastery(
     if (!slotAttempts || slotAttempts.length === 0) continue
 
     const firstAttempt = slotAttempts.find((a) => a.attemptVersion === 0)
-    if (firstAttempt && firstAttempt.score >= PASS_THRESHOLD) {
+    if (firstAttempt && firstAttempt.score >= PASS_THRESHOLD && !firstAttempt.guessed) {
       firstAttemptPassed++
     }
   }
@@ -119,7 +119,7 @@ export function computeMastery(
       const slotAttempts = attemptsBySlot[quiz.id]
       if (!slotAttempts || slotAttempts.length === 0) continue
       const firstAttempt = slotAttempts.find((a) => a.attemptVersion === 0)
-      if (firstAttempt && firstAttempt.score >= PASS_THRESHOLD) {
+      if (firstAttempt && firstAttempt.score >= PASS_THRESHOLD && !firstAttempt.guessed) {
         challengeFirstPassed++
       }
     }

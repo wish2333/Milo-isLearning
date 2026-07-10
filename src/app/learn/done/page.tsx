@@ -20,9 +20,11 @@ import { useMemo, useEffect, useState } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { computeMastery } from '@/lib/runtime/mastery'
+import { track } from '@/lib/runtime/analytics'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
+import { RatingStars } from '@/components/learn/RatingStars'
 import { storage } from '@/lib/persistence/local-storage'
 
 /** conceptMastery 低于此阈值的概念被视为"待复习" */
@@ -53,6 +55,22 @@ export default function DonePage() {
     if (!currentModule) return null
     return computeMastery(currentModule, attemptsBySlot, feynmanAttempt ?? undefined)
   }, [currentModule, attemptsBySlot, feynmanAttempt])
+
+  const avgConceptMastery = mastery
+    ? Math.round(
+        mastery.conceptMastery.reduce((s, cm) => s + cm.mastery, 0) /
+          (mastery.conceptMastery.length || 1),
+      )
+    : 0
+
+  useEffect(() => {
+    if (!mastery) return
+    track('module_complete', {
+      moduleCompletion: mastery.moduleCompletion,
+      conceptMasteryAvg: avgConceptMastery,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 待复习概念（conceptMastery < REVIEW_THRESHOLD）
   const conceptsToReview = useMemo(() => {
@@ -190,6 +208,11 @@ export default function DonePage() {
             <span>查看全部已保存的 Module</span>
             <span className="text-fg-tertiary">→</span>
           </button>
+        </div>
+
+        {/* Rating */}
+        <div className="border-t border-border-subtle pt-6">
+          <RatingStars moduleId={currentModule.id} />
         </div>
 
         {/* Actions */}
