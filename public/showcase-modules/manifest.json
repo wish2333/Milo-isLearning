@@ -2,13 +2,23 @@
   "version": 2,
   "modules": [
     {
-      "id": "intro-to-alc",
-      "package": "intro-to-alc.alc-module.json",
-      "title": "什么是 AI 学习编译器",
-      "description": "用 3 个概念理解 AI Learning Compiler 的核心闭环",
+      "id": "mao-work-methods",
+      "package": "mao-work-methods.alc-module.json",
+      "title": "毛泽东工作方法",
+      "description": "从《中国革命战争的战略问题》提炼适用于职场与生活的战略思维和战术执行方法论",
       "featured": true,
       "order": 1
     }
   ],
-  "topics": []
+  "topics": [
+    {
+      "id": "das-kapital-intro",
+      "name": "资本论导读",
+      "description": "用从抽象到具体的逻辑理解《资本论》的方法论与价值转形理论",
+      "package": "showcase-das-kapital.alc-topic.json",
+      "moduleCount": 3,
+      "featured": true,
+      "order": 1
+    }
+  ]
 }

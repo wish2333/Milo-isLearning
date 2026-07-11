@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { listStoredModules } from '@/lib/persistence/module-library'
 import { storage } from '@/lib/persistence/local-storage'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
 
 /**
  * 首页（实用模式）— 引导用户进入学习流程
@@ -57,6 +59,21 @@ export function ProductionHome() {
             </div>
           ))}
         </div>
+
+        {isShowcaseMode && (
+          <div className="text-center pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                useRuntimeMode.getState().exitStudio()
+                router.push('/')
+              }}
+              className="alc-muted text-xs underline hover:text-fg-primary"
+            >
+              返回展示首页
+            </button>
+          </div>
+        )}
       </section>
     </main>
   )

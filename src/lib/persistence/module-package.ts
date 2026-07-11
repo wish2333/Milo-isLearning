@@ -11,7 +11,7 @@
 
 import { nanoid } from 'nanoid'
 
-import type { KnowledgeSource, Module, Quiz } from '@/types/domain'
+import type { KnowledgeSource, Module, Quiz, ContentOrigin } from '@/types/domain'
 
 import { StorageKeys } from './keys'
 import type { StorageRepository } from './repository'
@@ -197,7 +197,11 @@ export function parseModulePackage(json: string): ParsePackageResult {
  *
  * 不调用 /api/compile；这是节省 LLM 成本的核心验收点。
  */
-export function importModulePackage(repo: StorageRepository, pkg: CompiledModulePackage): Module {
+export function importModulePackage(
+  repo: StorageRepository,
+  pkg: CompiledModulePackage,
+  options?: { origin?: ContentOrigin },
+): Module {
   const nextSourceId = `source-${nanoid()}`
   const nextModuleId = `module-${nanoid()}`
 
@@ -207,6 +211,7 @@ export function importModulePackage(repo: StorageRepository, pkg: CompiledModule
       sourceId: nextSourceId,
     }),
     importedAt: Date.now(),
+    ...(options?.origin !== undefined ? { origin: options.origin } : {}),
   }
 
   repo.set(StorageKeys.source(nextSourceId), {

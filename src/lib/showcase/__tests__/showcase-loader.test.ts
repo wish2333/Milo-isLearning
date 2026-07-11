@@ -22,6 +22,7 @@ import {
   listShowcaseModules,
 } from '../showcase-loader'
 import { parseModulePackage, importModulePackage } from '@/lib/persistence/module-package'
+import { storage } from '@/lib/persistence/local-storage'
 import type { ShowcaseManifest } from '../showcase-loader'
 
 // Helper to create mock manifest
@@ -58,6 +59,8 @@ const mockManifest: ShowcaseManifest = {
 describe('showcase-loader', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    // Re-establish storage mocks (restoreAllMocks resets vi.fn implementations)
+    vi.mocked(storage.keys).mockReturnValue([])
   })
 
   describe('fetchShowcaseManifest', () => {

@@ -12,6 +12,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
 import { storage } from '@/lib/persistence/local-storage'
 import { listStoredModules } from '@/lib/persistence/module-library'
 import type { StoredModuleSummary } from '@/lib/persistence/module-library'
@@ -52,8 +54,14 @@ export default function LibraryPage() {
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null)
 
   const refresh = useCallback(() => {
+    const studioMode = useRuntimeMode.getState().studioMode
+    const effectiveShowcase = isShowcaseMode && !studioMode
     setAllModules(listStoredModules(storage))
-    setTopics(listTopics())
+    setTopics(
+      listTopics().filter((t) =>
+        effectiveShowcase ? t.origin === 'showcase' : t.origin !== 'showcase',
+      ),
+    )
     setCapacity(getStorageCapacitySummary(storage))
   }, [])
 

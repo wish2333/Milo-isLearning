@@ -8,6 +8,8 @@
  */
 
 import type { Module, ProgressState } from '@/types/domain'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
 
 import {
   StorageKeys,
@@ -70,12 +72,29 @@ export function isStorageFull(repo: StorageRepository): boolean {
 }
 
 export function getStorageCapacitySummary(repo: StorageRepository): CapacitySummary {
-  const moduleCount = listModuleIds(repo).length
+  const moduleCount = countVisibleModules(repo)
   return {
     moduleCount,
     maxModules: MAX_STORED_MODULES,
     nearLimit: moduleCount >= MAX_STORED_MODULES - 1 || isStorageNearLimit(repo),
   }
+}
+
+/**
+ * 统计当前模式可见的 Module 数量（展示模式只算 showcase，实用模式只算 user）。
+ */
+function countVisibleModules(repo: StorageRepository): number {
+  const effectiveShowcase = isShowcaseMode && !useRuntimeMode.getState().studioMode
+  let count = 0
+  for (const key of repo.keys()) {
+    if (!key.startsWith('alc:module:')) continue
+    const mod = repo.get<Module>(key)
+    if (!mod) continue
+    if (effectiveShowcase ? mod.origin === 'showcase' : mod.origin !== 'showcase') {
+      count++
+    }
+  }
+  return count
 }
 
 // =================================================================

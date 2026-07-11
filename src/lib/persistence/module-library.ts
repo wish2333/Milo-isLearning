@@ -6,6 +6,8 @@
  */
 
 import type { Module, ProgressState } from '@/types/domain'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
 
 import { StorageKeys } from './keys'
 import type { StorageRepository } from './repository'
@@ -35,6 +37,11 @@ export function listStoredModules(repo: StorageRepository): StoredModuleSummary[
     .filter((key) => key.startsWith('alc:module:'))
     .map((key) => repo.get<Module>(key))
     .filter((module): module is Module => module !== null)
+    .filter((module) => {
+      // 运行时模式感知：studio 上下文下按 production 过滤
+      const effectiveShowcase = isShowcaseMode && !useRuntimeMode.getState().studioMode
+      return effectiveShowcase ? module.origin === 'showcase' : module.origin !== 'showcase'
+    })
     .map((module) => {
       const progress = repo.get<ProgressState>(StorageKeys.progress(module.id))
       const conceptQuizCount = module.concepts.reduce(

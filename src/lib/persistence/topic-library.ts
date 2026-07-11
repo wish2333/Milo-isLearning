@@ -7,7 +7,7 @@
 
 import { nanoid } from 'nanoid'
 
-import type { Topic } from '@/types/domain'
+import type { Topic, ContentOrigin } from '@/types/domain'
 import { storage } from './local-storage'
 import { StorageKeys } from './keys'
 
@@ -29,7 +29,12 @@ export function getTopicByModuleId(moduleId: string): Topic | null {
 }
 
 /** 创建主题 */
-export function createTopic(name: string, description?: string, moduleIds: string[] = []): Topic {
+export function createTopic(
+  name: string,
+  description?: string,
+  moduleIds: string[] = [],
+  origin?: ContentOrigin,
+): Topic {
   const topics = listTopics()
   const topic: Topic = {
     id: `topic-${nanoid()}`,
@@ -38,6 +43,7 @@ export function createTopic(name: string, description?: string, moduleIds: strin
     moduleIds,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    ...(origin !== undefined ? { origin } : {}),
   }
   const updatedTopics = enforceExclusiveMembership(topics, moduleIds, topic.id)
   updatedTopics.push(topic)

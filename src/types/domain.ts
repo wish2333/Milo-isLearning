@@ -14,6 +14,17 @@
 // =================================================================
 
 /**
+ * 内容来源标记 — 用于展示模式与实用模式的题库分离。
+ *
+ * - `'showcase'`：从 public/showcase-modules/ 加载的展示题库
+ * - `'user'` 或 `undefined`：用户编译/导入的题库（向后兼容旧数据）
+ *
+ * listStoredModules / library 页面按 APP_MODE 过滤：
+ *   展示模式只看 showcase，实用模式只看 user。
+ */
+export type ContentOrigin = 'showcase' | 'user'
+
+/**
  * 用户导入的原始知识材料
  */
 export interface KnowledgeSource {
@@ -43,6 +54,8 @@ export interface Module {
   generatedAt?: number
   /** 通过 Library 导入的时间戳（M7.5 package 元数据，可选以兼容旧数据） */
   importedAt?: number
+  /** 内容来源标记（展示模式 vs 实用模式分离）。undefined = user（向后兼容） */
+  origin?: ContentOrigin
 }
 
 /**
@@ -242,6 +255,8 @@ export interface Topic {
   moduleIds: string[]
   createdAt: number
   updatedAt: number
+  /** 内容来源标记（展示模式 vs 实用模式分离）。undefined = user（向后兼容） */
+  origin?: ContentOrigin
 }
 
 /**

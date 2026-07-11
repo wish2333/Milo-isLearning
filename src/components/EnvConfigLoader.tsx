@@ -22,20 +22,25 @@ import { useEffect } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { useSettingsStore } from '@/lib/state/settings-store'
+import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import type { LLMConfig } from '@/lib/providers/types'
 
 interface EnvConfigLoaderProps {
-  enabled?: boolean // 默认 true；展示模式传 false 跳过
+  enabled?: boolean // 默认 true；外部需要时传 false 跳过
 }
 
 export function EnvConfigLoader({ enabled = true }: EnvConfigLoaderProps = {}) {
   const hydrated = useHydrated()
   const setConfig = useSettingsStore((s) => s.setConfig)
   const setAvailableKeys = useSettingsStore((s) => s.setAvailableKeys)
+  const studioMode = useRuntimeMode((s) => s.studioMode)
 
   useEffect(() => {
     if (!enabled) return
     if (!hydrated) return
+    // 展示模式部署下，仅在 studio 上下文中加载 LLM 配置
+    if (isShowcaseMode && !studioMode) return
 
     let cancelled = false
 
@@ -59,7 +64,7 @@ export function EnvConfigLoader({ enabled = true }: EnvConfigLoaderProps = {}) {
     return () => {
       cancelled = true
     }
-  }, [enabled, hydrated, setConfig, setAvailableKeys])
+  }, [enabled, hydrated, studioMode, setConfig, setAvailableKeys])
 
   return null
 }

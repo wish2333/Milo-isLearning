@@ -6,7 +6,7 @@
  * 并创建本地 Topic 关联新的 moduleId 列表。
  */
 
-import type { Topic } from '@/types/domain'
+import type { Topic, ContentOrigin } from '@/types/domain'
 import type { CompiledModulePackage } from './module-package'
 import { importModulePackage, parseModulePackage } from './module-package'
 import { createTopic } from './topic-library'
@@ -105,15 +105,19 @@ export function parseTopicPackage(raw: unknown): ParseTopicPackageResult {
 // 导入
 // =================================================================
 
-export function importTopicPackage(repo: StorageRepository, pkg: CompiledTopicPackage): Topic {
+export function importTopicPackage(
+  repo: StorageRepository,
+  pkg: CompiledTopicPackage,
+  options?: { origin?: ContentOrigin },
+): Topic {
   const newModuleIds: string[] = []
 
   for (const modulePkg of pkg.modules) {
-    const mod = importModulePackage(repo, modulePkg)
+    const mod = importModulePackage(repo, modulePkg, options)
     newModuleIds.push(mod.id)
   }
 
-  return createTopic(pkg.topic.name, pkg.topic.description, newModuleIds)
+  return createTopic(pkg.topic.name, pkg.topic.description, newModuleIds, options?.origin)
 }
 
 // =================================================================

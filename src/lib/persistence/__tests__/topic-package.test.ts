@@ -282,8 +282,13 @@ describe('importTopicPackage', () => {
     const topic = importTopicPackage(repo, pkg)
 
     expect(mockImportModulePackage).toHaveBeenCalledTimes(1)
-    expect(mockImportModulePackage).toHaveBeenCalledWith(repo, pkg.modules[0])
-    expect(mockCreateTopic).toHaveBeenCalledWith('Test Topic', 'A test topic', ['new-module-1'])
+    expect(mockImportModulePackage).toHaveBeenCalledWith(repo, pkg.modules[0], undefined)
+    expect(mockCreateTopic).toHaveBeenCalledWith(
+      'Test Topic',
+      'A test topic',
+      ['new-module-1'],
+      undefined,
+    )
     expect(topic.id).toBe('new-topic-1')
   })
 
@@ -312,9 +317,11 @@ describe('importTopicPackage', () => {
     importTopicPackage(repo, multiPkg)
 
     expect(mockImportModulePackage).toHaveBeenCalledTimes(2)
-    expect(mockCreateTopic).toHaveBeenCalledWith(expect.any(String), expect.anything(), [
-      'mod-a',
-      'mod-b',
-    ])
+    expect(mockCreateTopic).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.anything(),
+      ['mod-a', 'mod-b'],
+      undefined,
+    )
   })
 })

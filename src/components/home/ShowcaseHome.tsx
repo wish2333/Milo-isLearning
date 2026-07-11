@@ -131,7 +131,7 @@ export function ShowcaseHome() {
 
   return (
     <main className="alc-page p-8">
-      <section className="mx-auto max-w-3xl space-y-8">
+      <section className="mx-auto max-w-4xl space-y-8">
         <div className="space-y-3 text-center">
           <p className="alc-label uppercase tracking-wider">Learning path compiler</p>
           <h1 className="text-4xl font-semibold text-fg-primary">AI Learning Compiler</h1>
@@ -146,27 +146,29 @@ export function ShowcaseHome() {
           </button>
         </div>
 
-        {showcaseTopics.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="alc-label uppercase tracking-wider">主题学习</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {showcaseTopics.map((topic) => (
-                <ShowcaseTopicCard key={topic.id} entry={topic} onStart={handleStartTopic} />
-              ))}
-            </div>
-          </section>
-        )}
+        <div className="grid gap-6 md:grid-cols-2 items-stretch">
+          {showcaseTopics.length > 0 && (
+            <section className="flex flex-col">
+              <h2 className="alc-label uppercase tracking-wider mb-3">主题学习</h2>
+              <div className="space-y-4 flex-1 flex flex-col">
+                {showcaseTopics.map((topic) => (
+                  <ShowcaseTopicCard key={topic.id} entry={topic} onStart={handleStartTopic} />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {modules.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="alc-label uppercase tracking-wider">精选题库</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {modules.map((entry) => (
-                <ShowcaseModuleCard key={entry.id} entry={entry} onStart={handleStartModule} />
-              ))}
-            </div>
-          </div>
-        )}
+          {modules.length > 0 && (
+            <section className="flex flex-col">
+              <h2 className="alc-label uppercase tracking-wider mb-3">精选题库</h2>
+              <div className="space-y-4 flex-1 flex flex-col">
+                {modules.map((entry) => (
+                  <ShowcaseModuleCard key={entry.id} entry={entry} onStart={handleStartModule} />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
 
         <div className="text-center pt-4">
           <p className="alc-muted text-xs">
