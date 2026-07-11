@@ -19,18 +19,25 @@ import {
   parseModulePackage,
   serializeModulePackage,
 } from '@/lib/persistence/module-package'
+import { importTopicPackage, parseTopicPackage } from '@/lib/persistence/topic-package'
 import { storage } from '@/lib/persistence/local-storage'
 import { StorageKeys } from '@/lib/persistence/keys'
-import type { KnowledgeSource, Module } from '@/types/domain'
+import type { KnowledgeSource, Module, Topic } from '@/types/domain'
 
 interface ModuleImportExportProps {
-  /** 导出指定 Module 时调用（通常刷新列表 + toast） */
+  /** 模块导入成功后调用（通常刷新列表 + toast） */
   onImported?: (module: Module) => void
+  /** 主题导入成功后调用（刷新主题列表） */
+  onTopicImported?: (topic: Topic) => void
   /** 错误反馈 */
   onError?: (message: string) => void
 }
 
-export function ModuleImportExport({ onImported, onError }: ModuleImportExportProps) {
+export function ModuleImportExport({
+  onImported,
+  onTopicImported,
+  onError,
+}: ModuleImportExportProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
 
@@ -54,16 +61,41 @@ export function ModuleImportExport({ onImported, onError }: ModuleImportExportPr
     setBusy(true)
     try {
       const text = await file.text()
-      const result = parseModulePackage(text)
-      if (!result.ok) {
-        if (onError) onError(result.error)
-        // reset input so same file can be re-selected
-        if (fileInputRef.current) fileInputRef.current.value = ''
-        setBusy(false)
-        return
+
+      let parsedJson: unknown
+      try {
+        parsedJson = JSON.parse(text)
+      } catch {
+        parsedJson = undefined
       }
-      const importedModule = importModulePackage(storage, result.pkg)
-      if (onImported) onImported(importedModule)
+
+      if (
+        parsedJson &&
+        typeof parsedJson === 'object' &&
+        !Array.isArray(parsedJson) &&
+        'topic' in parsedJson &&
+        'modules' in parsedJson
+      ) {
+        const result = parseTopicPackage(parsedJson)
+        if (!result.ok) {
+          if (onError) onError(result.error)
+          if (fileInputRef.current) fileInputRef.current.value = ''
+          setBusy(false)
+          return
+        }
+        const topic = importTopicPackage(storage, result.pkg)
+        if (onTopicImported) onTopicImported(topic)
+      } else {
+        const result = parseModulePackage(text)
+        if (!result.ok) {
+          if (onError) onError(result.error)
+          if (fileInputRef.current) fileInputRef.current.value = ''
+          setBusy(false)
+          return
+        }
+        const importedModule = importModulePackage(storage, result.pkg)
+        if (onImported) onImported(importedModule)
+      }
     } catch (err) {
       if (onError) onError(err instanceof Error ? err.message : '导入失败：未知错误')
     } finally {

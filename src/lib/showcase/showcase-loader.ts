@@ -6,8 +6,9 @@
  */
 
 import { parseModulePackage, importModulePackage } from '@/lib/persistence/module-package'
+import { createTopic } from '@/lib/persistence/topic-library'
 import { storage } from '@/lib/persistence/local-storage'
-import type { Module } from '@/types/domain'
+import type { Module, Topic } from '@/types/domain'
 
 /** Manifest 条目 */
 export interface ShowcaseManifestEntry {
@@ -19,10 +20,23 @@ export interface ShowcaseManifestEntry {
   order: number
 }
 
+/** Manifest v2 主题条目 */
+export interface ShowcaseTopicEntry {
+  id: string
+  name: string
+  description: string
+  /** 有序的模块包文件名列表（对应 public/showcase-modules/ 下的 .alc-module.json） */
+  modulePackages: { package: string; title: string }[]
+  featured: boolean
+  order: number
+}
+
 /** Manifest 结构 */
 export interface ShowcaseManifest {
   version: number
   modules: ShowcaseManifestEntry[]
+  /** v2 新增：展示主题列表。v1 manifest 无此字段 → 空数组。 */
+  topics?: ShowcaseTopicEntry[]
 }
 
 /** Featured 题库（模拟编译默认目标） */
@@ -79,4 +93,29 @@ export function findFeaturedModule(manifest: ShowcaseManifest): FeaturedModule {
  */
 export function listShowcaseModules(manifest: ShowcaseManifest): ShowcaseManifestEntry[] {
   return [...manifest.modules].sort((a, b) => a.order - b.order)
+}
+
+export function listShowcaseTopics(manifest: ShowcaseManifest): ShowcaseTopicEntry[] {
+  return [...(manifest.topics ?? [])].sort((a, b) => a.order - b.order)
+}
+
+export function findFeaturedTopic(manifest: ShowcaseManifest): ShowcaseTopicEntry | null {
+  const topics = listShowcaseTopics(manifest)
+  return topics.find((t) => t.featured) ?? topics[0] ?? null
+}
+
+export async function loadShowcaseTopicIntoStorage(entry: ShowcaseTopicEntry): Promise<Topic> {
+  const newModuleIds: string[] = []
+
+  for (const modEntry of entry.modulePackages) {
+    const rawText = await fetchShowcasePackage(modEntry.package)
+    const result = parseModulePackage(rawText)
+    if (!result.ok) {
+      throw new Error(`展示主题模块加载失败：${modEntry.package} — ${result.error}`)
+    }
+    const mod = importModulePackage(storage, result.pkg)
+    newModuleIds.push(mod.id)
+  }
+
+  return createTopic(entry.name, entry.description, newModuleIds)
 }

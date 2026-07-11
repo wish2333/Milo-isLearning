@@ -225,6 +225,54 @@ export interface ProgressState {
 }
 
 // =================================================================
+// 主题归类（M8.1）
+// =================================================================
+
+/**
+ * 主题 — 一组有序的题库引用，用于主题刷题模式。
+ *
+ * 一对多关系：一个题库最多归属一个主题（由 UI 层保证）。
+ * 删除主题不删除题库本身，题库变为未归属。
+ */
+export interface Topic {
+  id: string
+  name: string
+  description?: string
+  /** 有序的题库 ID 列表，决定主题刷题的顺序 */
+  moduleIds: string[]
+  createdAt: number
+  updatedAt: number
+}
+
+/**
+ * 主题会话中单个题库的状态。
+ */
+export type ModuleTopicStatus = 'pending' | 'in_progress' | 'done'
+
+/**
+ * 主题刷题会话 — 持久化到 LocalStorage，支持刷新恢复。
+ *
+ * 编排在 ModuleStage 状态机之上：
+ * 每个 module 仍走完整的 module_intro → … → done 流程，
+ * 主题层在 done 阶段拦截，决定「进入下一个模块」还是「主题完成」。
+ */
+export interface TopicSession {
+  topicId: string
+  moduleIds: string[]
+  currentIndex: number
+  moduleStatus: Record<string, ModuleTopicStatus>
+  startedAt: number
+}
+
+/**
+ * 错题重刷的筛选维度。
+ * - 'all'：错题 + 蒙对题（当前行为）
+ * - 'wrong'：仅错题（score < 80）
+ * - 'guessed'：仅蒙对题（guessed === true）
+ */
+export type ReviewFilter = 'all' | 'wrong' | 'guessed'
+
+// =================================================================
 // 便捷类型导出
 // =================================================================
 

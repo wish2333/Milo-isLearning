@@ -1,12 +1,13 @@
 'use client'
 
 /**
- * ModuleLibraryList — Library 列表 UI（M7.5 Task 3）
+ * ModuleLibraryList — Library 列表 UI（M7.5 Task 3, M8.1 Task 4）
  *
  * 行为：
  *   - 显示所有 StoredModuleSummary
  *   - 继续 / 重新学习 / 删除（二次确认）/ 导出 单个 module
  *   - 导入由父页面持有（ModuleImportExport）
+ *   - M8.1: 提取 ModuleLibraryRow 供 TopicSection 复用
  */
 
 import { useEffect, useState } from 'react'
@@ -54,6 +55,94 @@ function getStatusBadge(
     return { label: '学习中', className: 'text-fg-secondary bg-bg-elevated' }
   }
   return { label: '未开始', className: 'text-fg-tertiary bg-bg-elevated' }
+}
+
+// =================================================================
+// ModuleLibraryRow — 可复用的单行渲染
+// =================================================================
+
+export interface ModuleLibraryRowProps {
+  module: StoredModuleSummary
+  attemptsBySlot: Record<string, AttemptRecord[]>
+  onOpen: (module: StoredModuleSummary) => void
+  onRestart: (module: StoredModuleSummary) => void
+  onDeleteRequest: (module: StoredModuleSummary) => void
+  onExport: (module: StoredModuleSummary) => void
+}
+
+export function ModuleLibraryRow({
+  module: m,
+  attemptsBySlot,
+  onOpen,
+  onRestart,
+  onDeleteRequest,
+  onExport,
+}: ModuleLibraryRowProps) {
+  const router = useRouter()
+
+  return (
+    <li className="alc-card p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-fg-primary font-medium truncate">{m.title}</p>
+          <p className="alc-label mt-0.5">
+            {m.conceptCount} 概念 · {m.quizCount} 题 · {formatDate(m.updatedAt)}
+          </p>
+        </div>
+        <span
+          className={`text-xs px-2 py-0.5 rounded shrink-0 ${getStatusBadge(m.completed, m.updatedAt).className}`}
+        >
+          {getStatusBadge(m.completed, m.updatedAt).label}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-2 pt-1">
+        <button
+          type="button"
+          onClick={() => onOpen(m)}
+          className="alc-button-primary text-xs px-3 py-1.5"
+        >
+          {m.completed ? '查看' : m.updatedAt > 0 ? '继续' : '开始学习'}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push(`/learn/history/${m.id}`)}
+          className="alc-button-secondary text-xs px-3 py-1.5"
+        >
+          作答记录
+        </button>
+        <button
+          type="button"
+          onClick={() => onRestart(m)}
+          className="alc-button-secondary text-xs px-3 py-1.5"
+        >
+          重新学习
+        </button>
+        <button
+          type="button"
+          onClick={() => onExport(m)}
+          className="alc-button-secondary text-xs px-3 py-1.5"
+        >
+          导出
+        </button>
+        <ModuleReviewButton moduleId={m.id} attemptsBySlot={attemptsBySlot} />
+        <button
+          type="button"
+          onClick={() => router.push(`/learn/review/${m.id}?filter=guessed`)}
+          className="alc-button-secondary text-xs px-3 py-1.5"
+        >
+          重刷蒙对题
+        </button>
+        <button
+          type="button"
+          onClick={() => onDeleteRequest(m)}
+          className="alc-button-danger text-xs px-3 py-1.5"
+        >
+          删除
+        </button>
+      </div>
+    </li>
+  )
 }
 
 export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps) {
@@ -157,60 +246,15 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
 
       <ul className="space-y-3">
         {modules.map((m) => (
-          <li key={m.id} className="alc-card p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-fg-primary font-medium truncate">{m.title}</p>
-                <p className="alc-label mt-0.5">
-                  {m.conceptCount} 概念 · {m.quizCount} 题 · {formatDate(m.updatedAt)}
-                </p>
-              </div>
-              <span
-                className={`text-xs px-2 py-0.5 rounded shrink-0 ${getStatusBadge(m.completed, m.updatedAt).className}`}
-              >
-                {getStatusBadge(m.completed, m.updatedAt).label}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => handleOpen(m)}
-                className="alc-button-primary text-xs px-3 py-1.5"
-              >
-                {m.completed ? '查看' : m.updatedAt > 0 ? '继续' : '开始学习'}
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push(`/learn/history/${m.id}`)}
-                className="alc-button-secondary text-xs px-3 py-1.5"
-              >
-                作答记录
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRestart(m)}
-                className="alc-button-secondary text-xs px-3 py-1.5"
-              >
-                重新学习
-              </button>
-              <button
-                type="button"
-                onClick={() => handleExport(m)}
-                className="alc-button-secondary text-xs px-3 py-1.5"
-              >
-                导出
-              </button>
-              <ModuleReviewButton moduleId={m.id} attemptsBySlot={attemptsBySlot} />
-              <button
-                type="button"
-                onClick={() => handleDeleteRequest(m)}
-                className="alc-button-danger text-xs px-3 py-1.5"
-              >
-                删除
-              </button>
-            </div>
-          </li>
+          <ModuleLibraryRow
+            key={m.id}
+            module={m}
+            attemptsBySlot={attemptsBySlot}
+            onOpen={handleOpen}
+            onRestart={handleRestart}
+            onDeleteRequest={handleDeleteRequest}
+            onExport={handleExport}
+          />
         ))}
       </ul>
 

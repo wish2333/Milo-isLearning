@@ -3,16 +3,19 @@
  *
  * 内存 only — 刷新即丢失，不写入 LocalStorage。
  * 不影响 computeMastery（review attempts 有 attemptVersion > 0）。
+ *
+ * 支持单库模式和主题跨库模式。
  */
 
 import { create } from 'zustand'
 
-import type { AttemptRecord, Quiz } from '@/types/domain'
+import type { Module, Quiz, ReviewFilter } from '@/types/domain'
 
+import { collectReviewItemsForModules } from '@/lib/runtime/topic-review'
 import { loadStoredModule } from '@/lib/persistence/module-library'
+import { getTopic } from '@/lib/persistence/topic-library'
 import { storage } from '@/lib/persistence/local-storage'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
-import { findQuizInModule } from '@/lib/runtime/adaptive-sequencer'
 
 const PASS_THRESHOLD = 80
 
@@ -22,16 +25,25 @@ export interface ReviewResult {
   passed: boolean
 }
 
+export interface ReviewQueueItem {
+  quiz: Quiz
+  moduleId: string
+  slotId: string
+}
+
 export interface ReviewSession {
   moduleId: string
-  queue: Quiz[]
+  topicId?: string
+  filter: ReviewFilter
+  queue: ReviewQueueItem[]
   currentIndex: number
   results: ReviewResult[]
 }
 
 interface ReviewStoreState {
   session: ReviewSession | null
-  startSession: (moduleId: string) => boolean
+  startSession: (moduleId: string, filter?: ReviewFilter) => boolean
+  startTopicSession: (topicId: string, filter?: ReviewFilter) => boolean
   recordResult: (slotId: string, score: number) => void
   nextQuestion: () => void
   endSession: () => void
@@ -41,62 +53,68 @@ function shuffle<T>(array: T[]): T[] {
   const result = [...array]
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[result[i], result[j]] = [result[j]!, result[i]!]
+    ;[result[i]!, result[j]!] = [result[j]!, result[i]!]
   }
   return result
-}
-
-function collectWrongSlotIds(
-  module: ReturnType<typeof loadStoredModule>,
-  attemptsBySlot: Record<string, AttemptRecord[]>,
-): string[] {
-  if (!module) return []
-
-  const slotIds: string[] = []
-
-  for (const concept of module.concepts) {
-    for (const quiz of concept.quizSeries.quizzes) {
-      const attempts = attemptsBySlot[quiz.id]
-      if (!attempts || attempts.length === 0) continue
-      const hasWrong = attempts.some((a) => a.score < PASS_THRESHOLD)
-      const hasGuessed = attempts.some((a) => a.guessed === true)
-      if (hasWrong || hasGuessed) slotIds.push(quiz.id)
-    }
-  }
-
-  if (module.challengeQuizzes) {
-    for (const quiz of module.challengeQuizzes) {
-      const attempts = attemptsBySlot[quiz.id]
-      if (!attempts || attempts.length === 0) continue
-      const hasWrong = attempts.some((a) => a.score < PASS_THRESHOLD)
-      const hasGuessed = attempts.some((a) => a.guessed === true)
-      if (hasWrong || hasGuessed) slotIds.push(quiz.id)
-    }
-  }
-
-  return slotIds
 }
 
 export const useReviewStore = create<ReviewStoreState>()((set) => ({
   session: null,
 
-  startSession: (moduleId) => {
+  startSession: (moduleId, filter = 'all') => {
     const moduleData = loadStoredModule(storage, moduleId)
     if (!moduleData) return false
 
     const attemptsBySlot = useAttemptsStore.getState().attemptsBySlot
+    const items = collectReviewItemsForModules([moduleData], attemptsBySlot, filter)
+    if (items.length === 0) return false
 
-    const wrongSlotIds = collectWrongSlotIds(moduleData, attemptsBySlot)
-    if (wrongSlotIds.length === 0) return false
-
-    const queue = wrongSlotIds
-      .map((id) => findQuizInModule(moduleData, id))
-      .filter((q): q is Quiz => q !== undefined)
+    const queue = shuffle(
+      items.map((item) => ({
+        quiz: item.quiz,
+        moduleId: item.moduleId,
+        slotId: item.slotId,
+      })),
+    )
 
     set({
       session: {
         moduleId,
-        queue: shuffle(queue),
+        filter,
+        queue,
+        currentIndex: 0,
+        results: [],
+      },
+    })
+    return true
+  },
+
+  startTopicSession: (topicId, filter = 'all') => {
+    const topic = getTopic(topicId)
+    if (!topic) return false
+    const modules = topic.moduleIds
+      .map((id) => loadStoredModule(storage, id))
+      .filter((m): m is Module => m !== null)
+    if (modules.length === 0) return false
+
+    const attemptsBySlot = useAttemptsStore.getState().attemptsBySlot
+    const items = collectReviewItemsForModules(modules, attemptsBySlot, filter)
+    if (items.length === 0) return false
+
+    const queue = shuffle(
+      items.map((item) => ({
+        quiz: item.quiz,
+        moduleId: item.moduleId,
+        slotId: item.slotId,
+      })),
+    )
+
+    set({
+      session: {
+        moduleId: `topic:${topicId}`,
+        topicId,
+        filter,
+        queue,
         currentIndex: 0,
         results: [],
       },

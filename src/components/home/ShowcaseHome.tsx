@@ -7,14 +7,21 @@ import {
   fetchShowcaseManifest,
   findFeaturedModule,
   listShowcaseModules,
+  listShowcaseTopics,
   loadShowcaseModuleIntoStorage,
+  loadShowcaseTopicIntoStorage,
   type ShowcaseManifest,
   type ShowcaseManifestEntry,
+  type ShowcaseTopicEntry,
 } from '@/lib/showcase/showcase-loader'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
+import { useTopicSessionStore } from '@/lib/state/topic-session-store'
 import { ShowcaseModuleCard } from '@/components/showcase/ShowcaseModuleCard'
+import { ShowcaseTopicCard } from '@/components/showcase/ShowcaseTopicCard'
 import { MockCompileOverlay } from '@/components/showcase/MockCompileOverlay'
+import { loadStoredModule } from '@/lib/persistence/module-library'
+import { storage } from '@/lib/persistence/local-storage'
 
 type ShowcaseHomeStatus = 'idle' | 'loading-manifest' | 'ready' | 'mock-compiling' | 'error'
 
@@ -54,6 +61,25 @@ export function ShowcaseHome() {
 
   const handleMockCompile = () => {
     setStatus('mock-compiling')
+  }
+
+  const handleStartTopic = async (entry: ShowcaseTopicEntry) => {
+    try {
+      setStatus('loading-manifest')
+      const topic = await loadShowcaseTopicIntoStorage(entry)
+      const ok = useTopicSessionStore.getState().startSession(topic.id)
+      if (!ok) throw new Error('主题会话启动失败')
+      const firstModuleId = useTopicSessionStore.getState().getCurrentModuleId()
+      if (!firstModuleId) throw new Error('无法获取第一个模块')
+      const moduleData = loadStoredModule(storage, firstModuleId)
+      if (!moduleData) throw new Error('模块加载失败')
+      setModule(moduleData)
+      startModule(firstModuleId)
+      router.push(`/learn/module/${firstModuleId}`)
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : '主题加载失败')
+      setStatus('error')
+    }
   }
 
   const handleMockComplete = async () => {
@@ -101,6 +127,7 @@ export function ShowcaseHome() {
 
   // --- Ready state ---
   const modules = manifest ? listShowcaseModules(manifest) : []
+  const showcaseTopics = manifest ? listShowcaseTopics(manifest) : []
 
   return (
     <main className="alc-page p-8">
@@ -118,6 +145,17 @@ export function ShowcaseHome() {
             模拟编译
           </button>
         </div>
+
+        {showcaseTopics.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="alc-label uppercase tracking-wider">主题学习</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {showcaseTopics.map((topic) => (
+                <ShowcaseTopicCard key={topic.id} entry={topic} onStart={handleStartTopic} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {modules.length > 0 && (
           <div className="space-y-4">

@@ -38,6 +38,8 @@ export const StorageKeys = {
   events: `${STORAGE_NAMESPACE}:events`,
   /** 完成页评分（moduleId → score） */
   ratings: `${STORAGE_NAMESPACE}:ratings`,
+  // M8.1 主题（全量 Topic[] 存储在单个 key 中）
+  topicIndex: `${STORAGE_NAMESPACE}:topic-index`,
 } as const
 
 /**

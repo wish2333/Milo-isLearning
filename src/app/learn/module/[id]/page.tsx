@@ -21,6 +21,7 @@ import { StorageKeys } from '@/lib/persistence/keys'
 import { storage } from '@/lib/persistence/local-storage'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
+import { useTopicSessionStore } from '@/lib/state/topic-session-store'
 import type { Module } from '@/types/domain'
 import type { ModuleStage } from '@/types/domain'
 
@@ -83,12 +84,18 @@ export default function ModulePage() {
     }
   }, [hydrated, routeModuleId, currentModule, router])
 
-  // done → 重定向
+  // done → 重定向（主题会话拦截）
   useEffect(() => {
-    if (stage?.kind === 'done') {
+    if (stage?.kind !== 'done') return
+
+    const topicSession = useTopicSessionStore.getState().session
+    if (topicSession && topicSession.moduleIds[topicSession.currentIndex] === routeModuleId) {
+      useTopicSessionStore.getState().markCurrentModuleDone()
+      router.replace(`/learn/topic/${topicSession.topicId}`)
+    } else {
       router.replace('/learn/done')
     }
-  }, [stage, router])
+  }, [stage, router, routeModuleId])
 
   if (!currentModule || !stage) return null
 

@@ -1,10 +1,10 @@
 'use client'
 
 /**
- * 错题重刷页 — 独立的错题复习会话
+ * 主题错题重刷页 — 跨库错题复习会话
  *
- * 从 history 或 library 的"重刷错题"按钮进入。
- * 加载该 Module 的所有错题/蒙对题，随机顺序逐一作答。
+ * 从 library 的主题"重刷错题"按钮进入。
+ * 扫描主题下所有模块的错题/蒙对题，随机顺序逐一作答。
  * 会话不持久化（刷新即丢失）。
  */
 
@@ -18,11 +18,12 @@ import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useReviewStore } from '@/lib/state/review-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
 import { loadStoredModule } from '@/lib/persistence/module-library'
-import { StorageKeys } from '@/lib/persistence/keys'
+import { getTopic } from '@/lib/persistence/topic-library'
 import { storage } from '@/lib/persistence/local-storage'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
-import type { ReviewFilter } from '@/types/domain'
+import type { ReviewFilter, Module } from '@/types/domain'
 
+import { LearnShell } from '@/components/learn/LearnShell'
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
 import { createProvider } from '@/lib/providers'
@@ -53,16 +54,16 @@ function FilterTab({
   )
 }
 
-export default function ReviewPage() {
+export default function TopicReviewPage() {
   const router = useRouter()
   const pathname = usePathname()
-  const params = useParams<{ moduleId: string }>()
+  const params = useParams<{ topicId: string }>()
   const searchParams = useSearchParams()
   const hydrated = useHydrated()
 
-  const currentFilter = (searchParams.get('filter') ?? 'all') as ReviewFilter
+  const currentFilter = (searchParams.get('filter') as ReviewFilter) ?? 'all'
 
-  const { session, startSession, recordResult, nextQuestion, endSession } = useReviewStore()
+  const { session, startTopicSession, recordResult, nextQuestion, endSession } = useReviewStore()
   const addAttempt = useAttemptsStore((s) => s.addAttempt)
   const getNextAttemptVersion = useAttemptsStore((s) => s.getNextAttemptVersion)
   const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
@@ -70,19 +71,26 @@ export default function ReviewPage() {
 
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
-  const [notFound, setNotFound] = useState(false)
   const [empty, setEmpty] = useState(false)
 
-  const moduleData = useMemo(() => loadStoredModule(storage, params.moduleId!), [params.moduleId])
+  const initializedFor = useRef<string | null>(null)
 
-  const counts = useMemo(() => {
-    if (!moduleData) return { all: 0, wrong: 0, guessed: 0 }
-    return {
-      all: collectReviewItemsForModules([moduleData], attemptsBySlot, 'all').length,
-      wrong: collectReviewItemsForModules([moduleData], attemptsBySlot, 'wrong').length,
-      guessed: collectReviewItemsForModules([moduleData], attemptsBySlot, 'guessed').length,
-    }
-  }, [moduleData, attemptsBySlot])
+  const topicModules = useMemo(() => {
+    const topic = getTopic(params.topicId!)
+    if (!topic) return []
+    return topic.moduleIds
+      .map((id) => loadStoredModule(storage, id))
+      .filter((m): m is Module => m !== null)
+  }, [params.topicId])
+
+  const counts = useMemo(
+    () => ({
+      all: collectReviewItemsForModules(topicModules, attemptsBySlot, 'all').length,
+      wrong: collectReviewItemsForModules(topicModules, attemptsBySlot, 'wrong').length,
+      guessed: collectReviewItemsForModules(topicModules, attemptsBySlot, 'guessed').length,
+    }),
+    [topicModules, attemptsBySlot],
+  )
 
   const handleTabChange = useCallback(
     (newFilter: ReviewFilter) => {
@@ -92,28 +100,18 @@ export default function ReviewPage() {
     [router, pathname],
   )
 
-  // 初始化只依赖 hydrated + moduleId，不依赖 session（避免重触发）
-  const initializedFor = useRef<string | null>(null)
-
   useEffect(() => {
-    if (!hydrated || !params.moduleId) return
-    if (initializedFor.current === `${params.moduleId}:${currentFilter}`) return
-    initializedFor.current = `${params.moduleId}:${currentFilter}`
+    if (!hydrated || !params.topicId) return
+    if (initializedFor.current === `${params.topicId}:${currentFilter}`) return
+    initializedFor.current = `${params.topicId}:${currentFilter}`
 
-    const moduleData = storage.get(StorageKeys.module(params.moduleId))
-    if (!moduleData) {
-      setNotFound(true)
-      return
-    }
-
-    const started = startSession(params.moduleId, currentFilter)
+    const started = startTopicSession(params.topicId, currentFilter)
     if (!started) {
       setEmpty(true)
     }
-  }, [hydrated, params.moduleId, currentFilter, startSession])
+  }, [hydrated, params.topicId, currentFilter, startTopicSession])
 
-  const currentQueueItem = session ? session.queue[session.currentIndex] : null
-  const currentQuiz = currentQueueItem?.quiz ?? null
+  const currentQuiz = session ? (session.queue[session.currentIndex]?.quiz ?? null) : null
   const isFinished = session !== null && session.currentIndex >= session.queue.length
 
   const handleAnswer = useCallback(
@@ -169,23 +167,6 @@ export default function ReviewPage() {
 
   if (!hydrated) return null
 
-  if (notFound) {
-    return (
-      <main className="alc-page">
-        <div className="max-w-2xl mx-auto px-6 py-16 text-center space-y-4">
-          <p className="text-sm text-fg-secondary">Module 不存在或已被删除</p>
-          <button
-            type="button"
-            onClick={() => router.push('/learn/library')}
-            className="alc-button-secondary text-sm px-4 py-2"
-          >
-            返回题库
-          </button>
-        </div>
-      </main>
-    )
-  }
-
   if (empty) {
     return (
       <main className="alc-page">
@@ -234,13 +215,13 @@ export default function ReviewPage() {
   const progress = `${session.currentIndex + 1} / ${session.queue.length}`
 
   return (
-    <main className="alc-page">
+    <LearnShell stageLabel="主题重刷">
       <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 space-y-6">
         {/* Header */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <p className="alc-label">错题重刷</p>
+              <p className="alc-label">主题错题重刷</p>
               <h1 className="text-lg font-medium text-fg-primary">复习模式</h1>
             </div>
             <div className="flex items-center gap-3">
@@ -313,6 +294,6 @@ export default function ReviewPage() {
           </>
         )}
       </div>
-    </main>
+    </LearnShell>
   )
 }

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "modules": [
     {
       "id": "intro-to-alc",
@@ -9,5 +9,6 @@
       "featured": true,
       "order": 1
     }
-  ]
+  ],
+  "topics": []
 }

@@ -16,6 +16,7 @@ import {
   STORAGE_WARN_BYTES,
 } from './keys'
 import type { StorageRepository } from './repository'
+import { cascadeDeleteModule } from './topic-library'
 
 export const MAX_STORED_MODULES = 12
 
@@ -137,6 +138,9 @@ export function removeModule(repo: StorageRepository, moduleId: string): string 
   repo.remove(StorageKeys.attemptsModule(moduleId))
   repo.remove(StorageKeys.qualityReport(moduleId))
   removeGlobalAttemptsForModule(repo, moduleId)
+
+  // M8.1：从主题中级联移除引用
+  cascadeDeleteModule(moduleId)
 
   return moduleId
 }

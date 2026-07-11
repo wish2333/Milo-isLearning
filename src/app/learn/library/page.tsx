@@ -1,16 +1,12 @@
 'use client'
 
 /**
- * 题库页 — Module Library（M7.5 Task 3）
+ * 题库页 — Module Library（M7.5 Task 3 → M8.1 Task 4）
  *
- * 功能：
- *   - 等 hydration 后从 repository 读 StoredModuleSummary 列表
- *   - 列表为空时显示空态
- *   - 列表渲染交给 ModuleLibraryList（含 open/restart/delete/export）
- *   - 顶部挂 ModuleImportExport 用于导入 JSON
- *   - 提供返回导入页（编译新 Module）的入口
- *
- * 不调用 /api/compile：导入 JSON 即立即学习（M7.5 §Global Constraints）。
+ * M8.1 改造：
+ *   - 从扁平列表变为分组视图：主题区域 + 未归类区域
+ *   - 支持创建/编辑/删除主题
+ *   - 主题刷题入口
  */
 
 import { useCallback, useEffect, useState } from 'react'
@@ -22,21 +18,42 @@ import type { StoredModuleSummary } from '@/lib/persistence/module-library'
 import { getStorageCapacitySummary, type CapacitySummary } from '@/lib/persistence/quota'
 import type { CompileQualityReport } from '@/lib/compiler/quality/quality-report'
 import { StorageKeys } from '@/lib/persistence/keys'
+import {
+  listTopics,
+  createTopic,
+  updateTopic,
+  reorderModulesInTopic,
+} from '@/lib/persistence/topic-library'
+import type { Topic } from '@/types/domain'
 
 import { ModuleImportExport } from '@/components/library/ModuleImportExport'
-import { ModuleLibraryList } from '@/components/library/ModuleLibraryList'
 import { QualitySummary } from '@/components/library/QualitySummary'
+import { TopicSection } from '@/components/library/TopicSection'
+import { TopicCreator } from '@/components/library/TopicCreator'
+import { UngroupedSection } from '@/components/library/UngroupedSection'
+
+function getTopicModules(topic: Topic, allModules: StoredModuleSummary[]): StoredModuleSummary[] {
+  return topic.moduleIds
+    .map((id) => allModules.find((m) => m.id === id))
+    .filter((m): m is StoredModuleSummary => m !== undefined)
+}
 
 export default function LibraryPage() {
   const hydrated = useHydrated()
 
-  const [modules, setModules] = useState<StoredModuleSummary[]>([])
+  const [allModules, setAllModules] = useState<StoredModuleSummary[]>([])
+  const [topics, setTopics] = useState<Topic[]>([])
   const [capacity, setCapacity] = useState<CapacitySummary | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [activeQualityFor, setActiveQualityFor] = useState<string | null>(null)
 
+  // 主题创建/编辑模态
+  const [showCreator, setShowCreator] = useState(false)
+  const [editingTopic, setEditingTopic] = useState<Topic | null>(null)
+
   const refresh = useCallback(() => {
-    setModules(listStoredModules(storage))
+    setAllModules(listStoredModules(storage))
+    setTopics(listTopics())
     setCapacity(getStorageCapacitySummary(storage))
   }, [])
 
@@ -45,11 +62,21 @@ export default function LibraryPage() {
     refresh()
   }, [hydrated, refresh])
 
+  // ---------- 计算属性 ----------
+
+  const topicModuleIds = new Set(topics.flatMap((t) => t.moduleIds))
+  const ungroupedModules = allModules.filter((m) => !topicModuleIds.has(m.id))
+
   // ---------- handlers ----------
 
   const handleImported = () => {
     refresh()
     setToast('导入成功，可立即开始学习')
+  }
+
+  const handleTopicImported = () => {
+    refresh()
+    setToast('主题导入成功')
   }
 
   const handleError = (message: string) => {
@@ -60,12 +87,39 @@ export default function LibraryPage() {
     setActiveQualityFor((cur) => (cur === moduleId ? null : moduleId))
   }
 
+  const handleSaveTopic = (data: { name: string; description?: string; moduleIds: string[] }) => {
+    if (editingTopic) {
+      updateTopic(editingTopic.id, { name: data.name, description: data.description })
+      reorderModulesInTopic(editingTopic.id, data.moduleIds)
+    } else {
+      createTopic(data.name, data.description, data.moduleIds)
+    }
+    setShowCreator(false)
+    setEditingTopic(null)
+    refresh()
+  }
+
+  const handleEditTopic = (topic: Topic) => {
+    setEditingTopic(topic)
+    setShowCreator(true)
+  }
+
+  const handleCreatorCancel = () => {
+    setShowCreator(false)
+    setEditingTopic(null)
+  }
+
+  const handleCreateClick = () => {
+    setEditingTopic(null)
+    setShowCreator(true)
+  }
+
   const activeQualityReport =
     activeQualityFor !== null
       ? storage.get<CompileQualityReport>(StorageKeys.qualityReport(activeQualityFor))
       : null
   const activeQualityModule =
-    activeQualityFor !== null ? modules.find((m) => m.id === activeQualityFor) : null
+    activeQualityFor !== null ? allModules.find((m) => m.id === activeQualityFor) : null
 
   // ---------- render ----------
 
@@ -82,7 +136,11 @@ export default function LibraryPage() {
               选择 .alc-module.json 文件，无需重新调用 LLM 即可学习
             </p>
           </div>
-          <ModuleImportExport onImported={handleImported} onError={handleError} />
+          <ModuleImportExport
+            onImported={handleImported}
+            onTopicImported={handleTopicImported}
+            onError={handleError}
+          />
         </div>
 
         {toast && (
@@ -111,61 +169,85 @@ export default function LibraryPage() {
           </div>
         )}
 
-        {/* 列表 */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="alc-label uppercase tracking-wider">
-              已保存的 Module（{modules.length}）
-            </p>
-            {modules.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setActiveQualityFor(modules[0]?.id ?? null)}
-                className="alc-link text-xs"
-              >
-                查看首项质量摘要
-              </button>
-            )}
+        {/* 创建主题按钮 */}
+        <div className="flex items-center justify-between">
+          <p className="alc-label uppercase tracking-wider">
+            已保存的 Module（{allModules.length}）
+          </p>
+          <button
+            type="button"
+            onClick={handleCreateClick}
+            className="alc-button-primary text-xs px-3 py-1.5"
+          >
+            + 创建主题
+          </button>
+        </div>
+
+        {/* 主题区域 */}
+        {topics.map((t) => (
+          <TopicSection
+            key={t.id}
+            topic={t}
+            modules={getTopicModules(t, allModules)}
+            onEdit={handleEditTopic}
+            onChanged={refresh}
+          />
+        ))}
+
+        {/* 分隔线 */}
+        {topics.length > 0 && ungroupedModules.length > 0 && (
+          <div className="border-t border-border-subtle" />
+        )}
+
+        {/* 未归类题库 */}
+        <UngroupedSection modules={ungroupedModules} onChanged={refresh} />
+
+        {/* 质量查看 */}
+        {allModules.length > 0 && (
+          <div className="pt-2 space-y-2">
+            <p className="alc-label">查看任意 Module 的编译质量</p>
+            <div className="flex flex-wrap gap-2">
+              {allModules.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleViewQuality(m.id)}
+                  className={`text-xs px-2 py-1 rounded border transition-colors ${
+                    activeQualityFor === m.id
+                      ? 'border-accent-primary bg-accent-primary-soft text-fg-primary'
+                      : 'border-border-subtle bg-bg-surface text-fg-secondary hover:bg-bg-elevated'
+                  }`}
+                >
+                  {m.title}
+                </button>
+              ))}
+            </div>
           </div>
+        )}
 
-          <ModuleLibraryList modules={modules} onChanged={refresh} />
+        {activeQualityFor && activeQualityReport && activeQualityModule && (
+          <div className="pt-2">
+            <p className="alc-label mb-2">{activeQualityModule.title} · 编译质量</p>
+            <QualitySummary report={activeQualityReport} />
+          </div>
+        )}
 
-          {/* per-module quality viewer (轻量展开) */}
-          {modules.length > 0 && (
-            <div className="pt-2 space-y-2">
-              <p className="alc-label">查看任意 Module 的编译质量</p>
-              <div className="flex flex-wrap gap-2">
-                {modules.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => handleViewQuality(m.id)}
-                    className={`text-xs px-2 py-1 rounded border transition-colors ${
-                      activeQualityFor === m.id
-                        ? 'border-accent-primary bg-accent-primary-soft text-fg-primary'
-                        : 'border-border-subtle bg-bg-surface text-fg-secondary hover:bg-bg-elevated'
-                    }`}
-                  >
-                    {m.title}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+        {activeQualityFor && !activeQualityReport && (
+          <p className="alc-muted text-xs">
+            该 Module 没有保存质量报告（可能是 M7.5 之前编译的旧数据）。
+          </p>
+        )}
 
-          {activeQualityFor && activeQualityReport && activeQualityModule && (
-            <div className="pt-2">
-              <p className="alc-label mb-2">{activeQualityModule.title} · 编译质量</p>
-              <QualitySummary report={activeQualityReport} />
-            </div>
-          )}
-
-          {activeQualityFor && !activeQualityReport && (
-            <p className="alc-muted text-xs">
-              该 Module 没有保存质量报告（可能是 M7.5 之前编译的旧数据）。
-            </p>
-          )}
-        </section>
+        {/* 主题创建/编辑模态 */}
+        {showCreator && (
+          <TopicCreator
+            mode={editingTopic ? 'edit' : 'create'}
+            topic={editingTopic ?? undefined}
+            modules={allModules}
+            onSave={handleSaveTopic}
+            onCancel={handleCreatorCancel}
+          />
+        )}
       </div>
     </main>
   )
