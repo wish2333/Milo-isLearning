@@ -22,6 +22,8 @@ interface FeedbackPanelProps {
   forceAdvance?: boolean
   isGuessed?: boolean
   onMarkGuessed?: () => void
+  /** 撤销蒙对标注 */
+  onUnmarkGuessed?: () => void
 }
 
 export function FeedbackPanel({
@@ -32,6 +34,7 @@ export function FeedbackPanel({
   forceAdvance,
   isGuessed,
   onMarkGuessed,
+  onUnmarkGuessed,
 }: FeedbackPanelProps) {
   const passed = feedback.nextAction === 'advance'
   const showAmber = !passed && !forceAdvance
@@ -93,18 +96,29 @@ export function FeedbackPanel({
 
       {/* Guessed marking */}
       {passed && !forceAdvance && onMarkGuessed && (
-        <button
-          type="button"
-          onClick={onMarkGuessed}
-          disabled={isGuessed}
-          className={`text-xs transition-colors ${
-            isGuessed
-              ? 'text-fg-quaternary cursor-default'
-              : 'text-fg-tertiary hover:text-fg-secondary'
-          }`}
-        >
-          {isGuessed ? '✓ 已标记蒙对' : '其实是蒙对的'}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onMarkGuessed}
+            disabled={isGuessed}
+            className={`text-xs transition-colors ${
+              isGuessed
+                ? 'text-fg-quaternary cursor-default'
+                : 'text-fg-tertiary hover:text-fg-secondary'
+            }`}
+          >
+            {isGuessed ? '✓ 已标记蒙对' : '其实是蒙对的'}
+          </button>
+          {isGuessed && onUnmarkGuessed && (
+            <button
+              type="button"
+              onClick={onUnmarkGuessed}
+              className="text-xs text-fg-quaternary hover:text-fg-tertiary transition-colors underline"
+            >
+              撤销
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

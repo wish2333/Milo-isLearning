@@ -33,6 +33,9 @@ interface AttemptsStoreState {
 
   markGuessed: (originalQuizId: string) => void
 
+  /** 撤销最后一次的蒙对标注 */
+  unmarkGuessed: (originalQuizId: string) => void
+
   /** 清除单个槽位的全部记录 */
   clearSlot: (slotId: string) => void
 
@@ -77,6 +80,22 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
           const last = attempts[attempts.length - 1]
           if (!last || last.guessed) return state
           const updated: AttemptRecord = { ...last, guessed: true }
+          return {
+            attemptsBySlot: {
+              ...state.attemptsBySlot,
+              [originalQuizId]: [...attempts.slice(0, -1), updated],
+            },
+          }
+        }),
+
+      unmarkGuessed: (originalQuizId) =>
+        set((state) => {
+          const attempts = state.attemptsBySlot[originalQuizId]
+          if (!attempts || attempts.length === 0) return state
+          const last = attempts[attempts.length - 1]
+          if (!last || !last.guessed) return state
+          const { guessed: _guessed, ...rest } = last
+          const updated: AttemptRecord = rest
           return {
             attemptsBySlot: {
               ...state.attemptsBySlot,

@@ -57,6 +57,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
   const getAttempts = useAttemptsStore((s) => s.getAttempts)
   const getNextAttemptVersion = useAttemptsStore((s) => s.getNextAttemptVersion)
   const markGuessed = useAttemptsStore((s) => s.markGuessed)
+  const unmarkGuessed = useAttemptsStore((s) => s.unmarkGuessed)
 
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
@@ -281,6 +282,10 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
               onMarkGuessed={() => {
                 markGuessed(slotId)
                 setIsGuessed(true)
+              }}
+              onUnmarkGuessed={() => {
+                unmarkGuessed(slotId)
+                setIsGuessed(false)
               }}
             />
 
