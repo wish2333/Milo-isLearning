@@ -53,6 +53,8 @@ export function ProductionSettings() {
   const config = useSettingsStore((s) => s.config)
   const setConfig = useSettingsStore((s) => s.setConfig)
   const clearConfig = useSettingsStore((s) => s.clear)
+  const confirmReviewEnabled = useSettingsStore((s) => s.confirmReviewEnabled)
+  const setConfirmReviewEnabled = useSettingsStore((s) => s.setConfirmReviewEnabled)
 
   // 表单状态（从已保存配置初始化或用默认值）
   const [provider, setProvider] = useState<ProviderKind>(config?.provider ?? 'deepseek')
@@ -310,6 +312,33 @@ export function ProductionSettings() {
               清除
             </button>
           )}
+        </div>
+
+        {/* 间隔重复设置 */}
+        <div className="space-y-2 pt-4 border-t border-border-subtle">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-fg-primary">确认掌握题</p>
+              <p className="text-xs text-fg-tertiary">
+                学习新概念时，自动重现前面概念中答对的题以确认掌握。关闭后仅注入错题复习。
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={confirmReviewEnabled}
+              onClick={() => setConfirmReviewEnabled(!confirmReviewEnabled)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                confirmReviewEnabled ? 'bg-accent-primary' : 'bg-border-default'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-bg-base transition-transform ${
+                  confirmReviewEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
         </div>
 
         {/* Next step hint */}
