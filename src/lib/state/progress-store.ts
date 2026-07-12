@@ -31,6 +31,7 @@ import {
 } from '@/lib/runtime/adaptive-sequencer'
 import { useAttemptsStore } from './attempts-store'
 import { useModuleStore } from './module-store'
+import { useSettingsStore } from './settings-store'
 
 interface ProgressStoreState {
   /** 当前 Module ID；null = 未开始 */
@@ -160,11 +161,13 @@ export const useProgressStore = create<ProgressStoreState>()(
               const attemptsBySlot = useAttemptsStore.getState().attemptsBySlot
               const wrongSlots = collectReviewSlots(currentModule, conceptIndex, attemptsBySlot)
               const carriedSlots = collectCarriedReviewSlots(currentReviewSlots, attemptsBySlot)
-              const confirmSlots = collectConfirmSlots(
-                currentModule,
-                conceptIndex - 1,
-                attemptsBySlot,
-              )
+
+              // "确认掌握题"仅在用户未关闭时注入
+              const { confirmReviewEnabled } = useSettingsStore.getState()
+              const confirmSlots = confirmReviewEnabled
+                ? collectConfirmSlots(currentModule, conceptIndex - 1, attemptsBySlot)
+                : []
+
               const nextReviewSlots = [...wrongSlots, ...carriedSlots, ...confirmSlots]
 
               set({

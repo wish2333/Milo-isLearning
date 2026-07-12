@@ -22,6 +22,9 @@ interface SettingsState {
   /** 从 .env.local 读取到的所有供应商 API Key，切换 provider 时自动填充 */
   availableKeys: ApiKeyMap | null
 
+  /** 跨概念间隔重复：是否注入"确认掌握题"。默认 true。 */
+  confirmReviewEnabled: boolean
+
   /** 写入完整配置 */
   setConfig: (config: LLMConfig) => void
 
@@ -30,6 +33,9 @@ interface SettingsState {
 
   /** 部分更新配置（合并） */
   updateConfig: (partial: Partial<LLMConfig>) => void
+
+  /** 设置是否启用"确认掌握题" */
+  setConfirmReviewEnabled: (enabled: boolean) => void
 
   /** 清除配置 */
   clear: () => void
@@ -40,6 +46,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       config: null,
       availableKeys: null,
+      confirmReviewEnabled: true,
 
       setConfig: (config) => set({ config }),
 
@@ -50,6 +57,8 @@ export const useSettingsStore = create<SettingsState>()(
           if (!state.config) return state
           return { config: { ...state.config, ...partial } }
         }),
+
+      setConfirmReviewEnabled: (enabled) => set({ confirmReviewEnabled: enabled }),
 
       clear: () => set({ config: null }),
     }),

@@ -21,6 +21,7 @@ import { runAgent } from '@/lib/compiler/agents/_runner'
 import { mapFeedback } from '@/lib/compiler/agents/mappers'
 import { feedbackSchema } from '@/lib/compiler/schemas/feedback'
 import { createProvider } from '@/lib/providers'
+import { getEnvLLMConfig } from '@/lib/providers/env-fallback'
 import type { LLMConfig } from '@/lib/providers/types'
 import type { Quiz } from '@/types/domain'
 
@@ -50,15 +51,21 @@ export async function POST(req: NextRequest) {
 
   const { quiz, userAnswer, attemptInfo, llmConfig } = body as Partial<FeedbackRequestBody>
 
-  if (!quiz || typeof userAnswer !== 'string' || !llmConfig) {
+  if (!quiz || typeof userAnswer !== 'string') {
+    return Response.json({ error: 'Missing required fields: quiz, userAnswer' }, { status: 400 })
+  }
+
+  // 客户端未携带 llmConfig 时（展示模式），fallback 到服务端环境变量
+  const config = llmConfig ?? getEnvLLMConfig()
+  if (!config) {
     return Response.json(
-      { error: 'Missing required fields: quiz, userAnswer, llmConfig' },
+      { error: 'LLM 配置不可用：请在设置页配置，或在服务端 .env.local 中设置 DEEPSEEK_API_KEY' },
       { status: 400 },
     )
   }
 
   try {
-    const provider = createProvider(llmConfig)
+    const provider = createProvider(config)
 
     const output = await runAgent(
       'feedback',

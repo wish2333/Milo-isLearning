@@ -15,6 +15,25 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: 'AI Learning Compiler',
   description: '将任何知识自动编译为一条低摩擦、高掌握度的学习路径',
+  openGraph: {
+    title: 'AI Learning Compiler',
+    description: '将任何知识自动编译为一条低摩擦、高掌握度的学习路径',
+    type: 'website',
+    locale: 'zh_CN',
+    siteName: 'AI Learning Compiler',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'AI Learning Compiler',
+    description: '将任何知识自动编译为一条低摩擦、高掌握度的学习路径',
+  },
+  icons: {
+    icon: '/favicon.ico',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
