@@ -119,6 +119,7 @@ Core symbols (highest centrality). Full compiler map → `src/lib/compiler/AGENT
 - **NO global test fns** — `vitest` `globals: false`; must `import { describe, it, expect }`
 - **NO `allowJs`** — TypeScript-only (`allowJs: false`)
 - **NO reading `.env.local`** — contains provider API keys (DEEPSEEK/GLM/SENSENOVA). Never `cat`/`read`/`grep` it. Keys are proxied to client via `/api/env-config`; use `settings-store.getLLMConfig()` at runtime
+- **NO dismissing test warnings/failures as "pre-existing"** — EVERY warning and failure in any test run (unit/e2e/typecheck/lint/build) MUST be investigated and either fixed or explicitly justified with a concrete reason, never hand-waved away as "already broken before my change". If unrelated to the current change, state the root cause with evidence (file:line, failing assertion) and link/track it; do not silently skip. Pre-existing is a hypothesis to verify, not an excuse to ignore.
 
 ## COMMANDS
 

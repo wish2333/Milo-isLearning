@@ -3,8 +3,12 @@ import { defineConfig, devices } from '@playwright/test'
 /**
  * Playwright E2E configuration
  *
- * Runs against the Next.js dev server on port 3000.
+ * Two projects:
+ *   - chromium (default): runs against production mode dev server (port 3000)
+ *   - chromium-showcase: runs against showcase mode dev server (port 3001)
+ *
  * Tests live in the e2e/ directory.
+ * Showcase tests are in e2e/showcase/ and tagged with test.describe.serial.
  */
 export default defineConfig({
   testDir: './e2e',
@@ -23,11 +27,18 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'chromium-showcase',
+      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:3001' },
+      testMatch: /showcase/,
+    },
   ],
-  webServer: {
-    command: 'bun run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60000,
-  },
+  webServer: [
+    {
+      command: 'bun run dev',
+      url: 'http://localhost:3000',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120000,
+    },
+  ],
 })

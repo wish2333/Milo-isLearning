@@ -79,7 +79,7 @@ test.describe('Module Library', () => {
     expect(exported.exportedBy).toBe('ai-learning-compiler')
     expect(JSON.stringify(exported)).not.toContain('apiKey')
 
-    await page.locator('button:has-text("继续")').click()
+    await page.locator('button:has-text("开始学习")').click()
     await page.waitForURL('**/learn/overview')
     await expect(page.locator('h1')).toContainText('测试模块')
 
@@ -167,12 +167,17 @@ test.describe('Previous question review', () => {
     await page.goto(`/learn/module/${mockModule.id}`)
     await expect(page.locator('text=核心概念的关键要点是什么？')).toBeVisible()
 
-    await page.locator('button:has-text("回看上一题")').click()
-    await expect(page.locator('text=上一题')).toBeVisible()
-    await expect(page.locator('text=正确答案是核心概念的标准定义')).toBeVisible()
+    // Open answer history panel
+    await page.locator('button:has-text("答题历史")').click()
+    // Click the answered quiz row to expand details
+    await page.locator('text=下面哪一项是核心概念的定义？').click()
+    // Verify user answer and reference answer are shown
     await expect(page.locator('text=你的作答')).toBeVisible()
+    await expect(page.locator('text=参考答案')).toBeVisible()
+    await expect(page.locator('text=正确答案是核心概念的标准定义')).toBeVisible()
 
-    await page.locator('button:has-text("返回当前题")').click()
+    // Collapse answer history — current quiz should still be visible
+    await page.locator('button:has-text("收起答题历史")').click()
     await expect(page.locator('text=核心概念的关键要点是什么？')).toBeVisible()
   })
 })
