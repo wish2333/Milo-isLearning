@@ -51,3 +51,6 @@ playwright-report/
 .omo/run-continuation/
 .reasonix
 bun
+
+# SDD workflow artifacts (superpowers/sdd session files)
+.superpowers/
