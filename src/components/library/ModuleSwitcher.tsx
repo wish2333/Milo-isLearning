@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 
-import { StorageKeys } from '@/lib/persistence/keys'
-import { storage } from '@/lib/persistence/local-storage'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
+import { storage } from '@/lib/persistence/client/local-storage'
 import { loadStoredModule, type StoredModuleSummary } from '@/lib/persistence/module-library'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'

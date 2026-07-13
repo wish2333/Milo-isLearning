@@ -11,6 +11,9 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
 import type { LLMConfig } from '@/lib/providers/types'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { getStorage } from '@/lib/persistence/client/storage'
+import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 
 /** 可从 .env.local 读取到的供应商 API Key 集合 */
 type ApiKeyMap = Record<string, string | null>
@@ -64,7 +67,8 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'alc:settings',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => createZustandStorage(getStorage())),
+      skipHydration: !isShowcaseMode,
     },
   ),
 )

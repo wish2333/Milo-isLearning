@@ -17,6 +17,9 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
 import type { Module, Quiz } from '@/types/domain'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { getStorage } from '@/lib/persistence/client/storage'
+import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 
 interface ModuleStoreState {
   /** 当前学习的 Module；null = 未开始学习 */
@@ -58,7 +61,8 @@ export const useModuleStore = create<ModuleStoreState>()(
     }),
     {
       name: 'alc:state:module',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => createZustandStorage(getStorage())),
+      skipHydration: !isShowcaseMode,
     },
   ),
 )

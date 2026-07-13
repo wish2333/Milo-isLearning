@@ -6,8 +6,8 @@
  * 不阻塞主流程，LocalStorage 写入失败时丢弃最旧事件。
  */
 
-import { StorageKeys } from '@/lib/persistence/keys'
-import { storage } from '@/lib/persistence/local-storage'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
+import { storage } from '@/lib/persistence/client/local-storage'
 
 export interface AnalyticsEvent {
   name: string

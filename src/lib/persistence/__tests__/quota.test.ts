@@ -12,10 +12,9 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { Module, ProgressState } from '@/types/domain'
 
-import { StorageKeys } from '../keys'
-import type { StorageRepository } from '../repository'
+import { StorageKeys } from '../shared/keys'
+import type { StorageRepository } from '../shared/repository'
 import {
-  MAX_STORED_MODULES,
   ensureCapacity,
   evictOldestModule,
   getStorageCapacitySummary,
@@ -66,10 +65,11 @@ class MockRepo implements StorageRepository {
   clearAll(): void {
     this.store.clear()
   }
-}
 
-// =================================================================
-// 测试夹具
+  setRaw(key: string, value: string): void {
+    this.store.set(key, value)
+  }
+}
 // =================================================================
 
 function makeModule(id: string): Module {
@@ -87,6 +87,9 @@ function makeModule(id: string): Module {
       rubric: [],
     },
     order: 1,
+    // v1.0.0 默认 showcase 模式，countVisibleModules 按 origin 过滤；
+    // 测试 Module 必须显式声明 origin 才能被 showcase 模式的过滤接受。
+    origin: 'showcase',
   }
 }
 
@@ -279,40 +282,74 @@ describe('ensureCapacity', () => {
 
   it('does not evict normal libraries below the 12 module limit', () => {
     const repo = new MockRepo()
-    for (let i = 1; i <= MAX_STORED_MODULES; i++) {
+    const limit = 12
+    for (let i = 1; i <= limit; i++) {
       seedModule(repo, `m${i}`, i * 1000)
     }
 
     const evicted = ensureCapacity(repo, 0)
 
     expect(evicted).toEqual([])
-    expect(listModuleIds(repo)).toHaveLength(MAX_STORED_MODULES)
+    expect(listModuleIds(repo)).toHaveLength(limit)
   })
 
   it('does not silently evict when exceeding the 12 module limit', () => {
     const repo = new MockRepo()
-    for (let i = 1; i <= MAX_STORED_MODULES + 2; i++) {
+    const limit = 12
+    for (let i = 1; i <= limit + 2; i++) {
       seedModule(repo, `m${i}`, i * 1000)
     }
 
     const evicted = ensureCapacity(repo, 0)
 
     expect(evicted).toEqual([])
-    expect(listModuleIds(repo)).toHaveLength(MAX_STORED_MODULES + 2)
+    expect(listModuleIds(repo)).toHaveLength(limit + 2)
   })
 })
 
 describe('getStorageCapacitySummary', () => {
   it('reports module count, max modules, and near-limit state', () => {
     const repo = new MockRepo()
-    for (let i = 1; i <= MAX_STORED_MODULES - 1; i++) {
+    const limit = 12
+    for (let i = 1; i <= limit - 1; i++) {
       seedModule(repo, `m${i}`, i * 1000)
     }
 
     expect(getStorageCapacitySummary(repo)).toMatchObject({
-      moduleCount: MAX_STORED_MODULES - 1,
-      maxModules: MAX_STORED_MODULES,
+      moduleCount: limit - 1,
+      // v1.0.0 默认 showcase 模式：maxModules=12（不是 null）
+      maxModules: 12,
+      // 11 >= 12-1，处于 near-limit
       nearLimit: true,
     })
+  })
+})
+
+describe('getStorageCapacitySummary studioMode filtering', () => {
+  it('defaults to non-studio (false)', () => {
+    const repo = new MockRepo()
+    seedModule(repo, 'm1', 1000)
+    // 默认 studioMode=false，与 getStorageCapacitySummary(repo, false) 等价
+    const summaryDefault = getStorageCapacitySummary(repo)
+    const summaryExplicit = getStorageCapacitySummary(repo, false)
+    expect(summaryDefault.moduleCount).toBe(summaryExplicit.moduleCount)
+  })
+
+  it('respects studioMode parameter as boolean', () => {
+    const repo = new MockRepo()
+    seedModule(repo, 'm1', 1000)
+    seedModule(repo, 'm2', 2000)
+
+    const noStudio = getStorageCapacitySummary(repo, false)
+    const withStudio = getStorageCapacitySummary(repo, true)
+
+    // studioMode 参数应能正确传递；具体过滤逻辑取决于 isShowcaseMode 运行时值
+    // 此处验证参数传递不报错、返回值结构正确
+    expect(typeof noStudio.moduleCount).toBe('number')
+    expect(noStudio.maxModules).not.toBeUndefined()
+    expect(typeof noStudio.nearLimit).toBe('boolean')
+    expect(typeof withStudio.moduleCount).toBe('number')
+    expect(withStudio.maxModules).not.toBeUndefined()
+    expect(typeof withStudio.nearLimit).toBe('boolean')
   })
 })

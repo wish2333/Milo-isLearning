@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 import { listStoredModules, type StoredModuleSummary } from '@/lib/persistence/module-library'
 import { useModuleStore } from '@/lib/state/module-store'
 

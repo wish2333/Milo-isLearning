@@ -9,8 +9,8 @@ import type { Module, ProgressState } from '@/types/domain'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
 
-import { StorageKeys } from './keys'
-import type { StorageRepository } from './repository'
+import { StorageKeys } from './shared/keys'
+import type { StorageRepository } from './shared/repository'
 
 /**
  * Library 列表中单条 Module 的摘要视图。

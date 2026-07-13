@@ -6,7 +6,11 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
 import type { ModuleTopicStatus, TopicSession } from '@/types/domain'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { getStorage } from '@/lib/persistence/client/storage'
+import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 import { getTopic } from '@/lib/persistence/topic-library'
+import { storage } from '@/lib/persistence/client/local-storage'
 
 interface TopicSessionStoreState {
   session: TopicSession | null
@@ -24,7 +28,7 @@ export const useTopicSessionStore = create<TopicSessionStoreState>()(
       session: null,
 
       startSession: (topicId) => {
-        const topic = getTopic(topicId)
+        const topic = getTopic(storage, topicId)
         if (!topic || topic.moduleIds.length === 0) return false
 
         const moduleStatus: Record<string, ModuleTopicStatus> = {}
@@ -95,7 +99,8 @@ export const useTopicSessionStore = create<TopicSessionStoreState>()(
     }),
     {
       name: 'alc:state:topic-session',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => createZustandStorage(getStorage())),
+      skipHydration: !isShowcaseMode,
     },
   ),
 )

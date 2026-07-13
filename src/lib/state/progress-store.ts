@@ -21,8 +21,11 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
 import type { FeynmanAttempt, ModuleStage, ProgressState } from '@/types/domain'
-import { StorageKeys } from '@/lib/persistence/keys'
-import { storage } from '@/lib/persistence/local-storage'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
+import { getStorage } from '@/lib/persistence/client/storage'
+import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
+import { storage } from '@/lib/persistence/client/local-storage'
 
 import {
   collectReviewSlots,
@@ -309,8 +312,31 @@ export const useProgressStore = create<ProgressStoreState>()(
       reset: () => set(initialState),
     }),
     {
+      /**
+       * [双写机制 - 第 1 写入端] Zustand persist 配置
+       *
+       * 全局 blob key: alc:state:progress
+       *   由 zustand/middleware persist 自动管理。存储当前活跃 Module 的 4 个字段
+       *   (moduleId / stage / updatedAt / feynmanAttempt)，即"最后学习的那个 Module 的进度快照"。
+       *
+       * per-module key: alc:progress:{moduleId}
+       *   此 key 不由 persist 直接写入，而是由下方 subscribe 监听器同步写入。
+       *   listStoredModules() 依赖此 key 来展示每个 Module 的 updatedAt / completed 状态。
+       *
+       * 两者必须保持同步，否则题库列表的 updatedAt / completed 状态会失真。
+       *
+       * onRehydrateStorage 回调在页面刷新后做一次 per-module 同步，
+       * 但仅对 persist blob 中保存的当前 moduleId 生效。
+       * 其他 Module 的 per-module 副本必须在 v1.0.0 迁移时整体搬运。
+       *
+       * v1.0.0 迁移约束：
+       *   从 LocalStorage 迁移到 SQLite（或任何新存储后端）时，这两个 key 都必须搬运，
+       *   且搬运后必须立即跑一次 subscribe 同步（或遍历所有 module 写入 per-module key），
+       *   确保两者一致。否则题库列表将显示错误的进度状态。
+       */
       name: 'alc:state:progress',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => createZustandStorage(getStorage())),
+      skipHydration: !isShowcaseMode,
       partialize: (state) => ({
         moduleId: state.moduleId,
         stage: state.stage,
@@ -332,6 +358,8 @@ export const useProgressStore = create<ProgressStoreState>()(
 )
 
 /**
+ * [双写机制 - 第 2 写入端] subscribe 监听器
+ *
  * 同步 progress-store 到 per-module 存储（alc:progress:{moduleId}）。
  *
  * 背景：listStoredModules 从 per-module key 读取 progress，但 Zustand persist
@@ -342,6 +370,12 @@ export const useProgressStore = create<ProgressStoreState>()(
  *   - 每次状态变更（advance / retry / startModule 等）
  *   - 切换 Module 时保存前一个 Module 的最终进度
  *   - reset 时不写（避免 clearAll 后又写入）
+ *
+ * 注意：此监听器只对当前正在使用的 Module 生效。当用户从 A 切换到 B 时，
+ *   A 的最终进度会被保存到 alc:progress:A。但若用户直接关闭页面（未切换），
+ *   A 的最新进度已在 persist blob（alc:state:progress）中保存，
+ *   而 alc:progress:A 可能滞后。这就是 onRehydrateStorage 存在的原因。
+ *   迁移时必须同时搬运这两个 key，并在搬运后触发一次 subscribe 同步。
  */
 /** @internal 保留 unsubscribe 引用，测试 / HMR 可调用清理 */
 export const _unsubscribeProgressSync = useProgressStore.subscribe((state, prevState) => {

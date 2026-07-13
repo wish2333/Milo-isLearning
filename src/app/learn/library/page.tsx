@@ -14,12 +14,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 import { listStoredModules } from '@/lib/persistence/module-library'
 import type { StoredModuleSummary } from '@/lib/persistence/module-library'
 import { getStorageCapacitySummary, type CapacitySummary } from '@/lib/persistence/quota'
 import type { CompileQualityReport } from '@/lib/compiler/quality/quality-report'
-import { StorageKeys } from '@/lib/persistence/keys'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
 import {
   listTopics,
   createTopic,
@@ -58,11 +58,11 @@ export default function LibraryPage() {
     const effectiveShowcase = isShowcaseMode && !studioMode
     setAllModules(listStoredModules(storage))
     setTopics(
-      listTopics().filter((t) =>
+      listTopics(storage).filter((t) =>
         effectiveShowcase ? t.origin === 'showcase' : t.origin !== 'showcase',
       ),
     )
-    setCapacity(getStorageCapacitySummary(storage))
+    setCapacity(getStorageCapacitySummary(storage, studioMode))
   }, [])
 
   useEffect(() => {
@@ -97,10 +97,10 @@ export default function LibraryPage() {
 
   const handleSaveTopic = (data: { name: string; description?: string; moduleIds: string[] }) => {
     if (editingTopic) {
-      updateTopic(editingTopic.id, { name: data.name, description: data.description })
-      reorderModulesInTopic(editingTopic.id, data.moduleIds)
+      updateTopic(storage, editingTopic.id, { name: data.name, description: data.description })
+      reorderModulesInTopic(storage, editingTopic.id, data.moduleIds)
     } else {
-      createTopic(data.name, data.description, data.moduleIds)
+      createTopic(storage, data.name, data.description, data.moduleIds)
     }
     setShowCreator(false)
     setEditingTopic(null)
@@ -169,7 +169,8 @@ export default function LibraryPage() {
         {capacity?.nearLimit && (
           <div className="alc-card border-warning/40 bg-warning-soft px-4 py-3 text-sm">
             <p className="text-fg-primary">
-              本地题库接近上限（{capacity.moduleCount}/{capacity.maxModules}）。
+              本地题库接近上限（{capacity.moduleCount}
+              {capacity.maxModules !== null ? `/${capacity.maxModules}` : ''}）。
             </p>
             <p className="mt-1 text-xs text-fg-secondary">
               你可以导出旧题库后再删除；系统不会在当前学习中静默删除正在使用的题库。

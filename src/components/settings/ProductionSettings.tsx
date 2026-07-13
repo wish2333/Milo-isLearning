@@ -18,6 +18,8 @@ import { useState, useCallback, useEffect } from 'react'
 
 import { useSettingsStore } from '@/lib/state/settings-store'
 import { useHydrated } from '@/lib/hooks/useHydrated'
+import { StorageStatsSection } from '@/components/settings/StorageStatsSection'
+import { DataManagement } from '@/components/settings/DataManagement'
 import type { LLMConfig, PingResult, ProviderKind } from '@/lib/providers/types'
 
 /** 各 Provider 的默认配置 */
@@ -340,6 +342,15 @@ export function ProductionSettings() {
             </button>
           </div>
         </div>
+
+        {/* 数据统计（production-only，异步拉取） */}
+        <section className="pt-4 border-t border-border-subtle">
+          <h3 className="text-sm font-medium text-fg-primary mb-3">数据统计</h3>
+          <StorageStatsSection />
+        </section>
+
+        {/* 数据管理 */}
+        <DataManagement />
 
         {/* Next step hint */}
         {config && (

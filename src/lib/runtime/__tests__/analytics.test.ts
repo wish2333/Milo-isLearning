@@ -19,7 +19,7 @@ vi.hoisted(() => {
 })
 
 import { track, flushEvents, getPendingEvents, _resetForTesting } from '../analytics'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 
 describe('analytics', () => {
   beforeEach(() => {

@@ -9,22 +9,21 @@
 
 import type { Module, ProgressState } from '@/types/domain'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
-import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
 
 import {
   StorageKeys,
   STORAGE_HARD_LIMIT_BYTES,
   STORAGE_MAX_HISTORY_MODULES,
   STORAGE_WARN_BYTES,
-} from './keys'
-import type { StorageRepository } from './repository'
+} from './shared/keys'
+import type { StorageRepository } from './shared/repository'
 import { cascadeDeleteModule } from './topic-library'
 
-export const MAX_STORED_MODULES = 12
+export const MAX_STORED_MODULES: number | null = STORAGE_MAX_HISTORY_MODULES
 
 export interface CapacitySummary {
   moduleCount: number
-  maxModules: number
+  maxModules: number | null // null = 无上限
   nearLimit: boolean
 }
 
@@ -71,20 +70,26 @@ export function isStorageFull(repo: StorageRepository): boolean {
   return getStorageUsage(repo) >= STORAGE_HARD_LIMIT_BYTES
 }
 
-export function getStorageCapacitySummary(repo: StorageRepository): CapacitySummary {
-  const moduleCount = countVisibleModules(repo)
+export function getStorageCapacitySummary(
+  repo: StorageRepository,
+  studioMode: boolean = false,
+): CapacitySummary {
+  const moduleCount = countVisibleModules(repo, studioMode)
   return {
     moduleCount,
     maxModules: MAX_STORED_MODULES,
-    nearLimit: moduleCount >= MAX_STORED_MODULES - 1 || isStorageNearLimit(repo),
+    // nearLimit 仅在有限制时有意义
+    nearLimit:
+      MAX_STORED_MODULES !== null &&
+      (moduleCount >= MAX_STORED_MODULES - 1 || isStorageNearLimit(repo)),
   }
 }
 
 /**
  * 统计当前模式可见的 Module 数量（展示模式只算 showcase，实用模式只算 user）。
  */
-function countVisibleModules(repo: StorageRepository): number {
-  const effectiveShowcase = isShowcaseMode && !useRuntimeMode.getState().studioMode
+function countVisibleModules(repo: StorageRepository, studioMode: boolean = false): number {
+  const effectiveShowcase = isShowcaseMode && !studioMode
   let count = 0
   for (const key of repo.keys()) {
     if (!key.startsWith('alc:module:')) continue
@@ -159,7 +164,7 @@ export function removeModule(repo: StorageRepository, moduleId: string): string 
   removeGlobalAttemptsForModule(repo, moduleId)
 
   // M8.1：从主题中级联移除引用
-  cascadeDeleteModule(moduleId)
+  cascadeDeleteModule(repo, moduleId)
 
   return moduleId
 }

@@ -19,7 +19,7 @@ import { useState, useCallback } from 'react'
 import { track } from '@/lib/runtime/analytics'
 
 import { INPUT_MAX_LENGTH, INPUT_MIN_LENGTH } from '@/lib/compiler/pipeline/types'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 import { createCompileJob } from '@/lib/state/compile-job-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
 

@@ -10,7 +10,7 @@ import type { Topic, ContentOrigin } from '@/types/domain'
 import type { CompiledModulePackage } from './module-package'
 import { importModulePackage, parseModulePackage } from './module-package'
 import { createTopic } from './topic-library'
-import type { StorageRepository } from './repository'
+import type { StorageRepository } from './shared/repository'
 
 // =================================================================
 // 类型
@@ -117,7 +117,7 @@ export function importTopicPackage(
     newModuleIds.push(mod.id)
   }
 
-  return createTopic(pkg.topic.name, pkg.topic.description, newModuleIds, options?.origin)
+  return createTopic(repo, pkg.topic.name, pkg.topic.description, newModuleIds, options?.origin)
 }
 
 // =================================================================

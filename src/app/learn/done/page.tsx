@@ -25,7 +25,7 @@ import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { RatingStars } from '@/components/learn/RatingStars'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 
 /** conceptMastery 低于此阈值的概念被视为"待复习" */
 const REVIEW_THRESHOLD = 50

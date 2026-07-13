@@ -9,8 +9,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { KnowledgeSource, Module } from '@/types/domain'
 
-import { StorageKeys } from '../keys'
-import type { StorageRepository } from '../repository'
+import { StorageKeys } from '../shared/keys'
+import type { StorageRepository } from '../shared/repository'
 import {
   assignLocalModuleIdentity,
   createModulePackage,
@@ -60,10 +60,11 @@ class MockRepo implements StorageRepository {
   clearAll(): void {
     this.store.clear()
   }
-}
 
-// =================================================================
-// 测试夹具
+  setRaw(key: string, value: string): void {
+    this.store.set(key, value)
+  }
+}
 // =================================================================
 
 function makeSource(): KnowledgeSource {

@@ -21,7 +21,7 @@ import { ShowcaseModuleCard } from '@/components/showcase/ShowcaseModuleCard'
 import { ShowcaseTopicCard } from '@/components/showcase/ShowcaseTopicCard'
 import { MockCompileOverlay } from '@/components/showcase/MockCompileOverlay'
 import { loadStoredModule } from '@/lib/persistence/module-library'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 
 type ShowcaseHomeStatus = 'idle' | 'loading-manifest' | 'ready' | 'mock-compiling' | 'error'
 
@@ -140,10 +140,13 @@ export function ShowcaseHome() {
           </p>
         </div>
 
-        <div className="text-center">
+        <div className="flex justify-center gap-3">
           <button onClick={handleMockCompile} className="alc-button-primary text-sm">
             模拟编译
           </button>
+          <Link href="/learn/library" className="alc-button-secondary text-sm">
+            进入题库
+          </Link>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 items-stretch">

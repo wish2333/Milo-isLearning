@@ -12,8 +12,8 @@
 
 import { nanoid } from 'nanoid'
 
-import { StorageKeys } from '@/lib/persistence/keys'
-import type { StorageRepository } from '@/lib/persistence/repository'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
+import type { StorageRepository } from '@/lib/persistence/shared/repository'
 import type { CompileStage } from '@/lib/compiler/pipeline/types'
 
 // =================================================================

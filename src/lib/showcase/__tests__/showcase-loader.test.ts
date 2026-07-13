@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock storage and module-package before importing the module under test
-vi.mock('@/lib/persistence/local-storage', () => ({
+vi.mock('@/lib/persistence/client/local-storage', () => ({
   storage: {
     set: vi.fn(),
     get: vi.fn(),
@@ -22,7 +22,7 @@ import {
   listShowcaseModules,
 } from '../showcase-loader'
 import { parseModulePackage, importModulePackage } from '@/lib/persistence/module-package'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 import type { ShowcaseManifest } from '../showcase-loader'
 
 // Helper to create mock manifest

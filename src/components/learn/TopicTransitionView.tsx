@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 
 import { getTopic } from '@/lib/persistence/topic-library'
 import { loadStoredModule } from '@/lib/persistence/module-library'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
@@ -32,7 +32,7 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
     }
   }, [session, topicId, router])
 
-  const topic = getTopic(topicId)
+  const topic = getTopic(storage, topicId)
   if (!topic) {
     useTopicSessionStore.getState().exitSession()
     router.replace('/learn/library')

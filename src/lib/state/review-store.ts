@@ -14,7 +14,7 @@ import type { Module, Quiz, ReviewFilter } from '@/types/domain'
 import { collectReviewItemsForModules } from '@/lib/runtime/topic-review'
 import { loadStoredModule } from '@/lib/persistence/module-library'
 import { getTopic } from '@/lib/persistence/topic-library'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 
 const PASS_THRESHOLD = 80
@@ -92,7 +92,7 @@ export const useReviewStore = create<ReviewStoreState>()((set) => ({
   },
 
   startTopicSession: (topicId, filter = 'all') => {
-    const topic = getTopic(topicId)
+    const topic = getTopic(storage, topicId)
     if (!topic) return false
     const modules = topic.moduleIds
       .map((id) => loadStoredModule(storage, id))

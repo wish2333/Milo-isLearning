@@ -19,7 +19,7 @@ import { useReviewStore } from '@/lib/state/review-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
 import { loadStoredModule } from '@/lib/persistence/module-library'
 import { getTopic } from '@/lib/persistence/topic-library'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
 import type { ReviewFilter, Module } from '@/types/domain'
 
@@ -76,7 +76,7 @@ export default function TopicReviewPage() {
   const initializedFor = useRef<string | null>(null)
 
   const topicModules = useMemo(() => {
-    const topic = getTopic(params.topicId!)
+    const topic = getTopic(storage, params.topicId!)
     if (!topic) return []
     return topic.moduleIds
       .map((id) => loadStoredModule(storage, id))
