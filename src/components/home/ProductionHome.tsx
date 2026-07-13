@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { listStoredModules } from '@/lib/persistence/module-library'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
 
@@ -42,10 +42,13 @@ export function ProductionHome() {
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-sm grid-cols-2 gap-3">
+        <div className="mx-auto grid max-w-md grid-cols-3 gap-3">
           <button onClick={handleStart} className="alc-button-primary text-sm">
             {buttonLabel}
           </button>
+          <Link href="/learn/library" className="alc-button-secondary text-sm">
+            进入题库
+          </Link>
           <Link href="/settings" className="alc-button-secondary text-sm">
             设置
           </Link>

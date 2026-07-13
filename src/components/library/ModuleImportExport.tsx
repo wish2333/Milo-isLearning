@@ -20,8 +20,8 @@ import {
   serializeModulePackage,
 } from '@/lib/persistence/module-package'
 import { importTopicPackage, parseTopicPackage } from '@/lib/persistence/topic-package'
-import { storage } from '@/lib/persistence/local-storage'
-import { StorageKeys } from '@/lib/persistence/keys'
+import { storage } from '@/lib/persistence/client/local-storage'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
 import type { KnowledgeSource, Module, Topic } from '@/types/domain'
 
 interface ModuleImportExportProps {

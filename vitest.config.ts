@@ -13,6 +13,11 @@ export default defineConfig({
     environment: 'node',
     globals: false,
     unstubGlobals: true,
+    // 全局 setup：提供 localStorage / sessionStorage stub。
+    // v1.0.0 默认 showcase 模式下 store persist 走 LocalStorageRepository，
+    // 在 Node 环境跑测试时需要 stub 避免抛 ReferenceError。
+    // 个别测试如需特定行为可用 vi.stubGlobal 覆盖。
+    setupFiles: ['./vitest.setup.ts'],
     include: [
       'src/**/*.test.ts',
       'src/**/__tests__/**/*.ts',

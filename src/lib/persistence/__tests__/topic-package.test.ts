@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Module, Topic } from '@/types/domain'
 
-import type { StorageRepository } from '../repository'
+import type { StorageRepository } from '../shared/repository'
 import {
   createTopicPackage,
   importTopicPackage,
@@ -79,10 +79,11 @@ class MockRepo implements StorageRepository {
   clearAll(): void {
     this.store.clear()
   }
-}
 
-// =================================================================
-// Fixtures
+  setRaw(key: string, value: string): void {
+    this.store.set(key, value)
+  }
+}
 // =================================================================
 
 function makeValidTopicPackage(): CompiledTopicPackage {
@@ -284,6 +285,7 @@ describe('importTopicPackage', () => {
     expect(mockImportModulePackage).toHaveBeenCalledTimes(1)
     expect(mockImportModulePackage).toHaveBeenCalledWith(repo, pkg.modules[0], undefined)
     expect(mockCreateTopic).toHaveBeenCalledWith(
+      repo,
       'Test Topic',
       'A test topic',
       ['new-module-1'],
@@ -318,6 +320,7 @@ describe('importTopicPackage', () => {
 
     expect(mockImportModulePackage).toHaveBeenCalledTimes(2)
     expect(mockCreateTopic).toHaveBeenCalledWith(
+      repo,
       expect.any(String),
       expect.anything(),
       ['mod-a', 'mod-b'],

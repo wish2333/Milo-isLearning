@@ -9,8 +9,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { Concept, FeynmanStep, Module, ProgressState, Quiz } from '@/types/domain'
 
-import { StorageKeys } from '../keys'
-import type { StorageRepository } from '../repository'
+import { StorageKeys } from '../shared/keys'
+import type { StorageRepository } from '../shared/repository'
 import { listStoredModules, loadStoredModule, resetStoredModuleProgress } from '../module-library'
 
 // =================================================================
@@ -53,10 +53,11 @@ class MockRepo implements StorageRepository {
   clearAll(): void {
     this.store.clear()
   }
-}
 
-// =================================================================
-// 测试夹具
+  setRaw(key: string, value: string): void {
+    this.store.set(key, value)
+  }
+}
 // =================================================================
 
 function makeQuiz(id: string, conceptId: string): Quiz {
@@ -122,6 +123,9 @@ function makeFullModule(id: string): Module {
     },
     challengeQuizzes: [challengeQuiz],
     order: 1,
+    // v1.0.0 默认 showcase 模式，listStoredModules 按 origin 过滤；
+    // 测试 Module 必须显式声明 origin 才能被 showcase 模式的过滤接受。
+    origin: 'showcase',
   }
 }
 

@@ -10,7 +10,7 @@
 import { parseModulePackage, importModulePackage } from '@/lib/persistence/module-package'
 import { parseTopicPackage, importTopicPackage } from '@/lib/persistence/topic-package'
 import { listTopics } from '@/lib/persistence/topic-library'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 import type { Module, Topic } from '@/types/domain'
 
 /** Manifest 条目 */
@@ -90,7 +90,7 @@ function findExistingShowcaseModule(title: string): Module | null {
  * 在已存储的展示主题中查找同名 Topic。
  */
 function findExistingShowcaseTopic(name: string): Topic | null {
-  return listTopics().find((t) => t.origin === 'showcase' && t.name === name) ?? null
+  return listTopics(storage).find((t) => t.origin === 'showcase' && t.name === name) ?? null
 }
 
 // =================================================================

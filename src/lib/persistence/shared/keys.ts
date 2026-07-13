@@ -7,6 +7,8 @@
  * 命名空间：`alc` = AI Learning Compiler
  */
 
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
+
 export const STORAGE_NAMESPACE = 'alc' as const
 
 /**
@@ -59,4 +61,13 @@ export const STORAGE_KEY_PREFIX = `${STORAGE_NAMESPACE}:`
  */
 export const STORAGE_WARN_BYTES = 4.5 * 1024 * 1024 // 4.5MB 预警
 export const STORAGE_HARD_LIMIT_BYTES = 5 * 1024 * 1024 // 5MB LocalStorage 上限
-export const STORAGE_MAX_HISTORY_MODULES = 12 // M7.6：默认保留 12 个本地 Module
+
+/**
+ * Showcase 模式默认 Module 上限（M7.6）。
+ *
+ * Production 模式无上限（评审 3.2.7）：用 null 表示。
+ * 调用方读 MAX_STORED_MODULES 后用 `?? null` 处理：
+ *   - showcase: 12（受限）
+ *   - production: null（无上限）
+ */
+export const STORAGE_MAX_HISTORY_MODULES: number | null = isShowcaseMode ? 12 : null

@@ -13,8 +13,8 @@ import { nanoid } from 'nanoid'
 
 import type { KnowledgeSource, Module, Quiz, ContentOrigin } from '@/types/domain'
 
-import { StorageKeys } from './keys'
-import type { StorageRepository } from './repository'
+import { StorageKeys } from './shared/keys'
+import type { StorageRepository } from './shared/repository'
 
 // =================================================================
 // 类型

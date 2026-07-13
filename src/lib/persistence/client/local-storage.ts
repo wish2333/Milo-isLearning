@@ -9,8 +9,8 @@
  *   - set 失败（QuotaExceededError）抛错，由调用方决定是否触发 eviction
  */
 
-import { STORAGE_KEY_PREFIX, isAlcKey } from './keys'
-import type { StorageRepository } from './repository'
+import { STORAGE_KEY_PREFIX, isAlcKey } from '../shared/keys'
+import type { StorageRepository } from '../shared/repository'
 
 export class LocalStorageRepository implements StorageRepository {
   get<T>(key: string): T | null {
@@ -65,6 +65,15 @@ export class LocalStorageRepository implements StorageRepository {
       return localStorage.getItem(key)
     } catch {
       return null
+    }
+  }
+
+  setRaw(key: string, value: string): void {
+    try {
+      localStorage.setItem(key, value)
+    } catch (e) {
+      // QuotaExceededError 等，与 set() 一致向上抛
+      throw e
     }
   }
 

@@ -8,7 +8,10 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-import { StorageKeys } from '@/lib/persistence/keys'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { getStorage } from '@/lib/persistence/client/storage'
+import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 
 interface RatingEntry {
   score: number
@@ -35,7 +38,8 @@ export const useRatingStore = create<RatingStoreState>()(
     }),
     {
       name: StorageKeys.ratings,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => createZustandStorage(getStorage())),
+      skipHydration: !isShowcaseMode,
     },
   ),
 )

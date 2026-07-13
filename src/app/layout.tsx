@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 
 import { Fraunces } from 'next/font/google'
 import { EnvConfigLoader } from '@/components/EnvConfigLoader'
+import { AppShell } from '@/components/AppShell'
+import { StorageStatus } from '@/components/StorageStatus'
 import './globals.css'
 
 const fraunces = Fraunces({
@@ -41,7 +43,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="zh-CN" suppressHydrationWarning className={fraunces.variable}>
       <body>
         <EnvConfigLoader />
-        {children}
+        <AppShell>{children}</AppShell>
+        <StorageStatus />
       </body>
     </html>
   )

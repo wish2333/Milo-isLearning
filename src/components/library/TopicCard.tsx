@@ -16,12 +16,12 @@ import { downloadWrongQuestionBookForTopic } from '@/lib/persistence/wrong-quest
 import { deleteTopic } from '@/lib/persistence/topic-library'
 import { createModulePackage } from '@/lib/persistence/module-package'
 import { createTopicPackage, downloadTopicPackage } from '@/lib/persistence/topic-package'
-import { StorageKeys } from '@/lib/persistence/keys'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
-import { storage } from '@/lib/persistence/local-storage'
+import { storage } from '@/lib/persistence/client/local-storage'
 
 interface TopicCardProps {
   topic: Topic
@@ -65,7 +65,7 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
   }
 
   const handleDeleteConfirm = () => {
-    deleteTopic(topic.id)
+    deleteTopic(storage, topic.id)
     setPendingDelete(false)
     onChanged()
   }

@@ -10,7 +10,37 @@ import { useTopicSessionStore } from '../topic-session-store'
 
 const store = new Map<string, string>()
 
-vi.mock('../../persistence/local-storage', () => ({
+vi.mock('../../persistence/client/local-storage', () => ({
+  // client/storage.ts 用 LocalStorageRepository class 实例化（showcase 模式），
+  // mock 需要提供构造函数，否则 vi.mock 报 "no export defined"。
+  LocalStorageRepository: class {
+    get<T>(key: string): T | null {
+      const raw = store.get(key)
+      if (raw === undefined) return null
+      return JSON.parse(raw) as T
+    }
+    set<T>(key: string, value: T): void {
+      store.set(key, JSON.stringify(value))
+    }
+    remove(key: string): void {
+      store.delete(key)
+    }
+    has(key: string): boolean {
+      return store.has(key)
+    }
+    keys(): string[] {
+      return [...store.keys()]
+    }
+    getRaw(key: string): string | null {
+      return store.get(key) ?? null
+    }
+    clearAll(): void {
+      store.clear()
+    }
+    setRaw(key: string, value: string): void {
+      store.set(key, value)
+    }
+  },
   storage: {
     get<T>(key: string): T | null {
       const raw = store.get(key)
@@ -42,7 +72,7 @@ vi.mock('../../persistence/local-storage', () => ({
 const mockTopics = new Map<string, Topic>()
 
 vi.mock('../../persistence/topic-library', () => ({
-  getTopic: (topicId: string) => mockTopics.get(topicId) ?? null,
+  getTopic: (_repo: unknown, topicId: string) => mockTopics.get(topicId) ?? null,
 }))
 
 beforeEach(() => {

@@ -1,102 +1,165 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-07-10
-**Commit:** 2b3dd20
-**Branch:** main
-**Docs version:** v1.0.0 (PRD V2.0) — v0.1.0 archive below `docs/v0.1.0/`
+**Generated:** 2026-07-13
+**Commit:** 9e0813a
+**Branch:** feat/v1.0.0-mvp-polish
+**Docs version:** v1.0.0 (PRD V2.0, FR-01~FR-12 delivered) — v0.1.0 archive below `docs/v0.1.0/`
+**Latest milestone:** V1.0.0 MVP Final Polish (2026-07-12) — see `docs/v1.0.0/V1.0.0-Review.md`
 
 ## OVERVIEW
 
-`ai-learning-compiler` — Next.js 15 + React 19 app that "compiles" raw Markdown into structured interactive learning modules (concepts → laddered quizzes → Feynman teach-back). LLM-driven 8-stage pipeline, zero-backend (LocalStorage only), Chinese-first. See `src/lib/compiler/AGENTS.md` for the compiler subsystem.
+`ai-learning-compiler` — Next.js 15 + React 19 app that "compiles" raw Markdown into structured interactive learning modules (concepts → laddered quizzes → Feynman teach-back). LLM-driven 8-stage pipeline, Chinese-first. Ships in **two build modes** controlled by `NEXT_PUBLIC_APP_MODE`:
+
+- **`showcase`** (default) — zero-backend demo. LocalStorage-only, mock-compile events, showcase题库 shipped under `public/showcase-modules/`. API routes fall back to server-side env LLM config when no BYOK key is set.
+- **`production`** — SQLite-backed (`ALC_STORAGE_BACKEND=sqlite`). Server-side KV + client write-queue, legacy-LS→SQLite migration flow, real LLM compile.
+
+See `src/lib/compiler/AGENTS.md` for the compiler subsystem.
 
 ## STRUCTURE
 
 ```
 .
 ├── src/
-│   ├── app/                 # Next.js App Router: pages + API routes
-│   │   ├── api/             # 6 stateless routes (LLM proxies)
-│   │   │   ├── compile/         # SSE streaming endpoint (core)
-│   │   │   ├── feedback/        # Answer feedback agent
-│   │   │   ├── feynman-eval/    # Feynman step-6 scoring
-│   │   │   ├── regenerate/      # Retry quiz replacement
-│   │   │   ├── env-config/      # Proxy .env.local keys to client
-│   │   │   └── ping/            # Provider health check
-│   │   └── learn/           # 7-page learning journey (import→compile→overview→module→done + library + history)
+│   ├── app/                       # Next.js App Router: pages + API routes
+│   │   ├── api/                   # 11 routes across 2 namespaces
+│   │   │   ├── compile/             # SSE streaming endpoint (core)
+│   │   │   ├── feedback/            # Answer feedback agent (env-fallback aware)
+│   │   │   ├── feynman-eval/        # Feynman step-6 scoring (env-fallback aware)
+│   │   │   ├── regenerate/          # Retry quiz replacement
+│   │   │   ├── env-config/          # Proxy .env.local keys to client
+│   │   │   ├── ping/                # Provider health check
+│   │   │   └── migrate/             # ★ LS→SQLite migration (5 routes: session/staging/commit/cancel/source-snapshot) — production mode only
+│   │   ├── learn/                 # 9-page learning journey (import→compile→overview→module→done + library + history + topic/[topicId] + review/[moduleId] + review/topic/[topicId])
+│   │   ├── studio/                # Showcase-only studio entry (`/studio` + `/studio/settings`)
+│   │   ├── settings/              # Unified settings page (mode-dispatched inside)
+│   │   ├── layout.tsx             # Root layout w/ SEO metadata (OG/Twitter/icons/robots)
+│   │   ├── error.tsx              # App router error boundary
+│   │   └── page.tsx               # Home — dispatches ShowcaseHome vs ProductionHome by APP_MODE
 │   ├── components/
-│   │   ├── learn/           # 11 learning-flow components (state machine driven)
-│   │   ├── quiz/            # 4 quiz renderers + FeedbackPanel (choice/sorting/fill_blank)
-│   │   └── library/         # 4 module management components
+│   │   ├── home/                  # ProductionHome + ShowcaseHome (mode-dispatched)
+│   │   ├── showcase/              # ShowcaseMode UI: MockCompileOverlay, ShowcaseModuleCard, ShowcaseTopicCard
+│   │   ├── settings/              # ProductionSettings + ShowcaseSettings + DataManagement + StorageStatsSection
+│   │   ├── migration/             # ★ MigrationOrchestrator + 4 sub-components (production mode only)
+│   │   ├── library/               # 7 module/topic management components (ModuleLibraryList, ModuleSwitcher, ModuleImportExport, QualitySummary, TopicCard, TopicCreator, TopicSection, UngroupedSection)
+│   │   ├── learn/                 # 16 learning-flow components (state-machine driven + Review* + Rating* + TopicTransitionView)
+│   │   ├── quiz/                  # 4 quiz renderers + FeedbackPanel (choice/sorting/fill_blank) — FeedbackPanel now supports 蒙对撤销
+│   │   ├── AppShell.tsx / GlobalNav.tsx / LearnNavTop.tsx  # Layout chrome
+│   │   ├── StorageStatus.tsx / StorageLoading.tsx / StorageError.tsx  # SSR hydration guards
+│   │   └── EnvConfigLoader.tsx    # Bootstraps client LLM config from /api/env-config
 │   ├── lib/
-│   │   ├── compiler/        # ★ Knowledge Compiler (see its own AGENTS.md)
-│   │   ├── providers/       # LLM abstraction: factory + OpenAI-compat base + 3 vendors
-│   │   ├── runtime/         # Pure business logic: evaluate-answer, mastery, retry-policy, adaptive-sequencer
-│   │   ├── persistence/     # LocalStorage via StorageRepository iface; quota mgmt; module export/import
-│   │   ├── state/           # 5 Zustand stores (+1 non-persisted compile-store)
-│   │   └── hooks/           # useHydrated (SSR guard for Zustand persist)
+│   │   ├── compiler/              # ★ Knowledge Compiler (see its own AGENTS.md)
+│   │   ├── providers/             # LLM abstraction: factory + OpenAI-compat base + 2 vendors (deepseek/glm) + generic openai-compat + env-fallback helper
+│   │   ├── runtime/               # Pure business logic: evaluate-answer, mastery, retry-policy, adaptive-sequencer, fill-blank, semantic-evaluation, app-mode, topic-review, analytics
+│   │   ├── persistence/           # Storage layer (mode-dispatched)
+│   │   │   ├── *.ts               # Domain repos: module-library, module-package, topic-library, topic-package, wrong-question-book, quota, migration, backup-package
+│   │   │   └── client/            # ★ Client-side storage (production mode): client-fetch-storage, write-queue, flush-manager, zustand-storage-adapter, storage-initializer, legacy-local-storage-scanner, storage, local-storage
+│   │   ├── showcase/              # ★ Showcase loader + mock-compile-events (no LLM, plays SSE recording)
+│   │   ├── state/                 # 10 Zustand stores (see CODE MAP)
+│   │   └── hooks/                 # useHydrated (SSR guard for Zustand persist)
 │   └── types/
-│       └── domain.ts        # ALL domain models (Module, Concept, Quiz, ModuleStage, Mastery, etc.)
+│       └── domain.ts              # ALL domain models (Module, Concept, Quiz, ModuleStage, Mastery, Topic, TopicSession, ContentOrigin, ReviewFilter, etc.)
 ├── docs/
-│   ├── v0.1.0/               # Archived: V1.0 PRD + all development docs (M1–M7.6)
-│   │   ├── PRD.md            # V1.0 PRD (superseded by v1.0.0/PRD.md)
-│   │   ├── PRD-Report.md     # Audit report that drove V2.0 revision
-│   │   ├── Product-Specification.md
-│   │   ├── Technical-Specification.md
-│   │   ├── Prompt-Engineering.md
-│   │   ├── prompt-evaluation.md
-│   │   ├── dev-guide.md
-│   │   ├── M*-Review.md / M*-Plan.md / M*-Dev.md / M*-Report.md
-│   │   └── ui-design/        # 18 HTML mockup prototypes + DESIGN-SPEC.md
-│   └── v1.0.0/
-│       ├── PRD.md            # ★ V2.0 PRD (current — includes FR-09~FR-12, NP-01~NP-14)
-│       └── PRD-Report.md     # Audit report (copy, for reference)
-├── scripts/                 # Bun CLI: ping.ts, prompt-eval.ts, m3-smoke.ts
-├── e2e/                     # Playwright tests (workers=1, fullyParallel=false)
-└── references/              # Session notes/external references
+│   ├── v0.1.0/                    # Archived: V1.0 PRD + all development docs (M1–M7.6)
+│   └── v1.0.0/                    # ★ Current: V2.0 PRD + M7.8/M8/M8.1/M8.2/M8.3/V1.0.0 plans+reviews + Deploying.md + Showcase-Guide.md + Showcase.alc-{module,topic}.json
+├── public/
+│   └── showcase-modules/          # ★ Static showcase题库: manifest.json + mao-work-methods.alc-module.json + showcase-das-kapital.alc-topic.json
+├── scripts/                       # Bun CLI: ping.ts, prompt-eval.ts, m3-smoke.ts
+├── e2e/                           # Playwright tests (workers=1, fullyParallel=false): smoke, library, topic, api-data, storage-layer, showcase/{home,v1-regression}
+└── references/                    # Session notes/external references
 ```
 
 ## WHERE TO LOOK
 
-| Task                          | Location                                                                | Notes                                                            |
-| ----------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Understand domain model       | `src/types/domain.ts`                                                   | Single source of truth — read first                              |
-| Trace compile flow            | `src/lib/compiler/AGENTS.md` → `pipeline/pipeline.ts:88`                | `compileMarkdown()` async generator                              |
-| Add API route                 | `src/app/api/<name>/route.ts`                                           | Stateless proxy to LLM; vercel.json sets `maxDuration`           |
-| Change quiz rendering         | `src/components/quiz/QuizRenderer.tsx`                                  | Dispatches by `interactionType`                                  |
-| Modify learning state machine | `src/lib/state/progress-store.ts` + `domain.ts` `ModuleStage`           | Discriminated union — illegal transitions = compile error        |
-| Add LLM provider              | `src/lib/providers/`                                                    | Factory + `createProvider()` switch; exhaustive `never` check    |
-| Evaluate user answer          | `src/lib/runtime/evaluate-answer.ts`                                    | Choice/Sorting=exact; FillBlank=normalized→semantic LLM fallback |
-| Access LocalStorage           | `src/lib/persistence/repository.ts` (iface) → `local-storage.ts` (impl) | NEVER use `localStorage` directly                                |
-| Storage key naming            | `src/lib/persistence/keys.ts`                                           | All keys via `StorageKeys` obj, `alc:` prefix                    |
-| LLM config / API key          | `src/lib/state/settings-store.ts`                                       | Stored in LocalStorage; `.env.local` keys auto-loaded            |
-| Product requirements          | `docs/v1.0.0/PRD.md`                                                    | MoSCoW priorities, FR-* IDs (V2.0 with FR-09~FR-12)              |
-| Architecture decisions        | `docs/v0.1.0/Technical-Specification.md`                                | §3 Providers, §5 Runtime, §6.2 Store split                       |
-| Design tokens / theme         | `src/app/globals.css`                                                   | Dark-only; CSS custom properties; `alc-*` utility classes        |
+| Task                           | Location                                                                                                                                              | Notes                                                                                                       |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Understand domain model        | `src/types/domain.ts`                                                                                                                                 | Single source of truth — read first. New: Topic, TopicSession, ContentOrigin, ReviewFilter                  |
+| Trace compile flow             | `src/lib/compiler/AGENTS.md` → `pipeline/pipeline.ts:88`                                                                                              | `compileMarkdown()` async generator                                                                         |
+| Add API route                  | `src/app/api/<name>/route.ts`                                                                                                                         | Stateless proxy to LLM; vercel.json sets `maxDuration`                                                      |
+| Change quiz rendering          | `src/components/quiz/QuizRenderer.tsx`                                                                                                                | Dispatches by `interactionType`                                                                             |
+| Modify learning state machine  | `src/lib/state/progress-store.ts` + `domain.ts` `ModuleStage`                                                                                         | Discriminated union — illegal transitions = compile error                                                   |
+| Add LLM provider               | `src/lib/providers/`                                                                                                                                  | Factory + `createProvider()` switch; exhaustive `never` check                                               |
+| Server-side LLM fallback       | `src/lib/providers/env-fallback.ts`                                                                                                                   | `getEnvLLMConfig()` — used by `/api/feedback` + `/api/feynman-eval` when client BYOK is null                |
+| Evaluate user answer           | `src/lib/runtime/evaluate-answer.ts`                                                                                                                  | Choice/Sorting=exact; FillBlank=normalized→semantic LLM fallback                                            |
+| Access LocalStorage            | `src/lib/persistence/repository.ts` (iface) → `client/local-storage.ts` (impl)                                                                        | NEVER use `localStorage` directly                                                                           |
+| Storage key naming             | `src/lib/persistence/keys.ts`                                                                                                                         | All keys via `StorageKeys` obj, `alc:` prefix                                                               |
+| App mode (showcase/production) | `src/lib/runtime/app-mode.ts`                                                                                                                         | Build-time `APP_MODE` constant from `NEXT_PUBLIC_APP_MODE`                                                  |
+| Production storage backend     | `src/lib/persistence/client/`                                                                                                                         | Fetch-based w/ write-queue + flush-manager; only when `ALC_STORAGE_BACKEND=sqlite`                          |
+| LS→SQLite migration            | `src/lib/persistence/migration.ts` + `/api/migrate/*` + `components/migration/`                                                                       | 7-phase flow (scan→snapshot→session→upload→commit→reload→done); production mode only                        |
+| Showcase mode UI               | `src/lib/showcase/` + `components/home/ShowcaseHome.tsx` + `components/showcase/`                                                                     | `loadShowcaseManifest()` + `playMockCompileEvents()` (no real LLM)                                          |
+| Topic system                   | `src/types/domain.ts` `Topic`/`TopicSession` + `persistence/topic-library.ts` + `state/topic-session-store.ts` + `app/learn/topic/[topicId]/page.tsx` | A topic = ordered list of modules; modules may belong to ≤1 topic                                           |
+| Wrong-question book            | `src/lib/persistence/wrong-question-book.ts`                                                                                                          | Cross-library aggregation; feeds `/learn/review/[moduleId]` and `/learn/review/topic/[topicId]`             |
+| Spaced repetition toggle       | `src/lib/state/settings-store.ts` `confirmReviewEnabled` + `progress-store.ts`                                                                        | Default `true`; when off, `collectConfirmSlots` is skipped                                                  |
+| 蒙对标注 (guessed self-report) | `src/lib/state/attempts-store.ts` `markGuessed`/`unmarkGuessed` + `components/quiz/FeedbackPanel.tsx`                                                 | Unmark = destructure field removal (not set to false)                                                       |
+| LLM config / API key           | `src/lib/state/settings-store.ts`                                                                                                                     | Stored in LocalStorage; `.env.local` keys auto-loaded via `/api/env-config`                                 |
+| SEO metadata                   | `src/app/layout.tsx`                                                                                                                                  | openGraph + twitter + icons + robots                                                                        |
+| Product requirements           | `docs/v1.0.0/PRD.md`                                                                                                                                  | MoSCoW priorities, FR-01~FR-12 (V2.0). FR-09 = 蒙对, FR-10 = 错题本导出, FR-11 = 重刷错题, FR-12 = 间隔重复 |
+| Architecture decisions         | `docs/v0.1.0/Technical-Specification.md`                                                                                                              | §3 Providers, §5 Runtime, §6.2 Store split (legacy, pre-SQLite)                                             |
+| Design tokens / theme          | `src/app/globals.css`                                                                                                                                 | Dark-only; CSS custom properties; `alc-*` utility classes                                                   |
 
 ## CODE MAP
 
 Core symbols (highest centrality). Full compiler map → `src/lib/compiler/AGENTS.md`.
 
-| Symbol                  | Type  | Location                            | Role                                                  |
-| ----------------------- | ----- | ----------------------------------- | ----------------------------------------------------- |
-| `compileMarkdown`       | fn*   | `compiler/pipeline/pipeline.ts:88`  | Async generator: 8-stage compile, yields SSE events   |
-| `consumeStream`         | fn    | `compiler/pipeline/pipeline.ts:810` | Wraps generator → `Promise<Module>`                   |
-| `runAgent`              | fn    | `compiler/agents/_runner.ts:67`     | Universal LLM caller: prompt→chat→JSON→Zod→retry      |
-| `createProvider`        | fn    | `providers/index.ts:43`             | Factory: dispatches deepseek/glm/sensenova            |
-| `computeMastery`        | fn    | `runtime/mastery.ts`                | Pure: first-attempt pass rate + completion %          |
-| `evaluateAnswer`        | fn    | `runtime/evaluate-answer.ts`        | Pure: deterministic scoring (semantic fallback async) |
-| `buildAdaptiveQueue`    | fn    | `runtime/adaptive-sequencer.ts`     | Reorders unseen/wrong/due slots                       |
-| `ModuleStage`           | union | `types/domain.ts:205`               | 7-state discriminated union state machine             |
-| `useProgressStore`      | store | `state/progress-store.ts`           | State machine transitions + Feynman tracking          |
-| `useModuleStore`        | store | `state/module-store.ts`             | Current Module/Quiz; `replaceCurrentQuiz()` for retry |
-| `compileMarkdown` (API) | route | `app/api/compile/route.ts`          | SSE endpoint consuming the pipeline generator         |
+### Compiler & providers
+
+| Symbol            | Type | Location                            | Role                                                      |
+| ----------------- | ---- | ----------------------------------- | --------------------------------------------------------- |
+| `compileMarkdown` | fn*  | `compiler/pipeline/pipeline.ts:88`  | Async generator: 8-stage compile, yields SSE events       |
+| `consumeStream`   | fn   | `compiler/pipeline/pipeline.ts:810` | Wraps generator → `Promise<Module>`                       |
+| `runAgent`        | fn   | `compiler/agents/_runner.ts:67`     | Universal LLM caller: prompt→chat→JSON→Zod→retry          |
+| `createProvider`  | fn   | `providers/index.ts:43`             | Factory: dispatches deepseek/glm/openai-compat            |
+| `getEnvLLMConfig` | fn   | `providers/env-fallback.ts`         | Build `LLMConfig` from `process.env.*`; null when missing |
+
+### Runtime (pure business logic)
+
+| Symbol                  | Type  | Location                        | Role                                                  |
+| ----------------------- | ----- | ------------------------------- | ----------------------------------------------------- |
+| `computeMastery`        | fn    | `runtime/mastery.ts`            | Pure: first-attempt pass rate + completion %          |
+| `evaluateAnswer`        | fn    | `runtime/evaluate-answer.ts`    | Pure: deterministic scoring (semantic fallback async) |
+| `buildAdaptiveQueue`    | fn    | `runtime/adaptive-sequencer.ts` | Reorders unseen/wrong/due slots                       |
+| `buildTopicReviewQueue` | fn    | `runtime/topic-review.ts`       | Cross-module wrong-question queue for topic review    |
+| `APP_MODE`              | const | `runtime/app-mode.ts:20`        | `'showcase' \| 'production'` — build-time literal     |
+| `computeAnalytics`      | fn    | `runtime/analytics.ts`          | Learning analytics aggregation                        |
+
+### State (10 Zustand stores)
+
+| Symbol                 | Type  | Location                       | Role                                                                  |
+| ---------------------- | ----- | ------------------------------ | --------------------------------------------------------------------- |
+| `useProgressStore`     | store | `state/progress-store.ts`      | State machine transitions + Feynman tracking + spaced-repetition gate |
+| `useModuleStore`       | store | `state/module-store.ts`        | Current Module/Quiz; `replaceCurrentQuiz()` for retry                 |
+| `useSettingsStore`     | store | `state/settings-store.ts`      | LLM config + `confirmReviewEnabled` toggle                            |
+| `useAttemptsStore`     | store | `state/attempts-store.ts`      | Per-slot answer history; `markGuessed`/`unmarkGuessed`                |
+| `useReviewStore`       | store | `state/review-store.ts`        | Wrong/guessed question review sessions                                |
+| `useTopicSessionStore` | store | `state/topic-session-store.ts` | Topic刷题 session (persisted, refresh-resumable)                      |
+| `useRatingStore`       | store | `state/rating-store.ts`        | Module/star ratings                                                   |
+| `useRuntimeModeStore`  | store | `state/runtime-mode-store.ts`  | Runtime mode flags (non-persisted)                                    |
+| `useCompileJobStore`   | store | `state/compile-job-store.ts`   | Compile job tracking                                                  |
+| `useCompileStore`      | store | `state/compile-store.ts`       | Non-persisted compile SSE state                                       |
+
+### Showcase & migration
+
+| Symbol                  | Type | Location                          | Role                                            |
+| ----------------------- | ---- | --------------------------------- | ----------------------------------------------- |
+| `loadShowcaseManifest`  | fn   | `showcase/showcase-loader.ts`     | Reads `public/showcase-modules/manifest.json`   |
+| `playMockCompileEvents` | fn   | `showcase/mock-compile-events.ts` | Replay pre-recorded SSE for showcase compile UI |
+| `runMigration`          | fn   | `persistence/migration.ts:56`     | 7-phase LS→SQLite migration orchestrator        |
+
+### API entry points
+
+| Symbol                  | Type   | Location                                                                   | Role                                              |
+| ----------------------- | ------ | -------------------------------------------------------------------------- | ------------------------------------------------- |
+| `compileMarkdown` (API) | route  | `app/api/compile/route.ts`                                                 | SSE endpoint consuming the pipeline generator     |
+| `*` (migrate)           | routes | `app/api/migrate/{session,staging,commit,cancel,source-snapshot}/route.ts` | 5-route migration namespace; production mode only |
 
 ## CONVENTIONS
 
 - **Bun toolchain** — `bun run dev/test/build`. Scripts needing env: `bun --env-file=.env.local run scripts/*.ts`
 - **Path alias** `@/*` → `./src/*`
-- **Zustand everywhere** — 5 persisted stores (`alc:state:*` keys) + 1 volatile (`compile-store`). Stores cross-ref via `.getState()`
-- **Persist middleware** — `persist(createJSONStorage(() => localStorage))`. Guard SSR with `useHydrated()` hook
+- **Zustand everywhere** — 10 stores total. 9 persisted (`alc:state:*` / `alc:settings` keys) + 1 volatile (`compile-store`). Stores cross-ref via `.getState()`
+- **Persist middleware** — `persist(createJSONStorage(() => localStorage))` in showcase mode; `zustand-storage-adapter` → fetch-storage in production mode. Guard SSR with `useHydrated()` hook
+- **Build-time mode split** — `APP_MODE` is a build-time literal (`process.env.NEXT_PUBLIC_APP_MODE`). Default = `showcase`. Same code, two binaries; client/server must agree (so default is showcase on both)
+- **ContentOrigin tagging** — `Module.origin` / `Topic.origin` = `'showcase' | 'user'`. Library pages filter by `APP_MODE`: showcase mode sees only `origin==='showcase'`, production mode sees only `origin!=='showcase'`
+- **Production storage** — `ALC_STORAGE_BACKEND=sqlite` enables server-side KV + client write-queue/flush-manager. Without it, production mode API routes 404
 - **Discriminated union state machine** — `ModuleStage.kind` field; illegal transitions caught at compile time
 - **Exhaustive switch** — Provider dispatch uses `const _: never = x` pattern for compile-time coverage
 - **Chinese-first** — comments, error messages, UI text, `lang="zh-CN"`. Not i18n; single locale
@@ -105,6 +168,9 @@ Core symbols (highest centrality). Full compiler map → `src/lib/compiler/AGENT
 - **Serif-first body** — Fraunces + Source Han Serif SC (not typical sans-serif)
 - **Two-model compile** — `lightweightModel` (import) vs `compileModel` (generation); cost optimization
 - **Retry = quiz replacement** — failing generates a NEW quiz via `/api/regenerate`; state machine does NOT advance
+- **Env fallback only in showcase** — `/api/feedback` + `/api/feynman-eval` use `getEnvLLMConfig()` only when client BYOK config is null. Production BYOK takes precedence
+- **Migration is one-way** — LS→SQLite. No SQLite→LS path. Triggered only in production mode via UI prompt
+- **SEO metadata centralized** — all OG/Twitter/icons/robots in `app/layout.tsx` metadata export, not per-page
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
@@ -118,7 +184,12 @@ Core symbols (highest centrality). Full compiler map → `src/lib/compiler/AGENT
 - **NO `eslint-plugin-prettier`** — Prettier (format) and ESLint (quality) are separate
 - **NO global test fns** — `vitest` `globals: false`; must `import { describe, it, expect }`
 - **NO `allowJs`** — TypeScript-only (`allowJs: false`)
-- **NO reading `.env.local`** — contains provider API keys (DEEPSEEK/GLM/SENSENOVA). Never `cat`/`read`/`grep` it. Keys are proxied to client via `/api/env-config`; use `settings-store.getLLMConfig()` at runtime
+- **NO SenseNova** — provider removed in M8 era. Use `deepseek` / `glm` / generic `openai-compat` only
+- **NO showcase logic in production mode** — `isShowcaseMode` gates mock-compile, showcase loader, etc. Production mode MUST call real LLMs
+- **NO migration code in showcase mode** — `runMigration()` throws if `isShowcaseMode`. `/api/migrate/*` returns 404 in showcase
+- **NO mixing ContentOrigin** — showcase modules are immutable in production mode; user modules are invisible in showcase mode
+- **NO per-page SEO metadata** — all OG/Twitter/icons centralized in `app/layout.tsx`
+- **NO reading `.env.local`** — contains provider API keys (DEEPSEEK/GLM). Never `cat`/`read`/`grep` it. Keys are proxied to client via `/api/env-config`; use `settings-store.getLLMConfig()` at runtime
 - **NO dismissing test warnings/failures as "pre-existing"** — EVERY warning and failure in any test run (unit/e2e/typecheck/lint/build) MUST be investigated and either fixed or explicitly justified with a concrete reason, never hand-waved away as "already broken before my change". If unrelated to the current change, state the root cause with evidence (file:line, failing assertion) and link/track it; do not silently skip. Pre-existing is a hypothesis to verify, not an excuse to ignore.
 
 ## COMMANDS
@@ -127,7 +198,7 @@ Core symbols (highest centrality). Full compiler map → `src/lib/compiler/AGENT
 bun run dev              # Next.js dev server
 bun run build            # Production build
 bun run typecheck        # tsc --noEmit
-bun run test             # vitest run (unit, node env)
+bun run test             # vitest run (unit, node env) — 341 tests as of V1.0.0
 bun run e2e              # playwright test (workers=1)
 bun run lint             # eslint .
 bun run format           # prettier --write .
@@ -136,11 +207,26 @@ bun run eval             # Prompt evaluation framework
 bun --env-file=.env.local run scripts/m3-smoke.ts  # End-to-end compile smoke
 ```
 
+### Mode-specific build
+
+```bash
+# Showcase build (default — zero-backend demo)
+NEXT_PUBLIC_APP_MODE=showcase bun run build
+
+# Production build (requires SQLite backend wiring)
+NEXT_PUBLIC_APP_MODE=production ALC_STORAGE_BACKEND=sqlite bun run build
+```
+
+See `docs/v1.0.0/Deploying.md` for full deployment guide.
+
 ## NOTES
 
 - **`outputFileTracingIncludes`** in `next.config.ts` bundles `src/lib/compiler/prompts/*.md` into serverless output — if you move prompt files, update this config
 - **vercel.json route timeouts** — `/api/compile`: 60s, `/api/feedback`: 10s, `/api/feynman-eval`: 15s. Adjust if adding long-running routes
-- **3 LLM vendors** — DeepSeek (primary, OpenAI-compat), GLM (智谱, coding-plan endpoint), SenseNova (商汤, token channel). Each has defaults in `providers/<name>.ts`
+- **3 LLM provider kinds** — DeepSeek (primary, OpenAI-compat), GLM (智谱, coding-plan endpoint), openai-compat (generic, BYO baseURL/apiKey). SenseNova was removed. Each kind has defaults in `providers/<name>.ts`
 - **Quiz failure threshold** — 20% of quiz slots fail → entire compile aborts. Below → degraded silently (failed slots dropped)
 - **`tsconfig.json` excludes** `.omo`, `docs`, `references` — these are documentation/workflow dirs, not compiled
-- **Docs hierarchy** — Product-Specification.md (WHY/philosophy) → PRD.md (WHAT/scope) → Technical-Specification.md (HOW/architecture). Milestone reviews in `docs/M*-Review.md`
+- **Docs hierarchy** — Product-Specification.md (WHY/philosophy, archived in v0.1.0) → `docs/v1.0.0/PRD.md` (WHAT/scope, V2.0) → `docs/v0.1.0/Technical-Specification.md` (HOW/architecture, pre-SQLite legacy). Milestone plans+reviews in `docs/v1.0.0/M{7.8,8,8.1,8.2,8.3}-{Plan,Review}.md` and `docs/v1.0.0/v1.0.0-{plan,report}.md` + `V1.0.0-Review.md`
+- **Showcase content lives in `public/showcase-modules/`** — `manifest.json` enumerates available `.alc-module.json` / `.alc-topic.json` files. Authoritative copies also kept under `docs/v1.0.0/Showcase.alc-*` for reference; the `public/` copies are what the running app reads
+- **Topic system is M8.1** — a `Topic` is an ordered list of `moduleIds`. Each module may belong to ≤1 topic (UI-enforced). Deleting a topic leaves its modules orphaned (un-grouped), not deleted
+- **Migration is irreversible** — once LS data is committed to SQLite and the client marker is written, re-running `runMigration` skips migrated entries. Backup snapshots are saved server-side as `alc-ls-snapshot-*.json`

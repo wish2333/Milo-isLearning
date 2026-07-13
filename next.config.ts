@@ -6,12 +6,15 @@ import type { NextConfig } from 'next'
  */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // Vercel Functions 超时配置在 vercel.json 中按路由单独定义
-  // experimental 特性按需在后续里程碑开启
+  // better-sqlite3 是 Node 原生 C++ addon，不应被 webpack/turbopack 打包。
+  // 必须保留为外部 require —— 否则 webpack 会尝试把 .node 二进制打进 bundle 并失败。
+  // 之前用 bun:sqlite 是错误的（next CLI 永远跑在 Node 上，bun:sqlite 不可用）。
+  serverExternalPackages: ['better-sqlite3'],
+  // Vercel Functions 超时由 vercel.json 中按路由设置（不同路由不同时限）
 
-  // 把 Prompt 模板（.md）纳入 serverless 函数的文件追踪，
-  // 否则生产构建（.next/server）里 fs 读取 prompts/ 会失败。
-  // 见 lib/compiler/prompts/loader.ts。
+  // 让 Prompt 模板（.md）进入 serverless 的文件追踪，
+  // 否则 Next 不会把 .next/server 之外的 fs 读取 prompts/ 当作依赖打包。
+  // （见 lib/compiler/prompts/loader.ts）
   outputFileTracingIncludes: {
     '/api/**': ['./src/lib/compiler/prompts/**/*.md'],
   },

@@ -17,6 +17,9 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
 import type { AttemptRecord } from '@/types/domain'
+import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { getStorage } from '@/lib/persistence/client/storage'
+import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 
 interface AttemptsStoreState {
   /** 以 originalQuizId（槽位 id）为 key 的作答历史 */
@@ -108,7 +111,8 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
     }),
     {
       name: 'alc:state:attempts',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => createZustandStorage(getStorage())),
+      skipHydration: !isShowcaseMode,
     },
   ),
 )
