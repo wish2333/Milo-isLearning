@@ -13,9 +13,9 @@ test.describe('Showcase Home', () => {
     // Wait for manifest to load
     await expect(page.locator('text=加载中...')).toBeHidden({ timeout: 10000 })
 
-    // Verify showcase home renders
-    await expect(page.locator('text=AI Learning Compiler')).toBeVisible()
-    await expect(page.locator('text=模拟编译')).toBeVisible()
+    // Verify showcase home renders (use heading role to avoid matching <title>)
+    await expect(page.getByRole('heading', { name: 'AI Learning Compiler' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '模拟编译' })).toBeVisible()
 
     // Verify module cards render
     await expect(page.locator('text=毛泽东工作方法')).toBeVisible()
@@ -43,11 +43,17 @@ test.describe('Showcase Home', () => {
 
     // Module should be loaded into localStorage
     const moduleData = await page.evaluate(() => {
-      const stored = localStorage.getItem('alc:current-module')
-      return stored ? JSON.parse(stored) : null
+      const stored = localStorage.getItem('alc:state:module')
+      if (!stored) return null
+      const parsed = JSON.parse(stored) as {
+        state?: { currentModule?: { title?: string; origin?: string } }
+      }
+      return parsed.state?.currentModule ?? null
     })
     expect(moduleData).toBeTruthy()
-    expect(moduleData.id).toBe('mao-work-methods')
+    // Showcase import allocates a new ID, so assert by title + origin instead.
+    expect(moduleData?.title).toBe('毛泽东工作方法')
+    expect(moduleData?.origin).toBe('showcase')
   })
 
   test('clicking topic card loads topic into localStorage and starts topic session', async ({
@@ -64,11 +70,17 @@ test.describe('Showcase Home', () => {
 
     // Topic session should be started
     const topicSession = await page.evaluate(() => {
-      const stored = localStorage.getItem('alc:topic-session')
-      return stored ? JSON.parse(stored) : null
+      const stored = localStorage.getItem('alc:state:topic-session')
+      if (!stored) return null
+      const parsed = JSON.parse(stored) as {
+        state?: { session?: { topicId?: string; moduleIds?: string[] } }
+      }
+      return parsed.state?.session ?? null
     })
     expect(topicSession).toBeTruthy()
-    expect(topicSession.topicId).toBe('das-kapital-intro')
+    // Showcase import allocates a new topic ID, so verify the session started
+    // with the expected module count (资本论导读 has 3 modules) instead of a hardcoded ID.
+    expect(topicSession?.moduleIds?.length).toBe(3)
   })
 
   test('clicking "访问完整版" navigates to /studio', async ({ page }) => {
@@ -102,11 +114,17 @@ test.describe('Showcase Home', () => {
 
     // Module should still be in localStorage (not duplicated)
     const moduleData = await page.evaluate(() => {
-      const stored = localStorage.getItem('alc:current-module')
-      return stored ? JSON.parse(stored) : null
+      const stored = localStorage.getItem('alc:state:module')
+      if (!stored) return null
+      const parsed = JSON.parse(stored) as {
+        state?: { currentModule?: { title?: string; origin?: string } }
+      }
+      return parsed.state?.currentModule ?? null
     })
     expect(moduleData).toBeTruthy()
-    expect(moduleData.id).toBe('mao-work-methods')
+    // Showcase import allocates a new ID, so assert by title + origin instead.
+    expect(moduleData?.title).toBe('毛泽东工作方法')
+    expect(moduleData?.origin).toBe('showcase')
   })
 
   test('dedup: clicking same topic card twice does not duplicate in localStorage', async ({
@@ -129,10 +147,16 @@ test.describe('Showcase Home', () => {
 
     // Topic session should still be in localStorage (not duplicated)
     const topicSession = await page.evaluate(() => {
-      const stored = localStorage.getItem('alc:topic-session')
-      return stored ? JSON.parse(stored) : null
+      const stored = localStorage.getItem('alc:state:topic-session')
+      if (!stored) return null
+      const parsed = JSON.parse(stored) as {
+        state?: { session?: { topicId?: string; moduleIds?: string[] } }
+      }
+      return parsed.state?.session ?? null
     })
     expect(topicSession).toBeTruthy()
-    expect(topicSession.topicId).toBe('das-kapital-intro')
+    // Showcase import allocates a new topic ID, so verify the session started
+    // with the expected module count (资本论导读 has 3 modules) instead of a hardcoded ID.
+    expect(topicSession?.moduleIds?.length).toBe(3)
   })
 })

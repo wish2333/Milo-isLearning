@@ -99,6 +99,19 @@ async function importModulePackage(page: Page, mod: typeof mockModule) {
 
 // ─── Tests ──────────────────────────────────────────────────────
 
+// File-level setup: enable studio mode for all topic tests.
+// Showcase mode filters user-imported modules out of the library by origin.
+// Studio mode (sessionStorage flag) bypasses this filter so the library
+// shows all modules, allowing the topic CRUD tests to find imported modules.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem(
+      'alc:runtime-mode',
+      JSON.stringify({ state: { studioMode: true }, version: 0 }),
+    )
+  })
+})
+
 test.describe('Topic CRUD', () => {
   test.beforeEach(async ({ page }) => {
     await blockCompile(page)
