@@ -48,8 +48,8 @@ reports/
 test-results/
 playwright-report/
 
-# v1.0.0 SQLite data (production mode only)
-data/
+# v1.0.0 SQLite data (production mode only, root-level only)
+/data/
 
 # CodingAgent
 .omo/run-continuation/
