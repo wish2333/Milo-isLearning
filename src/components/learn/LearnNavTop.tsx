@@ -1,16 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-
-import { storage } from '@/lib/persistence/client/local-storage'
-import { listStoredModules, type StoredModuleSummary } from '@/lib/persistence/module-library'
-import { useModuleStore } from '@/lib/state/module-store'
-
-import { ModuleSwitcher } from '@/components/library/ModuleSwitcher'
 
 interface LearnNavTopProps {
-  moduleId?: string
   stageLabel: string
 }
 
@@ -22,14 +14,7 @@ interface LearnNavTopProps {
  *   - 衬线字体、暖象牙白前景
  *   - stageLabel 用 .alc-stage-badge 强调色徽章呈现
  */
-export function LearnNavTop({ moduleId, stageLabel }: LearnNavTopProps) {
-  const currentModule = useModuleStore((s) => s.currentModule)
-  const [modules, setModules] = useState<StoredModuleSummary[]>([])
-
-  useEffect(() => {
-    setModules(listStoredModules(storage))
-  }, [])
-
+export function LearnNavTop({ stageLabel }: LearnNavTopProps) {
   return (
     <header className="alc-nav-top sticky top-0 z-30">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
@@ -45,10 +30,7 @@ export function LearnNavTop({ moduleId, stageLabel }: LearnNavTopProps) {
           </Link>
         </nav>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="alc-stage-badge">{stageLabel}</span>
-          <ModuleSwitcher modules={modules} currentModuleId={moduleId ?? currentModule?.id} />
-        </div>
+        <span className="alc-stage-badge">{stageLabel}</span>
       </div>
     </header>
   )

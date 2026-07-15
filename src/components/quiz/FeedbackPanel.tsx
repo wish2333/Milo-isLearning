@@ -1,30 +1,48 @@
 'use client'
 
 /**
- * FeedbackPanel — 答题反馈面板
+ * FeedbackPanel -- answer feedback panel
  *
- * 对应 docs/M4-M5-Plan.md W4 / DESIGN-SPEC §4.6。
+ * Visual spec:
+ *   - Correct: 1px emerald border + feedbackText
+ *   - Wrong: warm amber border + explanation expand
+ *   - No red crosses, no "error" text (feedbackSchema negative-word filter)
  *
- * 视觉规范：
- *   - 答对：1px 绿色细线从底部展开 + feedbackText
- *   - 答错：温和琥珀色边框 + explanation 展开
- *   - 不用红色叉号、不用"错误"字样（feedbackSchema 负面词过滤）
+ * F40/F41: optional correction/ignore controls below explanation.
  */
 
+import { useState } from 'react'
+
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
+import type { Quiz } from '@/types/domain'
+
+import { ConfirmInline } from '@/components/common/ConfirmInline'
+import { AnswerCorrector } from '@/components/quiz/AnswerCorrector'
 
 interface FeedbackPanelProps {
   feedback: FeedbackRuntime
   explanation?: string
   misconception?: string
   extendedKnowledge?: string
-  /** 是否被强制推进（retry-policy 触发） */
+  /** force-advance (retry-policy triggered) */
   forceAdvance?: boolean
   isGuessed?: boolean
   onMarkGuessed?: () => void
-  /** 撤销蒙对标注 */
+  /** undo guessed mark */
   onUnmarkGuessed?: () => void
+  /** allow correction/ignore (showcase origin = false) */
+  canCorrect?: boolean
+  /** current quiz (for correction UI + ignored state) */
+  quiz?: Quiz
+  /** correction answer callback (F40) */
+  onCorrectAnswer?: (patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers'>>) => void
+  /** ignore quiz callback (F41) */
+  onIgnoreQuiz?: () => void
+  /** undo ignore callback */
+  onUnignoreQuiz?: () => void
 }
+
+type CorrectionMode = 'idle' | 'correcting'
 
 export function FeedbackPanel({
   feedback,
@@ -35,7 +53,13 @@ export function FeedbackPanel({
   isGuessed,
   onMarkGuessed,
   onUnmarkGuessed,
+  canCorrect,
+  quiz,
+  onCorrectAnswer,
+  onIgnoreQuiz,
+  onUnignoreQuiz,
 }: FeedbackPanelProps) {
+  const [mode, setMode] = useState<CorrectionMode>('idle')
   const passed = feedback.nextAction === 'advance'
   const showAmber = !passed && !forceAdvance
 
@@ -121,6 +145,61 @@ export function FeedbackPanel({
             </button>
           )}
         </div>
+      )}
+
+      {/* Ignored notice (F41) */}
+      {quiz?.ignored && (
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-fg-quaternary">已忽略</span>
+          {onUnignoreQuiz && (
+            <button
+              type="button"
+              onClick={onUnignoreQuiz}
+              aria-label="撤销忽略"
+              className="text-xs text-fg-quaternary hover:text-fg-tertiary transition-colors underline"
+            >
+              撤销忽略
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Correction / Ignore controls (F40/F41) */}
+      {canCorrect &&
+        quiz &&
+        !quiz.ignored &&
+        !forceAdvance &&
+        onCorrectAnswer &&
+        mode === 'idle' && (
+          <div className="flex items-center gap-3 flex-wrap">
+            <ConfirmInline
+              trigger="修正答案"
+              confirmLabel="确认修正答案？"
+              onConfirm={() => setMode('correcting')}
+              triggerClassName="text-xs text-fg-tertiary hover:text-fg-secondary transition-colors"
+            />
+            {onIgnoreQuiz && (
+              <ConfirmInline
+                trigger="忽略此题"
+                confirmLabel="确认忽略？将不计入掌握度"
+                onConfirm={onIgnoreQuiz}
+                destructive
+                triggerClassName="text-xs text-fg-tertiary hover:text-fg-secondary transition-colors"
+              />
+            )}
+          </div>
+        )}
+
+      {/* Correction form (F40) */}
+      {mode === 'correcting' && quiz && onCorrectAnswer && (
+        <AnswerCorrector
+          quiz={quiz}
+          onSave={(patch) => {
+            onCorrectAnswer(patch)
+            setMode('idle')
+          }}
+          onCancel={() => setMode('idle')}
+        />
       )}
     </div>
   )

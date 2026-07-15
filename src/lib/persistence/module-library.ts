@@ -5,7 +5,7 @@
  * 不包含 UI 状态管理（由 Zustand store 负责）。
  */
 
-import type { Module, ProgressState } from '@/types/domain'
+import type { Module, ProgressState, Quiz } from '@/types/domain'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
 
@@ -89,4 +89,52 @@ export function resetStoredModuleProgress(repo: StorageRepository, moduleId: str
   repo.remove(StorageKeys.progress(moduleId))
   repo.remove(StorageKeys.feynman(moduleId))
   repo.remove(StorageKeys.attemptsModule(moduleId))
+}
+
+/**
+ * 更新 Module 中指定 Quiz 的字段（F40 手动纠题 / F41 忽略题）。
+ *
+ * 在 concepts[].quizSeries.quizzes[] 和 challengeQuizzes[] 中查找 quizId，
+ * 找到后合并 patch 并写回存储。不可变更新（spread rebuild）。
+ */
+export function updateQuizInModule(
+  repo: StorageRepository,
+  moduleId: string,
+  quizId: string,
+  patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers' | 'ignored'>>,
+): Module {
+  const storedModule = loadStoredModule(repo, moduleId)
+  if (!storedModule) throw new Error(`Module ${moduleId} not found`)
+
+  let found = false
+
+  const patchedConcepts = storedModule.concepts.map((concept) => {
+    const quizIdx = concept.quizSeries.quizzes.findIndex((q) => q.id === quizId)
+    if (quizIdx === -1) return concept
+    found = true
+    const updatedQuizzes = concept.quizSeries.quizzes.map((q, i) =>
+      i === quizIdx ? { ...q, ...patch } : q,
+    )
+    return { ...concept, quizSeries: { ...concept.quizSeries, quizzes: updatedQuizzes } }
+  })
+
+  let patchedChallenges = storedModule.challengeQuizzes
+  if (!found && storedModule.challengeQuizzes) {
+    const chIdx = storedModule.challengeQuizzes.findIndex((q) => q.id === quizId)
+    if (chIdx !== -1) {
+      found = true
+      patchedChallenges = storedModule.challengeQuizzes.map((q, i) =>
+        i === chIdx ? { ...q, ...patch } : q,
+      )
+    }
+  }
+
+  if (!found) throw new Error(`Quiz ${quizId} not found in Module ${moduleId}`)
+
+  const updated: Module = { ...storedModule, concepts: patchedConcepts }
+  if (patchedChallenges !== undefined) {
+    updated.challengeQuizzes = patchedChallenges
+  }
+  repo.set(StorageKeys.module(moduleId), updated)
+  return updated
 }

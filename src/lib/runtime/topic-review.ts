@@ -48,6 +48,7 @@ export function collectReviewItemsForModules(
       ...(mod.challengeQuizzes ?? []),
     ]
     for (const quiz of allQuizzes) {
+      if (quiz.ignored) continue
       if (matchesFilter(attemptsBySlot[quiz.id], filter)) {
         items.push({ moduleId: mod.id, slotId: quiz.id, quiz })
       }

@@ -117,6 +117,8 @@ export interface Quiz {
   extendedKnowledge?: string
   /** 运行时判分模式。未设置时按题型默认。 */
   evaluationMode?: 'exact' | 'normalized' | 'semantic'
+  /** 用户标记为忽略（F41）。忽略的题不计入掌握度、不在学习/重刷序列展示。undefined = 未忽略。 */
+  ignored?: boolean
 }
 
 /**

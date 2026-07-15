@@ -87,8 +87,9 @@ export function buildAdaptiveQueue({
   currentSlotId,
   conceptIndex = 0,
 }: BuildAdaptiveQueueArgs): AdaptiveQueue {
+  const activeSlots = slots.filter((q) => !q.ignored)
   const latest = latestAttemptBySlot(attempts)
-  const adaptiveSlots = slots.map((quiz, index) =>
+  const adaptiveSlots = activeSlots.map((quiz, index) =>
     toAdaptiveSlot(quiz, index, latest.get(quiz.id), conceptIndex),
   )
   const currentIndex = Math.max(
@@ -167,6 +168,7 @@ export function collectReviewSlots(
 
   const slots: string[] = []
   for (const quiz of concept.quizSeries.quizzes) {
+    if (quiz.ignored) continue
     const attempts = attemptsBySlot[quiz.id]
     if (!attempts || attempts.length === 0) continue
 
@@ -194,6 +196,7 @@ export function collectConfirmSlots(
 
   const slots: string[] = []
   for (const quiz of concept.quizSeries.quizzes) {
+    if (quiz.ignored) continue
     const attempts = attemptsBySlot[quiz.id]
     if (!attempts || attempts.length === 0) continue
 

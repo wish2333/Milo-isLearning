@@ -16,7 +16,10 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-import type { AttemptRecord } from '@/types/domain'
+import type { AttemptRecord, Quiz } from '@/types/domain'
+import type { LLMProvider } from '@/lib/providers'
+import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
+import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { getStorage } from '@/lib/persistence/client/storage'
 import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
@@ -38,6 +41,18 @@ interface AttemptsStoreState {
 
   /** 撤销最后一次的蒙对标注 */
   unmarkGuessed: (originalQuizId: string) => void
+
+  /**
+   * 用修正后的 quiz 重新评估某 slot 的最后一条作答，原地更新其 score/gaps/nextAction。
+   * 用于 F40 答案修正后纠正历史判定。保留 userAnswer/timestamp/guessed 不变。
+   * async（fill_blank 可能触发语义判分 LLM 调用）。
+   * @returns re-evaluated FeedbackRuntime for display update.
+   */
+  reevaluateLastAttempt: (
+    slotId: string,
+    correctedQuiz: Quiz,
+    provider?: LLMProvider | null,
+  ) => Promise<FeedbackRuntime>
 
   /** 清除单个槽位的全部记录 */
   clearSlot: (slotId: string) => void
@@ -106,6 +121,28 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
             },
           }
         }),
+
+      reevaluateLastAttempt: async (slotId, correctedQuiz, provider) => {
+        const attempts = get().attemptsBySlot[slotId]
+        if (!attempts || attempts.length === 0) {
+          return { score: 0, gaps: [], nextAction: 'retry', feedbackText: '' }
+        }
+        const last = attempts[attempts.length - 1]!
+        const result = await evaluateAnswerAsync(correctedQuiz, last.userAnswer, provider)
+        const updated: AttemptRecord = {
+          ...last,
+          score: result.score,
+          gaps: result.gaps,
+          nextAction: result.nextAction,
+        }
+        set((state) => ({
+          attemptsBySlot: {
+            ...state.attemptsBySlot,
+            [slotId]: [...attempts.slice(0, -1), updated],
+          },
+        }))
+        return result
+      },
 
       clearAll: () => set({ attemptsBySlot: {} }),
     }),

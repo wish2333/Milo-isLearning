@@ -18,7 +18,8 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 
 import type { Module, Quiz } from '@/types/domain'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
-import { renameModule } from '@/lib/persistence/module-library'
+import { renameModule, updateQuizInModule } from '@/lib/persistence/module-library'
+import { findQuizInModule } from '@/lib/runtime/adaptive-sequencer'
 import { getStorage } from '@/lib/persistence/client/storage'
 import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 
@@ -45,6 +46,12 @@ interface ModuleStoreState {
 
   /** 重命名当前 Module 的 title（同步持久化 + 更新内存状态） */
   renameCurrentModule: (newTitle: string) => void
+
+  /** 修正当前 Module 内某道 Quiz 的字段（F40 修正答案 / F41 标记忽略） */
+  correctQuizAnswer: (
+    quizId: string,
+    patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers' | 'ignored'>>,
+  ) => void
 }
 
 export const useModuleStore = create<ModuleStoreState>()(
@@ -68,6 +75,17 @@ export const useModuleStore = create<ModuleStoreState>()(
         if (!current) return
         renameModule(getStorage(), current.id, newTitle)
         set({ currentModule: { ...current, title: newTitle.trim() } })
+      },
+
+      correctQuizAnswer: (quizId, patch) => {
+        const current = get().currentModule
+        if (!current) return
+        const updatedModule = updateQuizInModule(getStorage(), current.id, quizId, patch)
+        set({ currentModule: updatedModule })
+        if (get().currentQuiz?.id === quizId) {
+          const updatedQuiz = findQuizInModule(updatedModule, quizId)
+          if (updatedQuiz) set({ currentQuiz: updatedQuiz })
+        }
       },
     }),
     {

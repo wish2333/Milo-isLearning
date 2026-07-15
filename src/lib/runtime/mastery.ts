@@ -35,10 +35,12 @@ function computeConceptMastery(
   attemptsBySlot: Record<string, AttemptRecord[]>,
   excludeGuessed = false,
 ): number {
-  if (conceptQuizzes.length === 0) return 0
+  // F41: 忽略的题不计入掌握度
+  const activeQuizzes = conceptQuizzes.filter((q) => !q.ignored)
+  if (activeQuizzes.length === 0) return 0
 
   let firstAttemptPassed = 0
-  for (const quiz of conceptQuizzes) {
+  for (const quiz of activeQuizzes) {
     const slotAttempts = attemptsBySlot[quiz.id]
     if (!slotAttempts || slotAttempts.length === 0) continue
 
@@ -50,7 +52,7 @@ function computeConceptMastery(
     }
   }
 
-  return Math.round((firstAttemptPassed / conceptQuizzes.length) * 100)
+  return Math.round((firstAttemptPassed / activeQuizzes.length) * 100)
 }
 
 /**
@@ -77,20 +79,21 @@ export function computeMastery(
   }))
 
   // --- 2. moduleCompletion：已完成 Quiz / 总 Quiz ---
-  // 总 Quiz = 所有 Concept 的 quizSeries.quizzes 之和 + Challenge 题 + Feynman 6 步
+  // 总 Quiz = 所有 Concept 的 quizSeries.quizzes（排除 ignored）+ Challenge 题（排除 ignored）+ Feynman 6 步
   const totalConceptQuizzes = module.concepts.reduce(
-    (sum, c) => sum + c.quizSeries.quizzes.length,
+    (sum, c) => sum + c.quizSeries.quizzes.filter((q) => !q.ignored).length,
     0,
   )
-  const totalChallengeQuizzes = module.challengeQuizzes?.length ?? 0
+  const totalChallengeQuizzes = (module.challengeQuizzes ?? []).filter((q) => !q.ignored).length
   const totalFeynmanSteps = module.feynmanTask.steps.length // 6
   const totalQuizzes = totalConceptQuizzes + totalChallengeQuizzes + totalFeynmanSteps
 
   let completedQuizzes = 0
 
-  // Concept 槽位：检查每个槽位是否已完成（通过或被强制推进）
+  // Concept 槽位：检查每个非忽略槽位是否已完成（通过或被强制推进）
   for (const concept of module.concepts) {
     for (const quiz of concept.quizSeries.quizzes) {
+      if (quiz.ignored) continue
       const slotAttempts = attemptsBySlot[quiz.id]
       if (slotAttempts && isSlotCompleted(slotAttempts)) {
         completedQuizzes++
@@ -98,9 +101,10 @@ export function computeMastery(
     }
   }
 
-  // Challenge 槽位：检查每个槽位是否已完成
+  // Challenge 槽位：检查每个非忽略槽位是否已完成
   if (module.challengeQuizzes) {
     for (const quiz of module.challengeQuizzes) {
+      if (quiz.ignored) continue
       const slotAttempts = attemptsBySlot[quiz.id]
       if (slotAttempts && isSlotCompleted(slotAttempts)) {
         completedQuizzes++
@@ -115,16 +119,18 @@ export function computeMastery(
   }
   completedQuizzes += feynmanCompletedSteps
 
+  // 全部题被忽略时视为无可学内容 → moduleCompletion = 100
   const moduleCompletion =
-    totalQuizzes > 0 ? Math.round((completedQuizzes / totalQuizzes) * 100) : 0
+    totalQuizzes > 0 ? Math.round((completedQuizzes / totalQuizzes) * 100) : 100
 
-  // --- 3. Challenge 掌握度（首次答对率，无 Challenge 题时为 undefined）---
+  // --- 3. Challenge 掌握度（首次答对率，无非忽略 Challenge 题时为 undefined）---
   let challengeMastery: number | undefined
   let challengeMasteryExcludingGuessed: number | undefined
-  if (module.challengeQuizzes && module.challengeQuizzes.length > 0) {
+  const activeChallengeQuizzes = (module.challengeQuizzes ?? []).filter((q) => !q.ignored)
+  if (activeChallengeQuizzes.length > 0) {
     let challengeFirstPassed = 0
     let challengeFirstPassedExcludingGuessed = 0
-    for (const quiz of module.challengeQuizzes) {
+    for (const quiz of activeChallengeQuizzes) {
       const slotAttempts = attemptsBySlot[quiz.id]
       if (!slotAttempts || slotAttempts.length === 0) continue
       const firstAttempt = slotAttempts.find((a) => a.attemptVersion === 0)
@@ -135,9 +141,9 @@ export function computeMastery(
         }
       }
     }
-    challengeMastery = Math.round((challengeFirstPassed / module.challengeQuizzes.length) * 100)
+    challengeMastery = Math.round((challengeFirstPassed / activeChallengeQuizzes.length) * 100)
     challengeMasteryExcludingGuessed = Math.round(
-      (challengeFirstPassedExcludingGuessed / module.challengeQuizzes.length) * 100,
+      (challengeFirstPassedExcludingGuessed / activeChallengeQuizzes.length) * 100,
     )
   }
 
