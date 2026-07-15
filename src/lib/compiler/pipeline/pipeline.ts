@@ -30,6 +30,7 @@ import type {
   QuizBatchAgentOutput,
 } from '@/lib/compiler/schemas'
 import type { LLMProvider } from '@/lib/providers'
+import type { TokenUsage } from '@/lib/providers/types'
 
 import { createProvider } from '@/lib/providers'
 import { runAgent } from '@/lib/compiler/agents/_runner'
@@ -64,19 +65,32 @@ import {
   type CompileConfig,
   type CompileErrorPayload,
   type CompileEvent,
+  type CompileOptions,
   type CompileStage,
 } from './types'
-import { buildQualityReport } from '@/lib/compiler/quality/quality-report'
+import { buildQualityReport, type MapperFixStats } from '@/lib/compiler/quality/quality-report'
 import { makeError, makeInputError, makeQuizBatchError, translateError } from './errors'
 
 // =================================================================
 // 主入口：异步生成器
 // =================================================================
 
+/** Pipeline 执行顺序（用于 resume 判断） */
+const PIPELINE_STAGE_ORDER: readonly CompileStage[] = [
+  'import',
+  'chunk',
+  'concept',
+  'module',
+  'mission',
+  'quiz',
+  'challenge',
+  'feynman',
+]
+
 /**
- * 编译 Markdown → Module 的异步生成器。
+ * 编译 Markdown -> Module 的异步生成器。
  *
- * 调用方用 `for await (const event of compileMarkdown(md, cfg))` 流式消费。
+ * 调用方用 `for await (const event of compileMarkdown(md, cfg, opts))` 流式消费。
  * 最后一个事件是 `complete`（携带完整 Module）或 `error`（携带错误载荷）。
  *
  * 错误处理总原则：不抛异常（除非内部 bug），用 yield error + return。
@@ -84,10 +98,12 @@ import { makeError, makeInputError, makeQuizBatchError, translateError } from '.
  *
  * @param rawMarkdown 用户输入的 Markdown 文本
  * @param config      调用方传入的 LLM 配置
+ * @param options     可选参数：checkpoint 写入 + 断点续编（PB.2 F04）
  */
 export async function* compileMarkdown(
   rawMarkdown: string,
   config: CompileConfig,
+  options?: CompileOptions,
 ): AsyncIterable<CompileEvent> {
   // ===== 输入校验（yield error + return，不 throw）=====
   const inputError = validateInput(rawMarkdown)
@@ -111,170 +127,291 @@ export async function* compileMarkdown(
   // 默认 enableThinking=false → disableThinking=true（关闭 thinking，对齐 M2.5）
   const disableThinking = !config.enableThinking
 
+  // Pipeline 级 token 用量累加（const：对象属性通过 accumulateUsage 变异，变量本身不重新赋值）
+  const totalUsage = zeroTokenUsage()
+
+  // Pipeline 级 mapper fix 统计
+  const mapperFixStats: MapperFixStats = {
+    totalFixes: 0,
+    answerMovedToFirstOption: 0,
+    duplicateOptionsRemoved: 0,
+    shortExtendedKnowledgeFallback: 0,
+    shortMisconceptionFallback: 0,
+  }
+  // autoFix 回调工厂（捕获 stats 引用）
+  const autoFixQuizBatchFactory = createAutoFixQuizBatch()
+
+  // ===== Resume / Checkpoint 基础设施（PB.2 F04）=====
+  const { resumeFrom, checkpointData, writeCheckpoint } = options ?? {}
+
+  /** 判断 stage 是否已在 resume 前完成（stage 顺序中在 resumeFrom 之前或等于） */
+  function isStageCompleted(stage: CompileStage): boolean {
+    if (!resumeFrom) return false
+    const stageIdx = PIPELINE_STAGE_ORDER.indexOf(stage)
+    const resumeIdx = PIPELINE_STAGE_ORDER.indexOf(resumeFrom)
+    return stageIdx >= 0 && resumeIdx >= 0 && stageIdx <= resumeIdx
+  }
+
+  /** 从 checkpointData 中提取指定 stage 的 artifact */
+  function getCheckpointArtifact<T>(stage: string): T | undefined {
+    if (!checkpointData) return undefined
+    const data = checkpointData.get(stage)
+    return data?.artifact as T | undefined
+  }
+
+  /** 若 sessionId 存在且有 writeCheckpoint 回调，则写入 checkpoint */
+  function tryWriteCheckpoint(
+    stage: string,
+    artifact: unknown,
+    usage?: { promptTokens: number; completionTokens: number },
+  ): void {
+    if (writeCheckpoint) {
+      writeCheckpoint(stage, artifact, usage)
+    }
+  }
+
   // ===== Stage 1: Import（25%）=====
-  const importOut = yield* runStage('import', async () => {
-    const out = await runAgent('import', { rawMarkdown }, lightweightProvider, importSchema, {
-      disableThinking,
-    })
-    return out as ImportAgentOutput
-  })
+  const importOut = isStageCompleted('import')
+    ? getCheckpointArtifact<ImportAgentOutput>('import')!
+    : yield* runStage('import', async () => {
+        const { data: out, usage } = await runAgent(
+          'import',
+          { rawMarkdown },
+          lightweightProvider,
+          importSchema,
+          {
+            disableThinking,
+          },
+        )
+        accumulateUsage(totalUsage, usage)
+        return out as ImportAgentOutput
+      })
   if (!importOut) return // stage 内已 yield error
 
   const normalizedText = importOut.normalizedText
 
   // ===== Stage 2: Chunk（40%）=====
-  const chunkOut = yield* runStage('chunk', async () => {
-    const out = await runAgent('chunk', { normalizedText }, compileProvider, chunkSchema, {
-      disableThinking,
-    })
-    return out as ChunkAgentOutput
-  })
+  const chunkOut = isStageCompleted('chunk')
+    ? getCheckpointArtifact<ChunkAgentOutput>('chunk')!
+    : yield* runStage('chunk', async () => {
+        const { data: out, usage } = await runAgent(
+          'chunk',
+          { normalizedText },
+          compileProvider,
+          chunkSchema,
+          {
+            disableThinking,
+          },
+        )
+        accumulateUsage(totalUsage, usage)
+        return out as ChunkAgentOutput
+      })
   if (!chunkOut) return
 
   const chunks = chunkOut.chunks
 
   // ===== Stage 3: Concept（55%）=====
-  const conceptOut = yield* runStage('concept', async () => {
-    const out = await runAgent(
-      'concept',
-      { chunks, themeHint: '' },
-      compileProvider,
-      conceptSchema,
-      { disableThinking },
-    )
-    return out as ConceptAgentOutput
-  })
+  const conceptOut = isStageCompleted('concept')
+    ? getCheckpointArtifact<ConceptAgentOutput>('concept')!
+    : yield* runStage('concept', async () => {
+        const { data: out, usage } = await runAgent(
+          'concept',
+          { chunks, themeHint: '' },
+          compileProvider,
+          conceptSchema,
+          { disableThinking },
+        )
+        accumulateUsage(totalUsage, usage)
+        return out as ConceptAgentOutput
+      })
   if (!conceptOut) return
 
   const conceptsRaw = conceptOut.concepts
 
   // ===== Stage 4: Module（65%）=====
+  // Resume 时，从 checkpoint 恢复整个 post-stage-4 状态（partialModule 等）
+  // Checkpoint 点：stage 4 完成后写入 partialModule + concepts + conceptOrder + sourceId
+  let partialModule: Module
+  let assembledConcepts: Concept[]
 
-  const moduleOut = yield* runStage('module', async () => {
-    const out = await runAgent(
-      'module',
-      { concepts: conceptsRaw, themeHint: '' },
-      compileProvider,
-      moduleSchema,
-      { disableThinking },
-    )
-    return out as ModuleAgentOutput
-  })
-  if (!moduleOut) return
-
-  // 按 module.conceptOrder 顺序组装 concepts（含空 quizSeries，W3 填充）
-  const moduleId = moduleOut.module.id
-  const conceptOrder = moduleOut.module.conceptOrder
-  const conceptsById = new Map<string, ConceptAgentOutput['concepts'][number]>(
-    conceptsRaw.map((c) => [c.id, c]),
-  )
-  const assembledConcepts: Concept[] = []
-  for (let i = 0; i < conceptOrder.length; i++) {
-    const conceptId = conceptOrder[i]
-    if (!conceptId) continue // 类型收窄；conceptOrder 数组已校验非空
-    const raw = conceptsById.get(conceptId)
-    if (!raw) {
-      // conceptOrder 引用了不存在的 concept id（schema 层应该已拦截）
+  if (isStageCompleted('module')) {
+    // Resume: 从 checkpoint 恢复 partialModule 和 assembledConcepts
+    const checkpointModule = getCheckpointArtifact<Module>('module')
+    const checkpointConcepts = getCheckpointArtifact<Concept[]>('module-concepts')
+    if (!checkpointModule || !checkpointConcepts) {
       yield {
         kind: 'error',
         error: makeError(
           'module',
           'agent_output_invalid',
           {},
-          new Error(`conceptOrder 引用未知 concept: ${conceptId}`),
+          new Error('Resume checkpoint missing module or concepts artifact'),
         ),
       }
       return
     }
-    assembledConcepts.push(assembleConcept(raw, moduleId, i + 1))
-  }
+    partialModule = checkpointModule
+    assembledConcepts = checkpointConcepts
+    yield {
+      kind: 'progress',
+      stage: 'module',
+      percent: STAGE_PERCENT.module,
+      message: `已识别 ${assembledConcepts.length} 个概念（从断点恢复）`,
+    }
+  } else {
+    // 正常执行 stage 4
+    const moduleOut = yield* runStage('module', async () => {
+      const { data: out, usage } = await runAgent(
+        'module',
+        { concepts: conceptsRaw, themeHint: '' },
+        compileProvider,
+        moduleSchema,
+        { disableThinking },
+      )
+      accumulateUsage(totalUsage, usage)
+      return out as ModuleAgentOutput
+    })
+    if (!moduleOut) return
 
-  // 构造 stub FeynmanTask（W4 替换）
-  const stubFeynmanTask: FeynmanTask = {
-    moduleId,
-    steps: [],
-    finalPrompt: '',
-    rubric: [],
-  }
+    // 按 module.conceptOrder 顺序组装 concepts（含空 quizSeries，W3 填充）
+    const moduleId = moduleOut.module.id
+    const conceptOrder = moduleOut.module.conceptOrder
+    const conceptsById = new Map<string, ConceptAgentOutput['concepts'][number]>(
+      conceptsRaw.map((c) => [c.id, c]),
+    )
+    assembledConcepts = []
+    for (let i = 0; i < conceptOrder.length; i++) {
+      const conceptId = conceptOrder[i]
+      if (!conceptId) continue // 类型收窄；conceptOrder 数组已校验非空
+      const raw = conceptsById.get(conceptId)
+      if (!raw) {
+        // conceptOrder 引用了不存在的 concept id（schema 层应该已拦截）
+        yield {
+          kind: 'error',
+          error: makeError(
+            'module',
+            'agent_output_invalid',
+            {},
+            new Error(`conceptOrder 引用未知 concept: ${conceptId}`),
+          ),
+        }
+        return
+      }
+      assembledConcepts.push(assembleConcept(raw, moduleId, i + 1))
+    }
 
-  // sourceId 用时间戳构造（M3 不持久化到 LocalStorage，sourceId 仅用于结构完整性）
-  const sourceId = `source-${Date.now()}`
-  const partialModule: Module = assembleModule(moduleOut.module, {
-    sourceId,
-    concepts: assembledConcepts,
-    feynmanTask: stubFeynmanTask,
-  })
+    // 构造 stub FeynmanTask（W4 替换）
+    const stubFeynmanTask: FeynmanTask = {
+      moduleId,
+      steps: [],
+      finalPrompt: '',
+      rubric: [],
+    }
 
-  yield {
-    kind: 'progress',
-    stage: 'module',
-    percent: STAGE_PERCENT.module,
-    message: `已识别 ${assembledConcepts.length} 个概念`,
+    // sourceId 用时间戳构造（M3 不持久化到 LocalStorage，sourceId 仅用于结构完整性）
+    const sourceId = `source-${Date.now()}`
+    partialModule = assembleModule(moduleOut.module, {
+      sourceId,
+      concepts: assembledConcepts,
+      feynmanTask: stubFeynmanTask,
+    })
+
+    yield {
+      kind: 'progress',
+      stage: 'module',
+      percent: STAGE_PERCENT.module,
+      message: `已识别 ${assembledConcepts.length} 个概念`,
+    }
+
+    // ★ Checkpoint 1: stage 4 完成，保存 partialModule + assembledConcepts
+    tryWriteCheckpoint('module', partialModule, totalUsage)
+    tryWriteCheckpoint('module-concepts', assembledConcepts)
   }
 
   // ===== Stage 5: Mission（70%）=====
-  const missionOut = yield* runStage('mission', async () => {
-    const out = await runAgent(
-      'mission',
-      { module: partialModule, concepts: assembledConcepts },
-      compileProvider,
-      missionSchema,
-      { disableThinking },
-    )
-    return out as MissionAgentOutput
-  })
+  const missionOut = isStageCompleted('mission')
+    ? getCheckpointArtifact<MissionAgentOutput>('mission')!
+    : yield* runStage('mission', async () => {
+        const { data: out, usage } = await runAgent(
+          'mission',
+          { module: partialModule, concepts: assembledConcepts },
+          compileProvider,
+          missionSchema,
+          { disableThinking },
+        )
+        accumulateUsage(totalUsage, usage)
+        return out as MissionAgentOutput
+      })
   if (!missionOut) return
 
   // ===== Stage 6: Quiz（80%-95%，quiz-batch 按 concept 分组）=====
   // runQuizStage 返回 boolean：true=成功（含降级），false=已熔断
   // 熔断时已 yield error，主流程 return
-  const quizOk = yield* runQuizStage({
-    seriesByConcept: missionOut.seriesByConcept,
-    concepts: assembledConcepts,
-    moduleContext: partialModule,
-    provider: compileProvider,
-    disableThinking,
-  })
-  if (!quizOk) return
+  if (!isStageCompleted('quiz')) {
+    const quizOk = yield* runQuizStage({
+      seriesByConcept: missionOut.seriesByConcept,
+      concepts: assembledConcepts,
+      moduleContext: partialModule,
+      provider: compileProvider,
+      disableThinking,
+      totalUsage,
+      autoFix: autoFixQuizBatchFactory.autoFix,
+      mapperFixStats,
+    })
+    if (!quizOk) return
+  }
 
   // ===== Stage 6.5: Challenge（96%，生成跨概念综合题）=====
-  const challengeTotal = Math.min(5, Math.max(3, assembledConcepts.length))
-  const challengeOut = yield* runStage('challenge', async () => {
-    const out = await runAgent(
-      'challenge-batch',
-      {
-        concepts: assembledConcepts.map((c) => ({
-          id: c.id,
-          name: c.name,
-          definition: c.definition,
-          keyPoints: c.keyPoints,
-        })),
-        moduleContext: partialModule,
-        total: challengeTotal,
-        conceptCount: assembledConcepts.length,
-      },
-      compileProvider,
-      challengeBatchSchema,
-      { disableThinking },
-    )
-    return out as ChallengeBatchAgentOutput
-  })
-  if (!challengeOut) return
+  if (!isStageCompleted('challenge')) {
+    const challengeTotal = Math.min(5, Math.max(3, assembledConcepts.length))
+    const challengeOut = yield* runStage('challenge', async () => {
+      const { data: out, usage } = await runAgent(
+        'challenge-batch',
+        {
+          concepts: assembledConcepts.map((c) => ({
+            id: c.id,
+            name: c.name,
+            definition: c.definition,
+            keyPoints: c.keyPoints,
+          })),
+          moduleContext: partialModule,
+          total: challengeTotal,
+          conceptCount: assembledConcepts.length,
+        },
+        compileProvider,
+        challengeBatchSchema,
+        { disableThinking },
+      )
+      accumulateUsage(totalUsage, usage)
+      return out as ChallengeBatchAgentOutput
+    })
+    if (!challengeOut) return
 
-  // 把 Challenge 题写入 Module
-  partialModule.challengeQuizzes = challengeOut.quizzes.map((q) => assembleChallengeQuiz(q))
+    // 把 Challenge 题写入 Module
+    partialModule.challengeQuizzes = challengeOut.quizzes.map((q) => {
+      const { quiz, answerMoved } = assembleChallengeQuiz(q)
+      if (answerMoved) mapperFixStats.answerMovedToFirstOption++
+      return quiz
+    })
+
+    // ★ Checkpoint 2: stage 6.5 完成，保存含 quiz + challenge 的 partialModule
+    tryWriteCheckpoint('challenge', partialModule, totalUsage)
+  }
 
   // ===== Stage 7: Feynman（100%）=====
-  const feynmanOut = yield* runStage('feynman', async () => {
-    const out = await runAgent(
-      'feynman',
-      { module: partialModule, concepts: assembledConcepts },
-      compileProvider,
-      feynmanSchema,
-      { disableThinking },
-    )
-    return out as FeynmanAgentOutput
-  })
+  const feynmanOut = isStageCompleted('feynman')
+    ? getCheckpointArtifact<FeynmanAgentOutput>('feynman')!
+    : yield* runStage('feynman', async () => {
+        const { data: out, usage } = await runAgent(
+          'feynman',
+          { module: partialModule, concepts: assembledConcepts },
+          compileProvider,
+          feynmanSchema,
+          { disableThinking },
+        )
+        accumulateUsage(totalUsage, usage)
+        return out as FeynmanAgentOutput
+      })
   if (!feynmanOut) return
 
   // 替换 stub FeynmanTask
@@ -287,7 +424,18 @@ export async function* compileMarkdown(
     message: '编译完成',
   }
 
-  const qualityReport = buildQualityReport(partialModule, { generatedAt: Date.now() })
+  // 合并 autoFix 工厂统计到 pipeline 级 stats
+  const afs = autoFixQuizBatchFactory.stats
+  mapperFixStats.duplicateOptionsRemoved += afs.duplicateOptionsRemoved
+  mapperFixStats.shortExtendedKnowledgeFallback += afs.shortExtendedKnowledgeFallback
+  mapperFixStats.shortMisconceptionFallback += afs.shortMisconceptionFallback
+
+  const qualityReport = buildQualityReport(partialModule, {
+    generatedAt: Date.now(),
+    mapperFixStats,
+    totalUsage,
+    providerKind: config.llm.provider,
+  })
   partialModule.generatedAt = qualityReport.generatedAt
   yield { kind: 'complete', module: partialModule, qualityReport }
 }
@@ -393,6 +541,12 @@ interface QuizStageInput {
   provider: LLMProvider
   /** 是否禁用 thinking */
   disableThinking: boolean
+  /** Pipeline 级 token 用量累加器 */
+  totalUsage: TokenUsage
+  /** autoFix 回调（从工厂函数获得，内部已捕获 stats） */
+  autoFix: (value: unknown, issues: ZodIssue[]) => unknown | null
+  /** Pipeline 级 mapperFixStats 累加器 */
+  mapperFixStats: MapperFixStats
 }
 
 /**
@@ -451,7 +605,7 @@ function salvageQuizBatch(raw: string, placeholders: unknown[]): Quiz[] | null {
     const result = quizItemSchema.safeParse(item)
     if (result.success) {
       try {
-        const quiz = assembleQuiz(result.data)
+        const quiz = assembleQuiz(result.data).quiz
         if (quiz && validPlaceholderIds.has(quiz.id)) {
           validQuizzes.push(quiz)
         }
@@ -465,55 +619,78 @@ function salvageQuizBatch(raw: string, placeholders: unknown[]): Quiz[] | null {
 }
 
 /**
- * quiz-batch 的 autoFix 回调：在 schema 校验失败后、重试前尝试自动修复已知问题。
+ * quiz-batch 的 autoFix 回调工厂：在 schema 校验失败后、重试前尝试自动修复已知问题，
+ * 同时统计修复次数。
  *
  * 修复项：
- *   - distractor.text === answer 且 used === true → 设为 used: false
- *   - extendedKnowledge 不足 20 字符 → 删除该字段
- *   - misconception 不足 10 字符 → 删除该字段
+ *   - distractor.text === answer 且 used === true -> 设为 used: false
+ *   - extendedKnowledge 不足 20 字符 -> 删除该字段
+ *   - misconception 不足 10 字符 -> 删除该字段
  *
- * @returns 修复后的值（有修改则返回对象），或 null 表示无法修复
+ * 用闭包捕获 stats 对象，避免改变 runAgent 的 autoFix 回调签名。
  */
-function autoFixQuizBatch(value: unknown, _issues: ZodIssue[]): unknown | null {
-  if (!value || typeof value !== 'object') return null
-  const data = value as Record<string, unknown>
-  if (!Array.isArray(data.quizzes)) return null
+export function createAutoFixQuizBatch(): {
+  autoFix: (value: unknown, issues: ZodIssue[]) => unknown | null
+  stats: Pick<
+    MapperFixStats,
+    'duplicateOptionsRemoved' | 'shortExtendedKnowledgeFallback' | 'shortMisconceptionFallback'
+  >
+} {
+  const stats: Pick<
+    MapperFixStats,
+    'duplicateOptionsRemoved' | 'shortExtendedKnowledgeFallback' | 'shortMisconceptionFallback'
+  > = {
+    duplicateOptionsRemoved: 0,
+    shortExtendedKnowledgeFallback: 0,
+    shortMisconceptionFallback: 0,
+  }
 
-  let modified = false
-  const quizzes = data.quizzes as Array<Record<string, unknown>>
+  function autoFix(value: unknown, _issues: ZodIssue[]): unknown | null {
+    if (!value || typeof value !== 'object') return null
+    const data = value as Record<string, unknown>
+    if (!Array.isArray(data.quizzes)) return null
 
-  for (const quiz of quizzes) {
-    if (!quiz || typeof quiz !== 'object') continue
+    let modified = false
+    const quizzes = data.quizzes as Array<Record<string, unknown>>
 
-    // 修复 distractor.text === answer（会导致两个选项都是正解）
-    const answer = quiz.answer
-    const distractors = quiz.distractors
-    if (typeof answer === 'string' && Array.isArray(distractors)) {
-      for (const d of distractors) {
-        if (d && typeof d === 'object' && 'text' in d && 'used' in d) {
-          const dd = d as { text: unknown; used: unknown }
-          if (dd.text === answer && dd.used === true) {
-            dd.used = false
-            modified = true
+    for (const quiz of quizzes) {
+      if (!quiz || typeof quiz !== 'object') continue
+
+      // 修复 distractor.text === answer（会导致两个选项都是正解）
+      const answer = quiz.answer
+      const distractors = quiz.distractors
+      if (typeof answer === 'string' && Array.isArray(distractors)) {
+        for (const d of distractors) {
+          if (d && typeof d === 'object' && 'text' in d && 'used' in d) {
+            const dd = d as { text: unknown; used: unknown }
+            if (dd.text === answer && dd.used === true) {
+              dd.used = false
+              modified = true
+              stats.duplicateOptionsRemoved++
+            }
           }
         }
       }
+
+      // 修复 extendedKnowledge 短串（兜底，transform 应已处理大部分）
+      if (typeof quiz.extendedKnowledge === 'string' && quiz.extendedKnowledge.trim().length < 20) {
+        delete quiz.extendedKnowledge
+        modified = true
+        stats.shortExtendedKnowledgeFallback++
+      }
+
+      // 修复 misconception 短串
+      if (typeof quiz.misconception === 'string' && quiz.misconception.trim().length < 10) {
+        delete quiz.misconception
+        modified = true
+        stats.shortMisconceptionFallback++
+      }
     }
 
-    // 修复 extendedKnowledge 短串（兜底，transform 应已处理大部分）
-    if (typeof quiz.extendedKnowledge === 'string' && quiz.extendedKnowledge.trim().length < 20) {
-      delete quiz.extendedKnowledge
-      modified = true
-    }
-
-    // 修复 misconception 短串
-    if (typeof quiz.misconception === 'string' && quiz.misconception.trim().length < 10) {
-      delete quiz.misconception
-      modified = true
-    }
+    return modified ? data : null
   }
 
-  return modified ? data : null
+  return { autoFix, stats }
 }
 
 /** quiz-batch concept 级并行度（保守值，避免 API rate limit） */
@@ -548,10 +725,16 @@ async function runQuizBatchForConcept(
         },
         input.provider,
         quizBatchSchema,
-        { disableThinking: input.disableThinking, autoFix: autoFixQuizBatch },
+        { disableThinking: input.disableThinking, autoFix: input.autoFix },
       )
-      const batchOut = out as QuizBatchAgentOutput
-      batchQuizzes = batchOut.quizzes.map((q) => assembleQuiz(q))
+      accumulateUsage(input.totalUsage, out.usage)
+      const batchOut = out.data as QuizBatchAgentOutput
+      batchQuizzes = []
+      for (const q of batchOut.quizzes) {
+        const { quiz, answerMoved } = assembleQuiz(q)
+        if (answerMoved) input.mapperFixStats.answerMovedToFirstOption++
+        batchQuizzes.push(quiz)
+      }
       batchOk = true
       break
     } catch (e: unknown) {
@@ -771,6 +954,20 @@ function conceptRawForQuiz(concept: Concept): Omit<Concept, 'moduleId' | 'order'
 // =================================================================
 
 /**
+ * 将单次 runAgent 调用的 token 用量累加到总量。
+ */
+function accumulateUsage(total: TokenUsage, usage: TokenUsage): void {
+  total.promptTokens += usage.promptTokens
+  total.completionTokens += usage.completionTokens
+  total.totalTokens += usage.totalTokens
+}
+
+/** 创建零值 TokenUsage。 */
+function zeroTokenUsage(): TokenUsage {
+  return { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+}
+
+/**
  * 输入校验。
  *
  * @returns CompileErrorPayload 表示校验失败；null 表示通过
@@ -785,6 +982,15 @@ function validateInput(raw: string): CompileErrorPayload | null {
   }
   if (len > INPUT_MAX_LENGTH) {
     return makeInputError('input_too_long', len)
+  }
+  if (raw.includes('\uFFFD')) {
+    return {
+      code: 'input_invalid_encoding',
+      message: '文件编码必须是 UTF-8',
+      hint: '请在 VS Code 右下角将编码切换为 UTF-8 后重新保存',
+      stage: 'input',
+      retryable: false,
+    }
   }
   return null
 }

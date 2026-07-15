@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   try {
     const provider = createProvider(llmConfig)
 
-    const output = await runAgent(
+    const { data: output } = await runAgent(
       'quiz',
       {
         placeholder,
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     )
 
     const quizOutput = output as QuizAgentOutput
-    const quiz = assembleQuiz(quizOutput.quiz)
+    const quiz = assembleQuiz(quizOutput.quiz).quiz
 
     return Response.json({ quiz })
   } catch (err: unknown) {

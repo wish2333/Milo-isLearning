@@ -22,7 +22,7 @@ test.describe('Production storage layer', () => {
     expect(res.ok()).toBe(true)
     const body = await res.json()
     expect(body.enabled).toBe(true)
-    expect(body.schemaVersion).toBe(1)
+    expect(body.schemaVersion).toBe(3)
     expect(body.stats).toBeDefined()
   })
 

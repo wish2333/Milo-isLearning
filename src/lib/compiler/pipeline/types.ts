@@ -172,3 +172,44 @@ export const STAGE_PERCENT: Readonly<Record<Exclude<CompileStage, 'quiz'>, numbe
 /** Quiz 阶段进度区间（动态） */
 export const QUIZ_PERCENT_START = 80
 export const QUIZ_PERCENT_END = 95
+
+// =================================================================
+// Checkpoint / Resume 选项（PB.2 F04）
+// =================================================================
+
+/**
+ * compileMarkdown 的可选参数，支持 checkpoint 写入和断点续编。
+ *
+ * 仅 production 模式使用（sessionId 由 /api/compile/session 分配）。
+ * Showcase 模式不传 options，行为零回归。
+ */
+export interface CompileOptions {
+  /** PB.1 编译 session ID（production 模式由 API route 传入） */
+  sessionId?: string
+
+  /**
+   * 断点续编：跳过已完成 stage，从此 stage 开始执行。
+   * 值为已完成的最后一个 stage（如 'module' 表示 stage 1-4 已完成，从 stage 5 恢复）。
+   */
+  resumeFrom?: CompileStage
+
+  /**
+   * 断点续编：已完成的 checkpoint 数据。
+   * 由 route.ts 在 resume 场景下从 /api/compile/resume 获取后传入。
+   * key = stage name，value = 该 stage 的 artifact 数据。
+   */
+  checkpointData?: Map<
+    string,
+    { artifact: unknown; usage?: { promptTokens: number; completionTokens: number } }
+  >
+
+  /**
+   * Checkpoint 写入回调。当 sessionId 存在且 stage 完成时调用。
+   * pipeline 自身不依赖 server-only 持久化层，由 route 注入。
+   */
+  writeCheckpoint?: (
+    stage: string,
+    artifact: unknown,
+    usage?: { promptTokens: number; completionTokens: number },
+  ) => void
+}

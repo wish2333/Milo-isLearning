@@ -14,7 +14,11 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import type { StoredModuleSummary } from '@/lib/persistence/module-library'
-import { loadStoredModule, resetStoredModuleProgress } from '@/lib/persistence/module-library'
+import {
+  loadStoredModule,
+  renameModule,
+  resetStoredModuleProgress,
+} from '@/lib/persistence/module-library'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { removeModule } from '@/lib/persistence/quota'
 import { storage } from '@/lib/persistence/client/local-storage'
@@ -68,6 +72,7 @@ export interface ModuleLibraryRowProps {
   onRestart: (module: StoredModuleSummary) => void
   onDeleteRequest: (module: StoredModuleSummary) => void
   onExport: (module: StoredModuleSummary) => void
+  onRename: (moduleId: string, newTitle: string) => void
 }
 
 export function ModuleLibraryRow({
@@ -77,14 +82,52 @@ export function ModuleLibraryRow({
   onRestart,
   onDeleteRequest,
   onExport,
+  onRename,
 }: ModuleLibraryRowProps) {
   const router = useRouter()
+  const [editing, setEditing] = useState(false)
+  const [editValue, setEditValue] = useState(m.title)
+
+  const handleRenameStart = () => {
+    setEditValue(m.title)
+    setEditing(true)
+  }
+
+  const handleRenameCommit = () => {
+    const trimmed = editValue.trim()
+    if (trimmed.length > 0 && trimmed.length <= 100 && trimmed !== m.title) {
+      onRename(m.id, trimmed)
+    }
+    setEditing(false)
+  }
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleRenameCommit()
+    } else if (e.key === 'Escape') {
+      setEditing(false)
+    }
+  }
 
   return (
     <li className="alc-card p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-fg-primary font-medium truncate">{m.title}</p>
+          {editing ? (
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleRenameCommit}
+              onKeyDown={handleRenameKeyDown}
+              maxLength={100}
+              className="w-full rounded-md border border-border-subtle bg-bg-surface px-2 py-1 text-fg-primary text-sm"
+              autoFocus
+              aria-label="输入新标题"
+            />
+          ) : (
+            <p className="text-fg-primary font-medium truncate">{m.title}</p>
+          )}
           <p className="alc-label mt-0.5">
             {m.conceptCount} 概念 · {m.quizCount} 题 · {formatDate(m.updatedAt)}
           </p>
@@ -114,6 +157,7 @@ export function ModuleLibraryRow({
         <button
           type="button"
           onClick={() => onRestart(m)}
+          aria-label={`重新学习: ${m.title}`}
           className="alc-button-secondary text-xs px-3 py-1.5"
         >
           重新学习
@@ -121,6 +165,7 @@ export function ModuleLibraryRow({
         <button
           type="button"
           onClick={() => onExport(m)}
+          aria-label={`导出: ${m.title}`}
           className="alc-button-secondary text-xs px-3 py-1.5"
         >
           导出
@@ -129,6 +174,7 @@ export function ModuleLibraryRow({
         <button
           type="button"
           onClick={() => router.push(`/learn/review/${m.id}?filter=guessed`)}
+          aria-label={`重刷蒙对题: ${m.title}`}
           className="alc-button-secondary text-xs px-3 py-1.5"
         >
           重刷蒙对题
@@ -136,10 +182,12 @@ export function ModuleLibraryRow({
         <button
           type="button"
           onClick={() => onDeleteRequest(m)}
+          aria-label={`删除: ${m.title}`}
           className="alc-button-danger text-xs px-3 py-1.5"
         >
           删除
         </button>
+        <ModuleRenameButton module={m} onStartRename={handleRenameStart} />
       </div>
     </li>
   )
@@ -216,6 +264,31 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
     setToast(ok ? '已下载导出文件' : '导出失败：Module 或 source 不存在')
   }
 
+  // ---------- 重命名 ----------
+
+  const handleRename = (moduleId: string, newTitle: string) => {
+    const storedModule = loadStoredModule(storage, moduleId)
+    if (!storedModule) {
+      setToast('Module 不存在或已损坏')
+      return
+    }
+    if (storedModule.origin === 'showcase') {
+      setToast('展示模块不可重命名')
+      return
+    }
+    try {
+      renameModule(storage, moduleId, newTitle)
+      // 若当前 module store 持有的就是被重命名的，同步更新内存状态
+      const current = useModuleStore.getState().currentModule
+      if (current && current.id === moduleId) {
+        useModuleStore.getState().renameCurrentModule(newTitle)
+      }
+      onChanged()
+    } catch {
+      setToast('重命名失败')
+    }
+  }
+
   if (modules.length === 0) {
     return (
       <div className="alc-card p-8 text-center space-y-2">
@@ -254,6 +327,7 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
             onRestart={handleRestart}
             onDeleteRequest={handleDeleteRequest}
             onExport={handleExport}
+            onRename={handleRename}
           />
         ))}
       </ul>
@@ -276,6 +350,7 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
                 type="button"
                 onClick={handleDeleteConfirm}
                 className="alc-button-danger flex-1 text-sm"
+                aria-label="确认删除模块"
               >
                 确认删除
               </button>
@@ -283,6 +358,7 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
                 type="button"
                 onClick={handleDeleteCancel}
                 className="alc-button-secondary flex-1 text-sm"
+                aria-label="取消删除"
               >
                 取消
               </button>
@@ -295,7 +371,50 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
 }
 
 // =================================================================
-// ModuleReviewButton — 条件渲染的"重刷错题"按钮
+// ModuleRenameButton -- "重命名" 按钮（展示模块 disabled）
+// =================================================================
+
+function ModuleRenameButton({
+  module,
+  onStartRename,
+}: {
+  module: StoredModuleSummary
+  onStartRename: () => void
+}) {
+  const [isShowcase, setIsShowcase] = useState(false)
+
+  useEffect(() => {
+    const moduleData = loadStoredModule(storage, module.id)
+    setIsShowcase(moduleData?.origin === 'showcase')
+  }, [module.id])
+
+  if (isShowcase) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="alc-button-secondary text-xs px-3 py-1.5 opacity-40 cursor-not-allowed"
+        aria-label="展示模块不可重命名"
+      >
+        重命名
+      </button>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onStartRename}
+      className="alc-button-secondary text-xs px-3 py-1.5"
+      aria-label="重命名此模块"
+    >
+      重命名
+    </button>
+  )
+}
+
+// =================================================================
+// ModuleReviewButton -- 条件渲染的"重刷错题"按钮
 // =================================================================
 
 function ModuleReviewButton({

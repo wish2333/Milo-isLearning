@@ -1,11 +1,15 @@
 /**
- * 轻量埋点系统（M7.8 / FR-09 前置）
+ * 轻量埋点系统（M7.8 / FR-09 前置）— 双轨模式
  *
- * 同步入队 → LocalStorage 批量缓冲 → 满 BATCH_SIZE 或 FLUSH_INTERVAL 到期时
- * 尝试 navigator.sendBeacon（仅在配置了上报端点时）。
+ * track() 同步入队到内存 buffer，自动注入 app_mode。
+ * flush() 按 APP_MODE 分轨：
+ *   - production: POST /api/events（失败时重新入队重试）
+ *   - showcase:  写入 LocalStorage（保持原有行为）
+ *
  * 不阻塞主流程，LocalStorage 写入失败时丢弃最旧事件。
  */
 
+import { APP_MODE, isProductionMode } from '@/lib/runtime/app-mode'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { storage } from '@/lib/persistence/client/local-storage'
 
@@ -18,10 +22,9 @@ export interface AnalyticsEvent {
 const BATCH_SIZE = 20
 const FLUSH_INTERVAL_MS = 30_000
 const STORAGE_KEY = StorageKeys.events
+const EVENTS_ENDPOINT = '/api/events'
 
-/** 上报端点（未配置时只存 LocalStorage） */
-const ENDPOINT: string | undefined = undefined
-
+let buffer: AnalyticsEvent[] = []
 let flushTimer: ReturnType<typeof setTimeout> | null = null
 
 function isBrowser(): boolean {
@@ -34,15 +37,11 @@ export function getPendingEvents(): AnalyticsEvent[] {
   return storage.get<AnalyticsEvent[]>(STORAGE_KEY) ?? []
 }
 
-/** Enqueue an analytics event. Synchronous, <1ms, never throws. */
-export function track(name: string, props?: AnalyticsEvent['props']): void {
-  if (!isBrowser()) return
-
-  const event: AnalyticsEvent = { name, props, timestamp: Date.now() }
-
+/** Showcase: persist batch to LocalStorage (existing M7.8 behavior) */
+function persistToLocal(batch: AnalyticsEvent[]): void {
   try {
     const events = getPendingEvents()
-    events.push(event)
+    events.push(...batch)
 
     try {
       storage.set(STORAGE_KEY, events)
@@ -51,50 +50,81 @@ export function track(name: string, props?: AnalyticsEvent['props']): void {
       try {
         storage.set(STORAGE_KEY, trimmed)
       } catch {
-        // Still failing — give up silently
+        // Still failing -- give up silently
       }
-    }
-
-    if (events.length >= BATCH_SIZE) {
-      flushEvents()
-    } else {
-      ensureFlushTimer()
     }
   } catch {
     // Analytics must NEVER throw or block UI
   }
 }
 
-/** Flush all pending events via sendBeacon (if endpoint configured). Returns flushed events. */
-export function flushEvents(): AnalyticsEvent[] {
-  if (!isBrowser()) return []
+/** Enqueue an analytics event. Synchronous, <1ms, never throws. */
+export function track(name: string, props?: AnalyticsEvent['props']): void {
+  if (!isBrowser()) return
 
-  const events = getPendingEvents()
-  if (events.length === 0) return []
-
-  if (ENDPOINT && typeof navigator !== 'undefined' && navigator.sendBeacon) {
-    try {
-      const body = JSON.stringify({ events })
-      const success = navigator.sendBeacon(ENDPOINT, body)
-      if (success) {
-        storage.set(STORAGE_KEY, [])
-        return events
-      }
-    } catch {
-      // sendBeacon failed — keep events in buffer for next attempt
-    }
+  const event: AnalyticsEvent = {
+    name,
+    props: { ...props, app_mode: APP_MODE },
+    timestamp: Date.now(),
   }
 
-  // No endpoint or sendBeacon failed — events stay in LocalStorage
+  buffer.push(event)
+
+  if (buffer.length >= BATCH_SIZE) {
+    flush()
+  } else {
+    ensureFlushTimer()
+  }
+}
+
+/**
+ * Flush buffered events. Branches by APP_MODE:
+ *   - production: POST /api/events; re-buffer on failure
+ *   - showcase:  write to LocalStorage
+ */
+export async function flush(): Promise<void> {
+  if (!isBrowser()) return
+  if (buffer.length === 0) return
+
+  const batch = buffer.splice(0)
+
+  if (isProductionMode) {
+    try {
+      const response = await fetch(EVENTS_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          events: batch.map((e) => ({
+            name: e.name,
+            props: e.props,
+            occurredAt: e.timestamp,
+          })),
+        }),
+      })
+      if (!response.ok) {
+        // Re-buffer on failure for next flush attempt
+        buffer.unshift(...batch)
+      }
+    } catch {
+      // Network error: re-buffer for retry
+      buffer.unshift(...batch)
+    }
+  } else {
+    persistToLocal(batch)
+  }
+}
+
+/** Backwards-compatible sync flush wrapper */
+export function flushEvents(): AnalyticsEvent[] {
+  // Legacy sync API -- no-op under dual-track; events are in buffer or LS
   return []
 }
 
 function ensureFlushTimer(): void {
   if (flushTimer !== null) return
-  if (!ENDPOINT) return
   flushTimer = setTimeout(() => {
     flushTimer = null
-    flushEvents()
+    flush()
   }, FLUSH_INTERVAL_MS)
 }
 
@@ -104,4 +134,5 @@ export function _resetForTesting(): void {
     clearTimeout(flushTimer)
     flushTimer = null
   }
+  buffer = []
 }

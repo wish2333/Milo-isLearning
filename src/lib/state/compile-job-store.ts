@@ -27,6 +27,7 @@ export interface CompileJob {
   status: 'running' | 'complete' | 'error'
   stage: CompileStage | null
   percent: number
+  sessionId: string | null
   moduleId?: string
   errorMessage?: string
   createdAt: number
@@ -73,6 +74,7 @@ export function createCompileJob(
   args: {
     sourceContent: string
     configSummary: { provider: string; model: string }
+    sessionId?: string | null
   },
 ): CompileJob {
   const now = Date.now()
@@ -83,6 +85,7 @@ export function createCompileJob(
     status: 'running',
     stage: null,
     percent: 0,
+    sessionId: args.sessionId ?? null,
     createdAt: now,
     updatedAt: now,
   }

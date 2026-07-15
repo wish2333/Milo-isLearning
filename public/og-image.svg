@@ -1,0 +1,56 @@
+<!--
+  OG Image for social media sharing.
+  NOTE: Most social platforms (X/Twitter, Facebook, LinkedIn) do NOT support SVG.
+  Convert this to PNG (1200x630, <300KB) before production deploy.
+  Recommended tool: bunx @resvg/resvg-js or any SVG-to-PNG converter.
+  Target: public/og-image.png
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a1e"/>
+      <stop offset="100%" stop-color="#2a2520"/>
+    </linearGradient>
+    <linearGradient id="accent-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#d4a574"/>
+      <stop offset="100%" stop-color="#b8895a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.05" stroke="#d4a574" stroke-width="0.5">
+    <line x1="0" y1="0" x2="1200" y2="630"/>
+    <line x1="1200" y1="0" x2="0" y2="630"/>
+    <circle cx="600" cy="315" r="200"/>
+    <circle cx="600" cy="315" r="280"/>
+  </g>
+
+  <!-- Accent horizontal rule -->
+  <rect x="140" y="240" width="80" height="4" rx="2" fill="url(#accent-line)"/>
+
+  <!-- Title -->
+  <text x="140" y="310" font-family="'Noto Serif SC', 'Source Han Serif SC', Georgia, serif" font-size="64" font-weight="700" fill="#f0ece4">
+    AI Learning Compiler
+  </text>
+
+  <!-- Subtitle -->
+  <text x="140" y="380" font-family="'Noto Serif SC', 'Source Han Serif SC', Georgia, serif" font-size="28" fill="#a09888">
+    将 Markdown 编译为交互式学习模块
+  </text>
+
+  <!-- Tagline -->
+  <text x="140" y="430" font-family="system-ui, sans-serif" font-size="20" fill="#7a7268">
+    Concept - Quiz - Feynman  |  低摩擦 / 高掌握度
+  </text>
+
+  <!-- Bottom accent line -->
+  <rect x="140" y="480" width="920" height="2" rx="1" fill="#d4a574" opacity="0.3"/>
+
+  <!-- Corner branding -->
+  <text x="1060" y="600" font-family="system-ui, sans-serif" font-size="14" fill="#5a5248" text-anchor="end">
+    ai-learning-compiler
+  </text>
+</svg>

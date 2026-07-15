@@ -43,8 +43,18 @@ function mockProvider(responses: ChatResponse[]): LLMProvider & { calls: ChatReq
   return Object.assign(provider, { calls })
 }
 
-function ok(content: string): ChatResponse {
-  return { content, finishReason: 'stop', usage: { promptTokens: 0, completionTokens: 0 } }
+function ok(
+  content: string,
+  usage?: { promptTokens: number; completionTokens: number },
+): ChatResponse {
+  return {
+    content,
+    finishReason: 'stop',
+    usage: {
+      promptTokens: usage?.promptTokens ?? 0,
+      completionTokens: usage?.completionTokens ?? 0,
+    },
+  }
 }
 
 /** 从对话中找含特定关键词的 system 重试提示（安全解包） */
@@ -53,16 +63,19 @@ function findRetryHint(messages: ChatMessage[], keyword: string): ChatMessage | 
 }
 
 describe('runAgent — 成功与重试', () => {
-  it('合法 JSON + 通过 Schema → 返回校验后的数据', async () => {
+  it('合法 JSON + 通过 Schema -> 返回校验后的数据', async () => {
     const validPayload = {
       normalizedText: '# RAG\n\n标准化后的文本内容。',
       stats: { originalLength: 100, normalizedLength: 90, removedElements: 5 },
     }
-    const provider = mockProvider([ok(JSON.stringify(validPayload))])
+    const provider = mockProvider([
+      ok(JSON.stringify(validPayload), { promptTokens: 50, completionTokens: 30 }),
+    ])
 
     const result = await runAgent('import', { rawMarkdown: '原始文本' }, provider, importSchema)
 
-    expect(result).toEqual(validPayload)
+    expect(result.data).toEqual(validPayload)
+    expect(result.usage).toEqual({ promptTokens: 50, completionTokens: 30, totalTokens: 80 })
     expect(provider.calls).toHaveLength(1)
   })
 
@@ -73,12 +86,14 @@ describe('runAgent — 成功与重试', () => {
     }
     const provider = mockProvider([
       ok('这完全不是JSON，没有任何大括号或代码块结构'), // 第一次非法（enhanced parser 也无法提取）
-      ok(JSON.stringify(validPayload)), // 第二次合法
+      ok(JSON.stringify(validPayload), { promptTokens: 60, completionTokens: 40 }), // 第二次合法
     ])
 
     const result = await runAgent('import', { rawMarkdown: 'x' }, provider, importSchema)
 
-    expect(result).toEqual(validPayload)
+    expect(result.data).toEqual(validPayload)
+    // usage 来自最后一次成功的调用
+    expect(result.usage).toEqual({ promptTokens: 60, completionTokens: 40, totalTokens: 100 })
     expect(provider.calls).toHaveLength(2)
     // 第二次调用应在 messages 里追加了重试提示
     const secondMessages = provider.calls[1]?.messages
@@ -102,7 +117,7 @@ describe('runAgent — 成功与重试', () => {
 
     const result = await runAgent('import', { rawMarkdown: 'x' }, provider, importSchema)
 
-    expect(result).toEqual(validPayload)
+    expect(result.data).toEqual(validPayload)
     const secondMessages = provider.calls[1]?.messages
     expect(secondMessages && findRetryHint(secondMessages, 'Schema 校验')).toBeDefined()
   })
@@ -148,7 +163,7 @@ describe('runAgent — 成功与重试', () => {
 
     const result = await runAgent('import', { rawMarkdown: 'x' }, provider, importSchema)
 
-    expect(result).toEqual(validPayload)
+    expect(result.data).toEqual(validPayload)
     expect(provider.calls).toHaveLength(2)
     const secondMessages = provider.calls[1]?.messages
     expect(secondMessages && findRetryHint(secondMessages, '为空')).toBeDefined()

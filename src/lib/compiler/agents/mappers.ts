@@ -151,14 +151,26 @@ export function assembleConcept(
 }
 
 /**
+ * assembleQuiz / assembleChallengeQuiz 的返回值。
+ *
+ * answerMoved=true 表示组装时自动将 answer 从非 options[0] 移到了 options[0]。
+ * 调用方可据此累加 mapperFixStats。
+ */
+export interface AssembleQuizResult {
+  quiz: Quiz
+  answerMoved: boolean
+}
+
+/**
  * 把 Quiz Agent 输出补全为 domain.Quiz。
  *
  * QuizAgentOutput 形状为 `{ reasoning, quiz: {...} }`，本函数取 `.quiz` 部分。
  */
-export function assembleQuiz(output: QuizAgentOutput['quiz']): Quiz {
+export function assembleQuiz(output: QuizAgentOutput['quiz']): AssembleQuizResult {
   // 自动修复 options[0] !== answer（LLM 常见错误）
   // 把 answer 匹配的选项换到 position 0，前端打乱后不影响判分
   let fixedOptions = output.options
+  let answerMoved = false
   if (output.interactionType === 'choice' && Array.isArray(output.options)) {
     const ansIdx = output.options.indexOf(output.answer)
     if (ansIdx > 0) {
@@ -167,26 +179,30 @@ export function assembleQuiz(output: QuizAgentOutput['quiz']): Quiz {
         ...output.options.slice(0, ansIdx),
         ...output.options.slice(ansIdx + 1),
       ]
+      answerMoved = true
     }
   }
 
   return {
-    id: output.id,
-    conceptId: output.conceptId,
-    ladderLevel: output.ladderLevel,
-    expressionLevel: output.expressionLevel,
-    interactionType: output.interactionType,
-    stem: output.stem,
-    options: fixedOptions,
-    answer: output.answer,
-    explanation: output.explanation,
-    distractors: output.distractors.filter((d) => d.text !== output.answer).map((d) => d.text),
-    background: output.background,
-    answerHint: output.answerHint,
-    acceptableAnswers: output.acceptableAnswers,
-    misconception: output.misconception,
-    extendedKnowledge: output.extendedKnowledge,
-    evaluationMode: output.evaluationMode,
+    quiz: {
+      id: output.id,
+      conceptId: output.conceptId,
+      ladderLevel: output.ladderLevel,
+      expressionLevel: output.expressionLevel,
+      interactionType: output.interactionType,
+      stem: output.stem,
+      options: fixedOptions,
+      answer: output.answer,
+      explanation: output.explanation,
+      distractors: output.distractors.filter((d) => d.text !== output.answer).map((d) => d.text),
+      background: output.background,
+      answerHint: output.answerHint,
+      acceptableAnswers: output.acceptableAnswers,
+      misconception: output.misconception,
+      extendedKnowledge: output.extendedKnowledge,
+      evaluationMode: output.evaluationMode,
+    },
+    answerMoved,
   }
 }
 
@@ -196,9 +212,12 @@ export function assembleQuiz(output: QuizAgentOutput['quiz']): Quiz {
  * 与 assembleQuiz 类似，但输入是 ChallengeBatchAgentOutput 的单个 quiz 项
  * （含 involvedConceptIds 字段，该字段进入 domain.Quiz.involvedConceptIds）。
  */
-export function assembleChallengeQuiz(output: ChallengeBatchAgentOutput['quizzes'][number]): Quiz {
+export function assembleChallengeQuiz(
+  output: ChallengeBatchAgentOutput['quizzes'][number],
+): AssembleQuizResult {
   // 自动修复 options[0] !== answer
   let fixedOptions = output.options
+  let answerMoved = false
   if (output.interactionType === 'choice' && Array.isArray(output.options)) {
     const ansIdx = output.options.indexOf(output.answer)
     if (ansIdx > 0) {
@@ -207,27 +226,31 @@ export function assembleChallengeQuiz(output: ChallengeBatchAgentOutput['quizzes
         ...output.options.slice(0, ansIdx),
         ...output.options.slice(ansIdx + 1),
       ]
+      answerMoved = true
     }
   }
 
   return {
-    id: output.id,
-    conceptId: output.conceptId,
-    ladderLevel: output.ladderLevel,
-    expressionLevel: output.expressionLevel,
-    interactionType: output.interactionType,
-    stem: output.stem,
-    options: fixedOptions,
-    answer: output.answer,
-    explanation: output.explanation,
-    distractors: output.distractors.filter((d) => d.text !== output.answer).map((d) => d.text),
-    involvedConceptIds: output.involvedConceptIds,
-    background: output.background,
-    answerHint: output.answerHint,
-    acceptableAnswers: output.acceptableAnswers,
-    misconception: output.misconception,
-    extendedKnowledge: output.extendedKnowledge,
-    evaluationMode: output.evaluationMode,
+    quiz: {
+      id: output.id,
+      conceptId: output.conceptId,
+      ladderLevel: output.ladderLevel,
+      expressionLevel: output.expressionLevel,
+      interactionType: output.interactionType,
+      stem: output.stem,
+      options: fixedOptions,
+      answer: output.answer,
+      explanation: output.explanation,
+      distractors: output.distractors.filter((d) => d.text !== output.answer).map((d) => d.text),
+      involvedConceptIds: output.involvedConceptIds,
+      background: output.background,
+      answerHint: output.answerHint,
+      acceptableAnswers: output.acceptableAnswers,
+      misconception: output.misconception,
+      extendedKnowledge: output.extendedKnowledge,
+      evaluationMode: output.evaluationMode,
+    },
+    answerMoved,
   }
 }
 

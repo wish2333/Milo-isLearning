@@ -74,6 +74,17 @@ export function loadStoredModule(repo: StorageRepository, moduleId: string): Mod
  * 重置 Module 的学习进度（progress / feynman / module-scoped attempts），
  * 但保留 Module 本体和 source，允许用户重新学习。
  */
+/** 重命名 Module 的 title 字段。不改 moduleId、不改 storage key。 */
+export function renameModule(repo: StorageRepository, moduleId: string, newTitle: string): void {
+  const trimmed = newTitle.trim()
+  if (trimmed.length === 0 || trimmed.length > 100) {
+    throw new Error('Module title must be 1-100 characters after trimming')
+  }
+  const storedModule = loadStoredModule(repo, moduleId)
+  if (!storedModule) throw new Error(`Module ${moduleId} not found`)
+  repo.set(StorageKeys.module(moduleId), { ...storedModule, title: trimmed })
+}
+
 export function resetStoredModuleProgress(repo: StorageRepository, moduleId: string): void {
   repo.remove(StorageKeys.progress(moduleId))
   repo.remove(StorageKeys.feynman(moduleId))

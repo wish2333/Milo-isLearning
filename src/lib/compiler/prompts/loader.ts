@@ -15,7 +15,7 @@
  * 文件路径解析：以 process.cwd() 为根（dev / vitest / Next serverless 一致），
  * Next.js 通过 next.config.ts 的 outputFileTracingIncludes 把 .md 纳入函数包。
  */
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { schemaToPromptHint, type AgentKind } from '@/lib/compiler/schemas'
@@ -23,11 +23,57 @@ import { schemaToPromptHint, type AgentKind } from '@/lib/compiler/schemas'
 /** prompts 目录的绝对路径 */
 const PROMPTS_DIR = path.join(process.cwd(), 'src', 'lib', 'compiler', 'prompts')
 
+/** Prompt 版本号，默认 v1。通过 PROMPT_VERSION 环境变量切换。 */
+const PROMPT_VERSION: string = process.env.PROMPT_VERSION ?? 'v1'
+
+/** Prompt 语言区域，默认 zh（中文）。通过 PROMPT_LOCALE 环境变量切换。 */
+const PROMPT_LOCALE: string = process.env.PROMPT_LOCALE ?? 'zh'
+
 /** 模板内容缓存（进程内），key = 相对路径，如 'import.md' / '_shared/json-output-rules.md' */
 const fileCache = new Map<string, string>()
 
-/** 展开后的完整模板缓存，key = AgentKind */
-const expandedCache = new Map<AgentKind, string>()
+/** 展开后的完整模板缓存，key = `${kind}:${PROMPT_LOCALE}:${PROMPT_VERSION}` */
+const expandedCache = new Map<string, string>()
+
+/** 构建 expandedCache 的 key，包含 locale 和版本号以隔离缓存 */
+function cacheKey(kind: AgentKind): string {
+  return `${kind}:${PROMPT_LOCALE}:${PROMPT_VERSION}`
+}
+
+/**
+ * 解析模板文件路径：优先加载 locale+版本化文件，逐级回退。
+ *
+ * 解析优先级（PROMPT_LOCALE=en, PROMPT_VERSION=v2 为例）：
+ *   1. en/import.v2.md  （locale + versioned）
+ *   2. en/import.md     （locale + fallback）
+ *   3. import.v2.md     （base + versioned）
+ *   4. import.md        （base + fallback）
+ */
+function resolveTemplatePath(kind: AgentKind): string {
+  const localeDir = PROMPT_LOCALE === 'en' ? 'en/' : ''
+  const candidates = [
+    `${localeDir}${kind}.${PROMPT_VERSION}.md`,
+    `${localeDir}${kind}.md`,
+    `${kind}.${PROMPT_VERSION}.md`,
+    `${kind}.md`,
+  ]
+  for (const candidate of candidates) {
+    if (existsSync(path.join(PROMPTS_DIR, candidate))) {
+      return candidate
+    }
+  }
+  return `${kind}.md`
+}
+
+/** 返回当前生效的 Prompt 版本号（测试用） */
+export function getPromptVersion(): string {
+  return PROMPT_VERSION
+}
+
+/** 返回当前生效的 Prompt 语言区域（测试用） */
+export function getPromptLocale(): string {
+  return PROMPT_LOCALE
+}
 
 /**
  * partial 引用语法：`{{> shared/xxx}}` 或 `{{> schema/<agent-kind>}}`
@@ -93,18 +139,24 @@ function expandShared(content: string, depth: number, visiting: Set<string>): st
 /**
  * 加载并完整展开某 Agent 的 Prompt 模板（shared partials + schema 注入）。
  *
+ * 版本与语言区域解析：通过 PROMPT_VERSION + PROMPT_LOCALE 环境变量切换。
+ *   - PROMPT_LOCALE=en 时优先加载 en/{kind}.md，不存在则回退到 {kind}.md
+ *   - PROMPT_LOCALE 未设置时默认 zh，行为与改造前完全一致（零回归）
+ *
  * 展开顺序：
- *   1. 读取 prompts/{kind}.md
+ *   1. 读取版本/语言区域解析后的模板文件
  *   2. 递归展开所有 {{> shared/xxx}} 引用
  *   3. 把残留的 {{> schema/<agent-kind>}} 替换为对应 AgentKind 的 JSON Schema 文本
  *
- * 结果按 AgentKind 缓存（模板文件在运行期不可变；如需热更新，清 expandedCache）。
+ * 结果按 `${kind}:${locale}:${version}` 缓存（模板文件在运行期不可变；如需热更新，清 expandedCache）。
  */
 export function loadExpandedTemplate(kind: AgentKind): string {
-  const cached = expandedCache.get(kind)
+  const key = cacheKey(kind)
+  const cached = expandedCache.get(key)
   if (cached !== undefined) return cached
 
-  const raw = readTemplateFile(`${kind}.md`)
+  const templatePath = resolveTemplatePath(kind)
+  const raw = readTemplateFile(templatePath)
   const sharedExpanded = expandShared(raw, 0, new Set<string>())
 
   // 展开 schema 引用。expandShared 已把 json-output-rules.md 内的
@@ -116,7 +168,7 @@ export function loadExpandedTemplate(kind: AgentKind): string {
     throw new Error(`partial 展开后仍残留未识别引用：${full}`)
   })
 
-  expandedCache.set(kind, fullyExpanded)
+  expandedCache.set(key, fullyExpanded)
   return fullyExpanded
 }
 
@@ -128,5 +180,5 @@ export function clearTemplateCache(): void {
 
 /** 测试钩子：直接注入展开后的模板（绕过文件系统，便于单测） */
 export function setExpandedTemplate(kind: AgentKind, content: string): void {
-  expandedCache.set(kind, content)
+  expandedCache.set(cacheKey(kind), content)
 }

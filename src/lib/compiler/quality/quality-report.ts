@@ -12,12 +12,20 @@
  */
 
 import type { Module } from '@/types/domain'
+import type { TokenUsage } from '@/lib/providers/types'
 
 import { buildPedagogyReport, type PedagogyReport } from './pedagogy-report'
 
 // =================================================================
 // 类型
 // =================================================================
+
+export interface EstimatedCost {
+  inputCost: number
+  outputCost: number
+  totalCost: number
+  currency: string
+}
 
 export interface CompileQualityReport {
   moduleId: string
@@ -33,14 +41,16 @@ export interface CompileQualityReport {
   mapperFixStats: MapperFixStats
   semanticEvalStats: SemanticEvalStats
   estimatedRuntimeEvalCost: EstimatedRuntimeEvalCost
+  tokenUsage?: TokenUsage
+  estimatedCost?: EstimatedCost
 }
 
 export interface MapperFixStats {
   totalFixes: number
-  answerMovedToFirstOption?: number
-  duplicateOptionsRemoved?: number
-  missingExplanationFallback?: number
-  challengeInvolvedConceptIdsMissing?: number
+  answerMovedToFirstOption: number
+  duplicateOptionsRemoved: number
+  shortExtendedKnowledgeFallback: number
+  shortMisconceptionFallback: number
 }
 
 export interface SemanticEvalStats {
@@ -56,7 +66,33 @@ export interface EstimatedRuntimeEvalCost {
 }
 
 // =================================================================
-// 构建
+// 成本估算
+// =================================================================
+
+/**
+ * USD pricing per 1M tokens, keyed by ProviderKind.
+ * Unknown providers fall back to a conservative default.
+ */
+const PRICING_USD_PER_1M_TOKENS: Record<string, { input: number; output: number }> = {
+  deepseek: { input: 0.14, output: 0.28 },
+  glm: { input: 0.5, output: 0.5 },
+  'openai-compat': { input: 1.0, output: 3.0 },
+}
+
+export function estimateCost(usage: TokenUsage, provider: string): EstimatedCost {
+  const pricing = PRICING_USD_PER_1M_TOKENS[provider] ?? { input: 1.0, output: 3.0 }
+  const inputCost = (usage.promptTokens / 1_000_000) * pricing.input
+  const outputCost = (usage.completionTokens / 1_000_000) * pricing.output
+  return {
+    inputCost,
+    outputCost,
+    totalCost: inputCost + outputCost,
+    currency: 'USD',
+  }
+}
+
+// =================================================================
+// 构建辅助
 // =================================================================
 
 /**
@@ -102,7 +138,7 @@ function countFeynmanSteps(module: Module): number {
  * 从 Module + 元数据构建质量报告（纯函数，无副作用）。
  *
  * @param module 编译完成的 Module
- * @param meta   元数据（生成时间戳）
+ * @param meta   元数据（生成时间戳 + 可选的 mapper/semantic stats + 可选的 token 用量）
  */
 export function buildQualityReport(
   module: Module,
@@ -110,6 +146,8 @@ export function buildQualityReport(
     generatedAt: number
     mapperFixStats?: Partial<MapperFixStats>
     semanticEvalStats?: Partial<SemanticEvalStats>
+    totalUsage?: TokenUsage
+    providerKind?: string
   },
 ): CompileQualityReport {
   const allQuizzes = collectAllQuizzes(module)
@@ -133,9 +171,22 @@ export function buildQualityReport(
   }))
 
   const quizCount = allQuizzes.length + countFeynmanSteps(module)
+  const raw = meta.mapperFixStats ?? {}
+  const answerMovedToFirstOption = raw.answerMovedToFirstOption ?? 0
+  const duplicateOptionsRemoved = raw.duplicateOptionsRemoved ?? 0
+  const shortExtendedKnowledgeFallback = raw.shortExtendedKnowledgeFallback ?? 0
+  const shortMisconceptionFallback = raw.shortMisconceptionFallback ?? 0
+
   const mapperFixStats: MapperFixStats = {
-    totalFixes: 0,
-    ...meta.mapperFixStats,
+    totalFixes:
+      answerMovedToFirstOption +
+      duplicateOptionsRemoved +
+      shortExtendedKnowledgeFallback +
+      shortMisconceptionFallback,
+    answerMovedToFirstOption,
+    duplicateOptionsRemoved,
+    shortExtendedKnowledgeFallback,
+    shortMisconceptionFallback,
   }
   const semanticEvalStats: SemanticEvalStats = {
     calls: 0,
@@ -144,6 +195,12 @@ export function buildQualityReport(
     providerFailures: 0,
     ...meta.semanticEvalStats,
   }
+
+  const tokenUsage = meta.totalUsage
+  const estimatedCost =
+    meta.totalUsage && meta.providerKind
+      ? estimateCost(meta.totalUsage, meta.providerKind)
+      : undefined
 
   return {
     moduleId: module.id,
@@ -162,5 +219,7 @@ export function buildQualityReport(
       semanticCalls: semanticEvalStats.calls,
       cacheHits: semanticEvalStats.cacheHits,
     },
+    tokenUsage,
+    estimatedCost,
   }
 }

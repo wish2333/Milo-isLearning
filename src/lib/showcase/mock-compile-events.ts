@@ -85,3 +85,36 @@ export function getMockCompileTotalDuration(): number {
   const events = generateMockCompileEvents()
   return events.reduce((sum, e) => sum + e.delay, 0)
 }
+
+// =================================================================
+// Recording replay support (PC.3)
+// =================================================================
+
+/**
+ * CompileRecording -- the JSON schema written by scripts/record-compile.ts.
+ */
+export interface CompileRecording {
+  input: { markdown: string; config: unknown }
+  events: Array<{ event: CompileEvent; delayMs: number }>
+  recordedAt: number
+  provider: string
+  model: string
+}
+
+/**
+ * Load a recorded compile session from a JSON file and return TimedEvent[]
+ * for replay via MockCompileOverlay.
+ *
+ * Fetches the recording from the given public/ path (e.g. /showcase-modules/recordings/my-topic.compile-recording.json).
+ * Returns null if the fetch fails (404, network error, or invalid JSON).
+ */
+export async function loadRecordedEvents(recordingPath: string): Promise<TimedEvent[] | null> {
+  try {
+    const res = await fetch(recordingPath)
+    if (!res.ok) return null
+    const recording: CompileRecording = await res.json()
+    return recording.events.map((e) => ({ event: e.event, delay: e.delayMs }))
+  } catch {
+    return null
+  }
+}

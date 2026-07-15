@@ -42,6 +42,8 @@ export const StorageKeys = {
   ratings: `${STORAGE_NAMESPACE}:ratings`,
   // M8.1 主题（全量 Topic[] 存储在单个 key 中）
   topicIndex: `${STORAGE_NAMESPACE}:topic-index`,
+  /** F22 主题进度快照（exitSession 写入，startSession 读取） */
+  topicProgress: (topicId: string) => `${STORAGE_NAMESPACE}:topic-progress:${topicId}`,
 } as const
 
 /**

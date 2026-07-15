@@ -11,7 +11,12 @@ import type { Concept, FeynmanStep, Module, ProgressState, Quiz } from '@/types/
 
 import { StorageKeys } from '../shared/keys'
 import type { StorageRepository } from '../shared/repository'
-import { listStoredModules, loadStoredModule, resetStoredModuleProgress } from '../module-library'
+import {
+  listStoredModules,
+  loadStoredModule,
+  renameModule,
+  resetStoredModuleProgress,
+} from '../module-library'
 
 // =================================================================
 // In-memory mock repository（复用 quota.test.ts 的 MockRepo 模式）
@@ -277,5 +282,80 @@ describe('resetStoredModuleProgress', () => {
     // module and source should remain
     expect(repo.has(StorageKeys.module('m1'))).toBe(true)
     expect(repo.has(StorageKeys.source('source-m1'))).toBe(true)
+  })
+})
+
+describe('renameModule', () => {
+  let repo: MockRepo
+
+  beforeEach(() => {
+    repo = new MockRepo()
+  })
+
+  it('renames module title via round-trip (load -> rename -> load)', () => {
+    const storedModule = makeFullModule('m1')
+    repo.set(StorageKeys.module('m1'), storedModule)
+
+    renameModule(repo, 'm1', 'New Title')
+
+    const result = loadStoredModule(repo, 'm1')
+    expect(result).not.toBeNull()
+    expect(result!.title).toBe('New Title')
+    expect(result!.id).toBe('m1') // id unchanged
+  })
+
+  it('trims whitespace from new title', () => {
+    const storedModule = makeFullModule('m1')
+    repo.set(StorageKeys.module('m1'), storedModule)
+
+    renameModule(repo, 'm1', '  Spaced Title  ')
+
+    const result = loadStoredModule(repo, 'm1')
+    expect(result!.title).toBe('Spaced Title')
+  })
+
+  it('throws when new title is empty after trimming', () => {
+    const storedModule = makeFullModule('m1')
+    repo.set(StorageKeys.module('m1'), storedModule)
+
+    expect(() => renameModule(repo, 'm1', '   ')).toThrow(
+      'Module title must be 1-100 characters after trimming',
+    )
+  })
+
+  it('throws when new title exceeds 100 characters', () => {
+    const storedModule = makeFullModule('m1')
+    repo.set(StorageKeys.module('m1'), storedModule)
+
+    expect(() => renameModule(repo, 'm1', 'a'.repeat(101))).toThrow(
+      'Module title must be 1-100 characters after trimming',
+    )
+  })
+
+  it('accepts title at exactly 100 characters', () => {
+    const storedModule = makeFullModule('m1')
+    repo.set(StorageKeys.module('m1'), storedModule)
+
+    const title100 = 'a'.repeat(100)
+    renameModule(repo, 'm1', title100)
+
+    const result = loadStoredModule(repo, 'm1')
+    expect(result!.title).toBe(title100)
+  })
+
+  it('throws when module does not exist', () => {
+    expect(() => renameModule(repo, 'nonexistent', 'Title')).toThrow('Module nonexistent not found')
+  })
+
+  it('does not modify module id or sourceId', () => {
+    const storedModule = makeFullModule('m1')
+    repo.set(StorageKeys.module('m1'), storedModule)
+
+    renameModule(repo, 'm1', 'Renamed')
+
+    const result = loadStoredModule(repo, 'm1')
+    expect(result!.id).toBe('m1')
+    expect(result!.sourceId).toBe('source-m1')
+    expect(result!.intro).toBe('intro') // other fields preserved
   })
 })

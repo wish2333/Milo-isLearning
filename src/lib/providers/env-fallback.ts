@@ -39,5 +39,10 @@ export function getEnvLLMConfig(): LLMConfig | null {
   }
   const baseURL = baseURLByProvider[provider] ?? PROVIDER_DEFAULT_BASE_URL[provider]
 
+  // openai-compat has no default baseURL -- cannot fallback without one
+  if (provider === 'openai-compat' && !baseURL) {
+    return null
+  }
+
   return { provider, apiKey, model, baseURL }
 }

@@ -19,7 +19,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema'
 import type { ZodSchema, ZodIssue } from 'zod'
 
 import type { AgentKind } from '@/lib/compiler/schemas'
-import type { ChatMessage, LLMProvider } from '@/lib/providers/types'
+import type { ChatMessage, LLMProvider, TokenUsage } from '@/lib/providers/types'
 
 import { buildPrompt, type PromptVariables } from '../prompts/builder'
 import { getAgentConfig } from './config'
@@ -27,6 +27,15 @@ import { AgentOutputError, formatZodIssues, safeParseJSON, type AgentFailureReas
 
 /** 最大尝试次数（含首次）：1 次原始 + 4 次重试。M3 W8 从 2 提升到 5 */
 const MAX_ATTEMPTS = 5
+
+/** 从 ChatResponse.usage 提取 TokenUsage，缺失字段默认 0 */
+function extractUsage(response: {
+  usage?: { promptTokens?: number; completionTokens?: number }
+}): TokenUsage {
+  const promptTokens = response.usage?.promptTokens ?? 0
+  const completionTokens = response.usage?.completionTokens ?? 0
+  return { promptTokens, completionTokens, totalTokens: promptTokens + completionTokens }
+}
 
 /**
  * 运行选项（M2.5 W2 eval 脚本透传用）。
@@ -61,7 +70,7 @@ function appendRetryHint(messages: ChatMessage[], hint: string): void {
  * @param input    模板变量（白名单替换）
  * @param provider LLM 供应商实例（已配置好 apiKey / baseURL / model）
  * @param schema   该 Agent 输出的 Zod Schema（决定校验与 jsonSchema 提示）
- * @returns        Schema 校验通过的数据
+ * @returns        Schema 校验通过的数据 + token 用量
  * @throws         AgentOutputError 重试后仍失败时
  */
 export async function runAgent<T>(
@@ -70,7 +79,7 @@ export async function runAgent<T>(
   provider: LLMProvider,
   schema: ZodSchema<T>,
   options?: RunAgentOptions,
-): Promise<T> {
+): Promise<{ data: T; usage: TokenUsage }> {
   const config = getAgentConfig(kind)
   const messages = buildPrompt(kind, input)
   // 作为 response_format=json_object 的提示传入（provider 层据 truthy jsonSchema 启用）
@@ -135,7 +144,7 @@ export async function runAgent<T>(
     const result = schema.safeParse(parsed.value)
     if (result.success) {
       console.info(`[_runner] ${kind} 成功 (attempt ${attempt + 1}/${MAX_ATTEMPTS})`)
-      return result.data
+      return { data: result.data, usage: extractUsage(response) }
     }
 
     // 3.5 尝试 autoFix（若提供）— 在重试前先尝试自动修复已知问题
@@ -147,7 +156,9 @@ export async function runAgent<T>(
           console.info(
             `[_runner] ${kind} autoFix 修复成功 (attempt ${attempt + 1}/${MAX_ATTEMPTS})`,
           )
-          return reparse.data
+          // autoFix 不产生新的 LLM 调用，usage 为零
+          const zeroUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+          return { data: reparse.data, usage: zeroUsage }
         }
       }
     }

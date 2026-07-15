@@ -24,4 +24,20 @@ describe('settings-store confirmReviewEnabled', () => {
     useSettingsStore.getState().setConfirmReviewEnabled(true)
     expect(useSettingsStore.getState().confirmReviewEnabled).toBe(true)
   })
+
+  it('resetPreferences() resets confirmReviewEnabled to true', () => {
+    useSettingsStore.getState().setConfirmReviewEnabled(false)
+    useSettingsStore.getState().resetPreferences()
+    expect(useSettingsStore.getState().confirmReviewEnabled).toBe(true)
+  })
+
+  it('clear() does NOT affect confirmReviewEnabled', () => {
+    useSettingsStore.setState({
+      config: { provider: 'deepseek', apiKey: 'sk-test', model: 'test', baseURL: '' },
+      confirmReviewEnabled: false,
+    })
+    useSettingsStore.getState().clear()
+    expect(useSettingsStore.getState().confirmReviewEnabled).toBe(false)
+    expect(useSettingsStore.getState().config).toBeNull()
+  })
 })

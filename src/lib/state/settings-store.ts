@@ -40,6 +40,9 @@ interface SettingsState {
   /** 设置是否启用"确认掌握题" */
   setConfirmReviewEnabled: (enabled: boolean) => void
 
+  /** 重置学习偏好（不影响 LLM 配置） */
+  resetPreferences: () => void
+
   /** 清除配置 */
   clear: () => void
 }
@@ -62,6 +65,8 @@ export const useSettingsStore = create<SettingsState>()(
         }),
 
       setConfirmReviewEnabled: (enabled) => set({ confirmReviewEnabled: enabled }),
+
+      resetPreferences: () => set({ confirmReviewEnabled: true }),
 
       clear: () => set({ config: null }),
     }),

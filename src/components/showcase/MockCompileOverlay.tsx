@@ -2,9 +2,13 @@
 
 import { useEffect, useRef } from 'react'
 import { useCompileStore } from '@/lib/state/compile-store'
-import { generateMockCompileEvents } from '@/lib/showcase/mock-compile-events'
+import {
+  generateMockCompileEvents,
+  loadRecordedEvents,
+  type TimedEvent,
+} from '@/lib/showcase/mock-compile-events'
 
-/** 编译阶段中文文案 — 与 compiling/page.tsx 保持一致 */
+/** 编译阶段中文文案 -- 与 compiling/page.tsx 保持一致 */
 const STAGE_LABELS: Record<string, string> = {
   import: '正在清理文本',
   chunk: '正在切分知识块',
@@ -16,12 +20,17 @@ const STAGE_LABELS: Record<string, string> = {
   feynman: '正在设计费曼任务',
 }
 
+/** Default recording path used when no explicit recording is available */
+const DEFAULT_RECORDING_PATH = '/showcase-modules/recordings/featured.compile-recording.json'
+
 interface Props {
   onComplete: () => void
   onError: (message: string) => void
+  /** Optional recording path; falls back to DEFAULT_RECORDING_PATH then generateMockCompileEvents() */
+  recordingPath?: string
 }
 
-export function MockCompileOverlay({ onComplete, onError }: Props) {
+export function MockCompileOverlay({ onComplete, onError, recordingPath }: Props) {
   const stage = useCompileStore((s) => s.stage)
   const percent = useCompileStore((s) => s.percent)
   const message = useCompileStore((s) => s.message)
@@ -39,34 +48,51 @@ export function MockCompileOverlay({ onComplete, onError }: Props) {
     // Start clean
     reset()
 
-    const events = generateMockCompileEvents()
-    let cumulativeDelay = 0
+    const resolvedPath = recordingPath ?? DEFAULT_RECORDING_PATH
+    let cancelled = false
 
-    for (const { event, delay } of events) {
-      cumulativeDelay += delay
-      const timerId = window.setTimeout(() => {
-        try {
-          handleEvent(event)
-        } catch {
-          // Mock compile should never error via handleEvent, but guard anyway
-        }
-      }, cumulativeDelay)
-      timerIdsRef.current.push(timerId)
+    const scheduleEvents = (events: TimedEvent[]) => {
+      if (cancelled) return
+
+      let cumulativeDelay = 0
+
+      for (const { event, delay } of events) {
+        cumulativeDelay += delay
+        const timerId = window.setTimeout(() => {
+          try {
+            handleEvent(event)
+          } catch {
+            // Mock compile should never error via handleEvent, but guard anyway
+          }
+        }, cumulativeDelay)
+        timerIdsRef.current.push(timerId)
+      }
+
+      // Schedule onComplete after all events with a small buffer
+      const completeTimerId = window.setTimeout(() => {
+        onCompleteRef.current()
+      }, cumulativeDelay + 500)
+      timerIdsRef.current.push(completeTimerId)
     }
 
-    // Schedule onComplete after all events with a small buffer
-    const completeTimerId = window.setTimeout(() => {
-      onCompleteRef.current()
-    }, cumulativeDelay + 500)
-    timerIdsRef.current.push(completeTimerId)
+    // Try to load recorded events first, fall back to generated mock events
+    loadRecordedEvents(resolvedPath).then((recorded) => {
+      if (cancelled) return
+      if (recorded && recorded.length > 0) {
+        scheduleEvents(recorded)
+      } else {
+        scheduleEvents(generateMockCompileEvents())
+      }
+    })
 
     return () => {
+      cancelled = true
       for (const id of timerIdsRef.current) {
         clearTimeout(id)
       }
       timerIdsRef.current = []
     }
-  }, [])
+  }, [recordingPath])
 
   const stageLabel = stage ? (STAGE_LABELS[stage] ?? stage) : '准备中...'
 

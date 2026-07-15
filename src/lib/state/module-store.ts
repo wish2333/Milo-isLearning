@@ -18,6 +18,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 
 import type { Module, Quiz } from '@/types/domain'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { renameModule } from '@/lib/persistence/module-library'
 import { getStorage } from '@/lib/persistence/client/storage'
 import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 
@@ -41,11 +42,14 @@ interface ModuleStoreState {
 
   /** 清除全部（退出学习 / 切换 Module 时调用） */
   clear: () => void
+
+  /** 重命名当前 Module 的 title（同步持久化 + 更新内存状态） */
+  renameCurrentModule: (newTitle: string) => void
 }
 
 export const useModuleStore = create<ModuleStoreState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       currentModule: null,
       currentQuiz: null,
 
@@ -58,6 +62,13 @@ export const useModuleStore = create<ModuleStoreState>()(
       clearCurrentQuiz: () => set({ currentQuiz: null }),
 
       clear: () => set({ currentModule: null, currentQuiz: null }),
+
+      renameCurrentModule: (newTitle) => {
+        const current = get().currentModule
+        if (!current) return
+        renameModule(getStorage(), current.id, newTitle)
+        set({ currentModule: { ...current, title: newTitle.trim() } })
+      },
     }),
     {
       name: 'alc:state:module',

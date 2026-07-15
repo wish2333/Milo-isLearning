@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest'
 import type { Module, FeynmanTask } from '@/types/domain'
-import { buildQualityReport } from '@/lib/compiler/quality/quality-report'
+import { buildQualityReport, estimateCost } from '@/lib/compiler/quality/quality-report'
 
 // =================================================================
 // Helpers
@@ -250,11 +250,14 @@ describe('B. populated module', () => {
   it('accepts mapper fix and semantic eval stats in report metadata', () => {
     const report = buildQualityReport(populatedModule(), {
       ...DEFAULT_META,
-      mapperFixStats: { totalFixes: 2, answerMovedToFirstOption: 1, duplicateOptionsRemoved: 1 },
+      mapperFixStats: { answerMovedToFirstOption: 1, duplicateOptionsRemoved: 1 },
       semanticEvalStats: { calls: 3, cacheHits: 1, semanticAccepted: 1, providerFailures: 0 },
     })
 
+    // totalFixes = sum of all individual counters
     expect(report.mapperFixStats.totalFixes).toBe(2)
+    expect(report.mapperFixStats.answerMovedToFirstOption).toBe(1)
+    expect(report.mapperFixStats.duplicateOptionsRemoved).toBe(1)
     expect(report.semanticEvalStats.calls).toBe(3)
     expect(report.estimatedRuntimeEvalCost.semanticCalls).toBe(3)
   })
@@ -273,5 +276,183 @@ describe('C. avgDistractorsPerQuiz', () => {
     // Total: 9 distractors across 5 quizzes
     // avg = 9 / 5 = 1.8
     expect(report.avgDistractorsPerQuiz).toBe(1.8)
+  })
+})
+
+// =================================================================
+// D. MapperFixStats counters
+// =================================================================
+
+describe('D. mapperFixStats counters', () => {
+  it('totalFixes = sum of all individual counters', () => {
+    const report = buildQualityReport(populatedModule(), {
+      ...DEFAULT_META,
+      mapperFixStats: {
+        answerMovedToFirstOption: 3,
+        duplicateOptionsRemoved: 1,
+        shortExtendedKnowledgeFallback: 2,
+        shortMisconceptionFallback: 1,
+      },
+    })
+
+    expect(report.mapperFixStats.totalFixes).toBe(3 + 1 + 2 + 1)
+    expect(report.mapperFixStats.answerMovedToFirstOption).toBe(3)
+    expect(report.mapperFixStats.duplicateOptionsRemoved).toBe(1)
+    expect(report.mapperFixStats.shortExtendedKnowledgeFallback).toBe(2)
+    expect(report.mapperFixStats.shortMisconceptionFallback).toBe(1)
+  })
+
+  it('all counters default to zero when no stats provided', () => {
+    const report = buildQualityReport(emptyModule(), DEFAULT_META)
+
+    expect(report.mapperFixStats.totalFixes).toBe(0)
+    expect(report.mapperFixStats.answerMovedToFirstOption).toBe(0)
+    expect(report.mapperFixStats.duplicateOptionsRemoved).toBe(0)
+    expect(report.mapperFixStats.shortExtendedKnowledgeFallback).toBe(0)
+    expect(report.mapperFixStats.shortMisconceptionFallback).toBe(0)
+  })
+})
+
+// =================================================================
+// E. estimateCost
+// =================================================================
+
+describe('E. estimateCost', () => {
+  it('computes cost with deepseek pricing (1M prompt + 1M completion)', () => {
+    const usage = {
+      promptTokens: 1_000_000,
+      completionTokens: 1_000_000,
+      totalTokens: 2_000_000,
+    }
+    const cost = estimateCost(usage, 'deepseek')
+
+    // deepseek: input=$0.14/1M, output=$0.28/1M
+    expect(cost.inputCost).toBeCloseTo(0.14, 6)
+    expect(cost.outputCost).toBeCloseTo(0.28, 6)
+    expect(cost.totalCost).toBeCloseTo(0.42, 6)
+    expect(cost.currency).toBe('USD')
+  })
+
+  it('computes cost with glm pricing', () => {
+    const usage = {
+      promptTokens: 500_000,
+      completionTokens: 500_000,
+      totalTokens: 1_000_000,
+    }
+    const cost = estimateCost(usage, 'glm')
+
+    // glm: input=$0.50/1M, output=$0.50/1M
+    expect(cost.inputCost).toBeCloseTo(0.25, 6)
+    expect(cost.outputCost).toBeCloseTo(0.25, 6)
+    expect(cost.totalCost).toBeCloseTo(0.5, 6)
+  })
+
+  it('uses default pricing for unknown provider', () => {
+    const usage = {
+      promptTokens: 1_000_000,
+      completionTokens: 1_000_000,
+      totalTokens: 2_000_000,
+    }
+    const cost = estimateCost(usage, 'unknown-provider')
+
+    // default fallback: input=$1.00/1M, output=$3.00/1M
+    expect(cost.inputCost).toBeCloseTo(1.0, 6)
+    expect(cost.outputCost).toBeCloseTo(3.0, 6)
+    expect(cost.totalCost).toBeCloseTo(4.0, 6)
+  })
+
+  it('returns zero cost for zero usage', () => {
+    const usage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    }
+    const cost = estimateCost(usage, 'deepseek')
+
+    expect(cost.inputCost).toBe(0)
+    expect(cost.outputCost).toBe(0)
+    expect(cost.totalCost).toBe(0)
+  })
+})
+
+// =================================================================
+// F. buildQualityReport with token usage
+// =================================================================
+
+describe('F. buildQualityReport with token usage', () => {
+  it('includes tokenUsage and estimatedCost when totalUsage + providerKind provided', () => {
+    const report = buildQualityReport(populatedModule(), {
+      ...DEFAULT_META,
+      totalUsage: {
+        promptTokens: 1_000_000,
+        completionTokens: 1_000_000,
+        totalTokens: 2_000_000,
+      },
+      providerKind: 'deepseek',
+    })
+
+    expect(report.tokenUsage).toEqual({
+      promptTokens: 1_000_000,
+      completionTokens: 1_000_000,
+      totalTokens: 2_000_000,
+    })
+    expect(report.estimatedCost).toBeDefined()
+    expect(report.estimatedCost!.totalCost).toBeCloseTo(0.42, 6)
+    expect(report.estimatedCost!.currency).toBe('USD')
+  })
+
+  it('omits tokenUsage and estimatedCost when totalUsage not provided', () => {
+    const report = buildQualityReport(populatedModule(), DEFAULT_META)
+
+    expect(report.tokenUsage).toBeUndefined()
+    expect(report.estimatedCost).toBeUndefined()
+  })
+
+  it('omits estimatedCost when providerKind not provided', () => {
+    const report = buildQualityReport(populatedModule(), {
+      ...DEFAULT_META,
+      totalUsage: {
+        promptTokens: 100,
+        completionTokens: 200,
+        totalTokens: 300,
+      },
+    })
+
+    expect(report.tokenUsage).toBeDefined()
+    expect(report.estimatedCost).toBeUndefined()
+  })
+
+  it('returns zero cost when totalUsage has zero tokens', () => {
+    const report = buildQualityReport(populatedModule(), {
+      ...DEFAULT_META,
+      totalUsage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+      },
+      providerKind: 'deepseek',
+    })
+
+    expect(report.tokenUsage!.totalTokens).toBe(0)
+    expect(report.estimatedCost!.totalCost).toBe(0)
+  })
+
+  it('preserves existing mapperFixStats and semanticEvalStats when token usage is also provided', () => {
+    const report = buildQualityReport(populatedModule(), {
+      ...DEFAULT_META,
+      mapperFixStats: { answerMovedToFirstOption: 5, duplicateOptionsRemoved: 3 },
+      semanticEvalStats: { calls: 10, cacheHits: 4, semanticAccepted: 8, providerFailures: 1 },
+      totalUsage: {
+        promptTokens: 500_000,
+        completionTokens: 200_000,
+        totalTokens: 700_000,
+      },
+      providerKind: 'glm',
+    })
+
+    expect(report.mapperFixStats.totalFixes).toBe(5 + 3)
+    expect(report.semanticEvalStats.calls).toBe(10)
+    expect(report.tokenUsage!.promptTokens).toBe(500_000)
+    expect(report.estimatedCost!.currency).toBe('USD')
   })
 })
