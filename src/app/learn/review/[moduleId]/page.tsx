@@ -17,11 +17,12 @@ import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useReviewStore } from '@/lib/state/review-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
+import { useModuleStore } from '@/lib/state/module-store'
 import { loadStoredModule } from '@/lib/persistence/module-library'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { storage } from '@/lib/persistence/client/local-storage'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
-import type { ReviewFilter, AttemptRecord } from '@/types/domain'
+import type { ReviewFilter, AttemptRecord, Quiz } from '@/types/domain'
 
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
@@ -68,8 +69,10 @@ export default function ReviewPage() {
   const { session, startSession, recordResult, nextQuestion, endSession } = useReviewStore()
   const addAttempt = useAttemptsStore((s) => s.addAttempt)
   const getNextAttemptVersion = useAttemptsStore((s) => s.getNextAttemptVersion)
+  const reevaluateLastAttempt = useAttemptsStore((s) => s.reevaluateLastAttempt)
   const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
   const config = useSettingsStore((s) => s.config)
+  const correctQuizAnswer = useModuleStore((s) => s.correctQuizAnswer)
 
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
@@ -176,6 +179,38 @@ export default function ReviewPage() {
     setFeedback(null)
     nextQuestion()
   }, [session, nextQuestion])
+
+  const canCorrect = moduleData?.origin !== 'showcase'
+
+  const handleCorrectAnswer = useCallback(
+    async (patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers'>>) => {
+      if (!currentQuiz) return
+      correctQuizAnswer(currentQuiz.id, patch)
+      const correctedQuiz: Quiz = { ...currentQuiz, ...patch }
+      const provider =
+        config && correctedQuiz.interactionType === 'fill_blank' ? createProvider(config) : null
+      try {
+        const result = await reevaluateLastAttempt(currentQuiz.id, correctedQuiz, provider)
+        setFeedback(result)
+      } catch {
+        // keep existing feedback on error
+      }
+    },
+    [currentQuiz, config, correctQuizAnswer, reevaluateLastAttempt],
+  )
+
+  const handleIgnoreQuiz = useCallback(() => {
+    if (!currentQuiz) return
+    correctQuizAnswer(currentQuiz.id, { ignored: true })
+    setPhase('answering')
+    setFeedback(null)
+    nextQuestion()
+  }, [currentQuiz, correctQuizAnswer, nextQuestion])
+
+  const handleUnignoreQuiz = useCallback(() => {
+    if (!currentQuiz) return
+    correctQuizAnswer(currentQuiz.id, { ignored: false })
+  }, [currentQuiz, correctQuizAnswer])
 
   const handleEnd = useCallback(() => {
     endSession()
@@ -333,6 +368,11 @@ export default function ReviewPage() {
               explanation={currentQuiz.explanation}
               misconception={currentQuiz.misconception}
               extendedKnowledge={currentQuiz.extendedKnowledge}
+              canCorrect={canCorrect}
+              quiz={currentQuiz}
+              onCorrectAnswer={handleCorrectAnswer}
+              onIgnoreQuiz={handleIgnoreQuiz}
+              onUnignoreQuiz={handleUnignoreQuiz}
             />
 
             <div className="pt-2 space-y-2">

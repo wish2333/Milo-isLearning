@@ -17,11 +17,12 @@ import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useReviewStore } from '@/lib/state/review-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
+import { useModuleStore } from '@/lib/state/module-store'
 import { loadStoredModule } from '@/lib/persistence/module-library'
 import { getTopic } from '@/lib/persistence/topic-library'
 import { storage } from '@/lib/persistence/client/local-storage'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
-import type { ReviewFilter, Module, AttemptRecord } from '@/types/domain'
+import type { ReviewFilter, Module, AttemptRecord, Quiz } from '@/types/domain'
 
 import { LearnShell } from '@/components/learn/LearnShell'
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
@@ -69,8 +70,10 @@ export default function TopicReviewPage() {
   const { session, startTopicSession, recordResult, nextQuestion, endSession } = useReviewStore()
   const addAttempt = useAttemptsStore((s) => s.addAttempt)
   const getNextAttemptVersion = useAttemptsStore((s) => s.getNextAttemptVersion)
+  const reevaluateLastAttempt = useAttemptsStore((s) => s.reevaluateLastAttempt)
   const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
   const config = useSettingsStore((s) => s.config)
+  const correctQuizAnswer = useModuleStore((s) => s.correctQuizAnswer)
 
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
@@ -174,6 +177,45 @@ export default function TopicReviewPage() {
     setFeedback(null)
     nextQuestion()
   }, [session, nextQuestion])
+
+  const currentQueueItem = session ? session.queue[session.currentIndex] : null
+
+  // canCorrect: check the module that owns the current quiz
+  const canCorrect = useMemo(() => {
+    if (!currentQueueItem) return false
+    const ownerModule = topicModules.find((m) => m.id === currentQueueItem.moduleId)
+    return ownerModule?.origin !== 'showcase'
+  }, [currentQueueItem, topicModules])
+
+  const handleCorrectAnswer = useCallback(
+    async (patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers'>>) => {
+      if (!currentQuiz) return
+      correctQuizAnswer(currentQuiz.id, patch)
+      const correctedQuiz: Quiz = { ...currentQuiz, ...patch }
+      const provider =
+        config && correctedQuiz.interactionType === 'fill_blank' ? createProvider(config) : null
+      try {
+        const result = await reevaluateLastAttempt(currentQuiz.id, correctedQuiz, provider)
+        setFeedback(result)
+      } catch {
+        // keep existing feedback on error
+      }
+    },
+    [currentQuiz, config, correctQuizAnswer, reevaluateLastAttempt],
+  )
+
+  const handleIgnoreQuiz = useCallback(() => {
+    if (!currentQuiz) return
+    correctQuizAnswer(currentQuiz.id, { ignored: true })
+    setPhase('answering')
+    setFeedback(null)
+    nextQuestion()
+  }, [currentQuiz, correctQuizAnswer, nextQuestion])
+
+  const handleUnignoreQuiz = useCallback(() => {
+    if (!currentQuiz) return
+    correctQuizAnswer(currentQuiz.id, { ignored: false })
+  }, [currentQuiz, correctQuizAnswer])
 
   const handleEnd = useCallback(() => {
     endSession()
@@ -314,6 +356,11 @@ export default function TopicReviewPage() {
               explanation={currentQuiz.explanation}
               misconception={currentQuiz.misconception}
               extendedKnowledge={currentQuiz.extendedKnowledge}
+              canCorrect={canCorrect}
+              quiz={currentQuiz}
+              onCorrectAnswer={handleCorrectAnswer}
+              onIgnoreQuiz={handleIgnoreQuiz}
+              onUnignoreQuiz={handleUnignoreQuiz}
             />
 
             <div className="pt-2 space-y-2">

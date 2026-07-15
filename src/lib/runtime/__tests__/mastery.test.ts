@@ -310,4 +310,138 @@ describe('computeMastery', () => {
     // challengeMasteryExcludingGuessed excludes guessed = 50%
     expect(mastery.challengeMasteryExcludingGuessed).toBe(50)
   })
+
+  it('conceptMastery excludes ignored quiz from denominator', () => {
+    const mod = makeModule(2, 1)
+    // 标记 concept-1:1 为 ignored
+    mod.concepts[0]!.quizSeries.quizzes[1]!.ignored = true
+    const attempts: Record<string, AttemptRecord[]> = {
+      'concept-1:0': [makeAttempt('concept-1:0', 0, 100, 'advance')],
+      // concept-1:1 被忽略，即使有作答也不计入
+      'concept-1:1': [makeAttempt('concept-1:1', 0, 100, 'advance')],
+    }
+
+    const mastery = computeMastery(mod, attempts)
+
+    // denominator = 1 (只有 concept-1:0 非忽略), 1/1 passed = 100%
+    expect(mastery.conceptMastery[0]?.mastery).toBe(100)
+  })
+
+  it('all quizzes in a concept ignored -> mastery 0, no crash', () => {
+    const mod = makeModule(2, 1)
+    mod.concepts[0]!.quizSeries.quizzes[0]!.ignored = true
+    mod.concepts[0]!.quizSeries.quizzes[1]!.ignored = true
+
+    const mastery = computeMastery(mod, {})
+
+    // 全部忽略 -> mastery = 0
+    expect(mastery.conceptMastery[0]?.mastery).toBe(0)
+  })
+
+  it('moduleCompletion excludes ignored from total AND completed counts', () => {
+    const mod = makeModule(2, 1) // 2 concept quizzes + 6 feynman = 8 total
+    mod.concepts[0]!.quizSeries.quizzes[0]!.ignored = true
+    const attempts: Record<string, AttemptRecord[]> = {
+      'concept-1:0': [makeAttempt('concept-1:0', 0, 100, 'advance')], // ignored, shouldn't count
+      'concept-1:1': [makeAttempt('concept-1:1', 0, 100, 'advance')], // completed
+    }
+
+    const mastery = computeMastery(mod, attempts)
+
+    // total = 1 non-ignored concept quiz + 6 feynman = 7
+    // completed = 1 concept quiz + 0 feynman = 1
+    // 1/7 = ~14%
+    expect(mastery.moduleCompletion).toBe(14)
+  })
+
+  it('all concept quizzes ignored -> moduleCompletion based on feynman only', () => {
+    const mod = makeModule(2, 1)
+    mod.concepts[0]!.quizSeries.quizzes[0]!.ignored = true
+    mod.concepts[0]!.quizSeries.quizzes[1]!.ignored = true
+
+    const mastery = computeMastery(mod, {}, FEYNMAN_ATTEMPT)
+
+    // total = 0 concept + 0 challenge + 6 feynman = 6, completed = 6 -> 100%
+    expect(mastery.moduleCompletion).toBe(100)
+  })
+
+  it('challengeMastery excludes ignored; all-ignored challenge -> undefined', () => {
+    const mod = makeModule(0, 0)
+    mod.challengeQuizzes = [
+      {
+        id: 'challenge-0',
+        conceptId: 'challenge',
+        ladderLevel: 1,
+        expressionLevel: 1,
+        interactionType: 'choice',
+        stem: 'C1',
+        options: ['A', 'B', 'C', 'D'],
+        answer: 'A',
+        explanation: 'exp',
+        distractors: ['B', 'C', 'D'],
+        ignored: true,
+      },
+      {
+        id: 'challenge-1',
+        conceptId: 'challenge',
+        ladderLevel: 2,
+        expressionLevel: 2,
+        interactionType: 'choice',
+        stem: 'C2',
+        options: ['A', 'B', 'C', 'D'],
+        answer: 'A',
+        explanation: 'exp',
+        distractors: ['B', 'C', 'D'],
+      },
+    ]
+    const attempts: Record<string, AttemptRecord[]> = {
+      'challenge-0': [makeAttempt('challenge-0', 0, 100, 'advance')],
+      'challenge-1': [makeAttempt('challenge-1', 0, 100, 'advance')],
+    }
+
+    const mastery = computeMastery(mod, attempts)
+
+    // challenge-0 ignored -> only challenge-1 counted -> 1/1 = 100%
+    expect(mastery.challengeMastery).toBe(100)
+  })
+
+  it('all challenge quizzes ignored -> challengeMastery undefined', () => {
+    const mod = makeModule(0, 0)
+    mod.challengeQuizzes = [
+      {
+        id: 'challenge-0',
+        conceptId: 'challenge',
+        ladderLevel: 1,
+        expressionLevel: 1,
+        interactionType: 'choice',
+        stem: 'C1',
+        options: ['A', 'B', 'C', 'D'],
+        answer: 'A',
+        explanation: 'exp',
+        distractors: ['B', 'C', 'D'],
+        ignored: true,
+      },
+    ]
+
+    const mastery = computeMastery(mod, {})
+
+    expect(mastery.challengeMastery).toBeUndefined()
+    expect(mastery.challengeMasteryExcludingGuessed).toBeUndefined()
+  })
+
+  it('backward compat: module with no ignored fields behaves identically to v1.1.0', () => {
+    // makeModule does not set ignored -> all undefined -> same as v1.1.0
+    const mod = makeModule(2, 1)
+    const attempts: Record<string, AttemptRecord[]> = {
+      'concept-1:0': [makeAttempt('concept-1:0', 0, 100, 'advance')],
+      'concept-1:1': [makeAttempt('concept-1:1', 0, 0, 'retry')],
+    }
+
+    const mastery = computeMastery(mod, attempts)
+
+    // 1/2 first-attempt passed = 50%
+    expect(mastery.conceptMastery[0]?.mastery).toBe(50)
+    // 1 slot completed / (2 + 6 feynman) = 1/8 = 12.5 -> 13%
+    expect(mastery.moduleCompletion).toBe(13)
+  })
 })

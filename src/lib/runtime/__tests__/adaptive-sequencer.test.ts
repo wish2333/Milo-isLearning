@@ -260,6 +260,79 @@ describe('collectCarriedReviewSlots', () => {
   })
 })
 
+describe('buildAdaptiveQueue — ignored quiz filtering', () => {
+  it('excludes ignored quiz from queue', () => {
+    const slots = makeSlots(3)
+    slots[1]!.ignored = true
+    const queue = buildAdaptiveQueue({
+      slots,
+      attempts: [],
+      currentSlotId: 'concept-1:slot-1',
+    })
+    expect(queue.upcoming.map((s) => s.slotId)).not.toContain('concept-1:slot-2')
+    expect(queue.next?.slotId).not.toBe('concept-1:slot-2')
+  })
+
+  it('returns null next and empty upcoming when all slots ignored', () => {
+    const slots = makeSlots(3).map((s) => ({ ...s, ignored: true as const }))
+    const queue = buildAdaptiveQueue({
+      slots,
+      attempts: [],
+      currentSlotId: 'concept-1:slot-1',
+    })
+    expect(queue.next).toBeNull()
+    expect(queue.upcoming).toHaveLength(0)
+  })
+
+  it('ignored wrong-answer quiz does not appear as revisit slot', () => {
+    const slots = makeSlots(3)
+    slots[1]!.ignored = true
+    const queue = buildAdaptiveQueue({
+      slots,
+      attempts: [
+        attempt('concept-1:slot-2', 0, 1),
+        attempt('concept-1:slot-3', 100, 2),
+        attempt('concept-1:slot-1', 100, 3),
+      ],
+      currentSlotId: 'concept-1:slot-3',
+    })
+    const slotIds = queue.upcoming.map((s) => s.slotId)
+    expect(slotIds).not.toContain('concept-1:slot-2')
+  })
+})
+
+describe('collectReviewSlots — ignored quiz filtering', () => {
+  it('excludes ignored quiz from review slots', () => {
+    const testModule = makeModule(1, 3)
+    testModule.concepts[0]!.quizSeries.quizzes[1]!.ignored = true
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      'concept-0:slot-0': [attempt('concept-0:slot-0', 30, 1)],
+      'concept-0:slot-1': [attempt('concept-0:slot-1', 30, 1)],
+      'concept-0:slot-2': [attempt('concept-0:slot-2', 30, 1)],
+    }
+    const result = collectReviewSlots(testModule, 0, attemptsBySlot)
+    expect(result).not.toContain('concept-0:slot-1')
+    expect(result).toContain('concept-0:slot-0')
+    expect(result).toContain('concept-0:slot-2')
+  })
+})
+
+describe('collectConfirmSlots — ignored quiz filtering', () => {
+  it('excludes ignored quiz from confirm slots', () => {
+    const testModule = makeModule(1, 3)
+    testModule.concepts[0]!.quizSeries.quizzes[1]!.ignored = true
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      'concept-0:slot-0': [attempt('concept-0:slot-0', 100, 1)],
+      'concept-0:slot-1': [attempt('concept-0:slot-1', 100, 1)],
+      'concept-0:slot-2': [attempt('concept-0:slot-2', 100, 1)],
+    }
+    const result = collectConfirmSlots(testModule, 0, attemptsBySlot)
+    expect(result).not.toContain('concept-0:slot-1')
+    expect(result).toContain('concept-0:slot-0')
+    expect(result).toContain('concept-0:slot-2')
+  })
+})
+
 describe('findQuizInModule', () => {
   it('finds quiz in concepts', () => {
     const testModule = makeModule(2, 3)

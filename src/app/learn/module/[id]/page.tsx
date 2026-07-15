@@ -137,9 +137,5 @@ export default function ModulePage() {
       )
   }
 
-  return (
-    <LearnShell moduleId={currentModule.id} stageLabel={getStageLabel(stage)}>
-      {content}
-    </LearnShell>
-  )
+  return <LearnShell stageLabel={getStageLabel(stage)}>{content}</LearnShell>
 }

@@ -61,6 +61,10 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
   const getNextAttemptVersion = useAttemptsStore((s) => s.getNextAttemptVersion)
   const markGuessed = useAttemptsStore((s) => s.markGuessed)
   const unmarkGuessed = useAttemptsStore((s) => s.unmarkGuessed)
+  const reevaluateLastAttempt = useAttemptsStore((s) => s.reevaluateLastAttempt)
+
+  const correctQuizAnswer = useModuleStore((s) => s.correctQuizAnswer)
+  const canCorrect = currentModule?.origin !== 'showcase'
 
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
@@ -106,6 +110,16 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conceptIndex, quizIndex])
+
+  // auto-skip ignored concept quizzes (do not display, do not count)
+  useEffect(() => {
+    if (isReviewQuiz) return
+    if (!slotQuiz) return
+    if (!slotQuiz.ignored) return
+    if (phase !== 'answering') return
+    advance()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conceptIndex, quizIndex, slotQuiz, phase])
 
   const slotId = isReviewQuiz ? (reviewSlotId ?? '') : (slotQuiz?.id ?? '')
 
@@ -165,9 +179,39 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
   )
 
   const handleAdvance = useCallback(() => {
-    clearCurrentQuiz() // 清除替换题，下道题从 slot 加载
+    clearCurrentQuiz() // clear replacement quiz, next loads from slot
     advance()
   }, [clearCurrentQuiz, advance])
+
+  const handleCorrectAnswer = useCallback(
+    async (patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers'>>) => {
+      if (!quiz) return
+      correctQuizAnswer(quiz.id, patch)
+      const correctedQuiz: Quiz = { ...quiz, ...patch }
+      const provider =
+        config && correctedQuiz.interactionType === 'fill_blank' ? createProvider(config) : null
+      try {
+        const result = await reevaluateLastAttempt(slotId, correctedQuiz, provider)
+        setFeedback(result)
+        setIsGuessed(false)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '重评失败')
+      }
+    },
+    [quiz, slotId, config, correctQuizAnswer, reevaluateLastAttempt],
+  )
+
+  const handleIgnoreQuiz = useCallback(() => {
+    if (!quiz) return
+    correctQuizAnswer(quiz.id, { ignored: true })
+    clearCurrentQuiz()
+    advance()
+  }, [quiz, correctQuizAnswer, clearCurrentQuiz, advance])
+
+  const handleUnignoreQuiz = useCallback(() => {
+    if (!quiz) return
+    correctQuizAnswer(quiz.id, { ignored: false })
+  }, [quiz, correctQuizAnswer])
 
   // --- 渲染 ---
 
@@ -251,6 +295,11 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
                 unmarkGuessed(slotId)
                 setIsGuessed(false)
               }}
+              canCorrect={canCorrect}
+              quiz={quiz}
+              onCorrectAnswer={handleCorrectAnswer}
+              onIgnoreQuiz={handleIgnoreQuiz}
+              onUnignoreQuiz={handleUnignoreQuiz}
             />
 
             {!isAdvancing && (

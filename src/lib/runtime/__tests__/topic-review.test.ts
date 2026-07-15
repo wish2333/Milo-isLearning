@@ -246,4 +246,42 @@ describe('collectReviewItemsForModules', () => {
     const items = collectReviewItemsForModules([], {}, 'all')
     expect(items).toHaveLength(0)
   })
+
+  it('excludes ignored concept quizzes from review items', () => {
+    const mod = makeModule('mod-1', ['q1', 'q2', 'q3'])
+    ;(mod.concepts[0]!.quizSeries.quizzes[1] as Quiz).ignored = true
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      q1: [makeAttempt({ quizId: 'q1', score: 50, guessed: false })],
+      q2: [makeAttempt({ quizId: 'q2', score: 50, guessed: false })],
+      q3: [makeAttempt({ quizId: 'q3', score: 50, guessed: false })],
+    }
+    const items = collectReviewItemsForModules([mod], attemptsBySlot, 'wrong')
+    expect(items).toHaveLength(2)
+    expect(items.map((i) => i.slotId)).not.toContain('q2')
+  })
+
+  it('excludes ignored challenge quizzes from review items', () => {
+    const mod = makeModuleWithChallenge('mod-1', ['q1'], ['cq1', 'cq2'])
+    ;(mod.challengeQuizzes![1] as Quiz).ignored = true
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      q1: [makeAttempt({ quizId: 'q1', score: 50, guessed: false })],
+      cq1: [makeAttempt({ quizId: 'cq1', score: 60, guessed: false })],
+      cq2: [makeAttempt({ quizId: 'cq2', score: 60, guessed: false })],
+    }
+    const items = collectReviewItemsForModules([mod], attemptsBySlot, 'wrong')
+    expect(items).toHaveLength(2)
+    expect(items.map((i) => i.slotId)).not.toContain('cq2')
+  })
+
+  it('ignored quiz that is a wrong answer does not appear in review queue', () => {
+    const mod = makeModule('mod-1', ['q1', 'q2'])
+    ;(mod.concepts[0]!.quizSeries.quizzes[0] as Quiz).ignored = true
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      q1: [makeAttempt({ quizId: 'q1', score: 30, guessed: false })],
+      q2: [makeAttempt({ quizId: 'q2', score: 100, guessed: true })],
+    }
+    const items = collectReviewItemsForModules([mod], attemptsBySlot, 'all')
+    expect(items).toHaveLength(1)
+    expect(items[0]!.slotId).toBe('q2')
+  })
 })
