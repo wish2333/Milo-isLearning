@@ -57,6 +57,7 @@ export function ProductionSettings() {
   const clearConfig = useSettingsStore((s) => s.clear)
   const confirmReviewEnabled = useSettingsStore((s) => s.confirmReviewEnabled)
   const setConfirmReviewEnabled = useSettingsStore((s) => s.setConfirmReviewEnabled)
+  const resetPreferences = useSettingsStore((s) => s.resetPreferences)
 
   // 表单状态（从已保存配置初始化或用默认值）
   const [provider, setProvider] = useState<ProviderKind>(config?.provider ?? 'deepseek')
@@ -68,6 +69,7 @@ export function ProductionSettings() {
   const [pinging, setPinging] = useState(false)
   const [pingResult, setPingResult] = useState<PingResult | null>(null)
   const [saved, setSaved] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   // 当 config 异步加载完成（如从 .env.local 自动加载）后，同步表单
   useEffect(() => {
@@ -340,6 +342,31 @@ export function ProductionSettings() {
                 }`}
               />
             </button>
+          </div>
+
+          {/* 重置学习偏好 */}
+          <div className="pt-2">
+            {showResetConfirm ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-fg-secondary">确认重置学习偏好？</span>
+                <button
+                  onClick={() => {
+                    resetPreferences()
+                    setShowResetConfirm(false)
+                  }}
+                  className="alc-button-danger px-3 py-1 text-xs"
+                >
+                  确认重置
+                </button>
+                <button onClick={() => setShowResetConfirm(false)} className="alc-link text-xs">
+                  取消
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setShowResetConfirm(true)} className="alc-link text-xs">
+                重置学习偏好
+              </button>
+            )}
           </div>
         </div>
 

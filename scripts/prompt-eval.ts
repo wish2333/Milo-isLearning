@@ -566,7 +566,9 @@ async function runOnce(args: CliArgs, runIndex: number): Promise<RunResult> {
 
   const start = Date.now()
   try {
-    const output = await runAgent(args.agent, input, metricsProvider, schema, { disableThinking })
+    const { data: output } = await runAgent(args.agent, input, metricsProvider, schema, {
+      disableThinking,
+    })
     return {
       runIndex,
       ok: true,

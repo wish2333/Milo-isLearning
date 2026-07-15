@@ -20,6 +20,7 @@ import type { StoredModuleSummary } from '@/lib/persistence/module-library'
 import { getStorageCapacitySummary, type CapacitySummary } from '@/lib/persistence/quota'
 import type { CompileQualityReport } from '@/lib/compiler/quality/quality-report'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
+import { detectOrphans, cleanupOrphans, type OrphanReport } from '@/lib/persistence/orphan-cleanup'
 import {
   listTopics,
   createTopic,
@@ -53,6 +54,9 @@ export default function LibraryPage() {
   const [showCreator, setShowCreator] = useState(false)
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null)
 
+  // 孤儿引用检测（progress-store 指向不存在的 module）
+  const [orphanReport, setOrphanReport] = useState<OrphanReport | null>(null)
+
   const refresh = useCallback(() => {
     const studioMode = useRuntimeMode.getState().studioMode
     const effectiveShowcase = isShowcaseMode && !studioMode
@@ -68,6 +72,11 @@ export default function LibraryPage() {
   useEffect(() => {
     if (!hydrated) return
     refresh()
+    // 检测孤儿引用（迁移或删除导致的悬空 moduleId）
+    const report = detectOrphans(storage)
+    if (report.orphanProgressModuleIds.length > 0) {
+      setOrphanReport(report)
+    }
   }, [hydrated, refresh])
 
   // ---------- 计算属性 ----------
@@ -175,6 +184,37 @@ export default function LibraryPage() {
             <p className="mt-1 text-xs text-fg-secondary">
               你可以导出旧题库后再删除；系统不会在当前学习中静默删除正在使用的题库。
             </p>
+          </div>
+        )}
+
+        {orphanReport && (
+          <div className="alc-card border-warning/40 bg-warning-soft px-4 py-3 text-sm">
+            <p className="text-fg-primary">
+              检测到 {orphanReport.orphanProgressModuleIds.length} 个无效学习引用。
+            </p>
+            <p className="mt-1 text-xs text-fg-secondary">
+              这些引用指向不存在的题库（可能因迁移或删除导致）。清理后将回到题库列表。
+            </p>
+            <div className="flex gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  cleanupOrphans(storage, orphanReport)
+                  setOrphanReport(null)
+                  window.location.reload()
+                }}
+                className="alc-button-primary text-xs px-3 py-1"
+              >
+                清理引用
+              </button>
+              <button
+                type="button"
+                onClick={() => setOrphanReport(null)}
+                className="alc-button-secondary text-xs px-3 py-1"
+              >
+                稍后处理
+              </button>
+            </div>
           </div>
         )}
 

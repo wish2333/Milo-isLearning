@@ -13,6 +13,7 @@ import {
   listShowcaseModules,
   type ShowcaseManifest,
 } from '@/lib/showcase/showcase-loader'
+import { useSettingsStore } from '@/lib/state/settings-store'
 
 export function ShowcaseSettings() {
   const [manifest, setManifest] = useState<ShowcaseManifest | null>(null)
@@ -26,6 +27,9 @@ export function ShowcaseSettings() {
   }, [])
 
   const modules = manifest ? listShowcaseModules(manifest) : []
+  const confirmReviewEnabled = useSettingsStore((s) => s.confirmReviewEnabled)
+  const resetPreferences = useSettingsStore((s) => s.resetPreferences)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   return (
     <main className="alc-page p-8">
@@ -64,6 +68,38 @@ export function ShowcaseSettings() {
           <Link href="/studio" className="alc-button-secondary text-sm inline-block">
             访问完整版
           </Link>
+        </div>
+
+        {/* 学习偏好 */}
+        <div className="space-y-2 pt-4 border-t border-border-subtle">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-fg-primary">确认掌握题</p>
+              <p className="text-xs text-fg-tertiary">
+                {confirmReviewEnabled ? '已开启' : '已关闭'}。重置可恢复默认设置。
+              </p>
+            </div>
+            {showResetConfirm ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    resetPreferences()
+                    setShowResetConfirm(false)
+                  }}
+                  className="alc-button-danger px-3 py-1 text-xs"
+                >
+                  确认重置
+                </button>
+                <button onClick={() => setShowResetConfirm(false)} className="alc-link text-xs">
+                  取消
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setShowResetConfirm(true)} className="alc-link text-xs">
+                重置学习偏好
+              </button>
+            )}
+          </div>
         </div>
 
         {/* 关于 */}

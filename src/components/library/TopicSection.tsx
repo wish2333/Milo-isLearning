@@ -8,7 +8,11 @@ import { useRouter } from 'next/navigation'
 
 import type { Topic } from '@/types/domain'
 import type { StoredModuleSummary } from '@/lib/persistence/module-library'
-import { loadStoredModule, resetStoredModuleProgress } from '@/lib/persistence/module-library'
+import {
+  loadStoredModule,
+  renameModule,
+  resetStoredModuleProgress,
+} from '@/lib/persistence/module-library'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { removeModule } from '@/lib/persistence/quota'
 import { storage } from '@/lib/persistence/client/local-storage'
@@ -71,6 +75,18 @@ export function TopicSection({ topic, modules, onEdit, onChanged }: TopicSection
     exportModuleToBrowserDownload(summary.id)
   }
 
+  const handleRename = (moduleId: string, newTitle: string) => {
+    const storedModule = loadStoredModule(storage, moduleId)
+    if (!storedModule) return
+    if (storedModule.origin === 'showcase') return
+    renameModule(storage, moduleId, newTitle)
+    const current = useModuleStore.getState().currentModule
+    if (current?.id === moduleId) {
+      useModuleStore.getState().renameCurrentModule(newTitle)
+    }
+    onChanged()
+  }
+
   return (
     <section className="space-y-3">
       <TopicCard topic={topic} modules={modules} onEdit={onEdit} onChanged={onChanged} />
@@ -86,6 +102,7 @@ export function TopicSection({ topic, modules, onEdit, onChanged }: TopicSection
               onRestart={handleRestart}
               onDeleteRequest={handleDeleteRequest}
               onExport={handleExport}
+              onRename={handleRename}
             />
           ))}
         </ul>

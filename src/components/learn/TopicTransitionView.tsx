@@ -1,16 +1,19 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import { getTopic } from '@/lib/persistence/topic-library'
 import { loadStoredModule } from '@/lib/persistence/module-library'
 import { storage } from '@/lib/persistence/client/local-storage'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
+import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
+import { computeTopicMastery } from '@/lib/runtime/topic-mastery'
 
-import type { ModuleTopicStatus } from '@/types/domain'
+import type { FeynmanAttempt, Module, ModuleTopicStatus } from '@/types/domain'
 
 interface TopicTransitionViewProps {
   topicId: string
@@ -33,6 +36,27 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
   }, [session, topicId, router])
 
   const topic = getTopic(storage, topicId)
+
+  // computeTopicMastery must be before early returns (React hooks rule)
+  const topicMastery = useMemo(() => {
+    if (!topic) return null
+    const modules: Module[] = topic.moduleIds
+      .map((id) => loadStoredModule(storage, id))
+      .filter((m): m is Module => m !== null)
+    if (modules.length === 0) return null
+
+    const attemptsBySlot = useAttemptsStore.getState().attemptsBySlot
+    const feynmanAttempts: Record<string, FeynmanAttempt> = {}
+    for (const mod of modules) {
+      const feynman = storage.get<FeynmanAttempt>(StorageKeys.feynman(mod.id))
+      if (feynman) {
+        feynmanAttempts[mod.id] = feynman
+      }
+    }
+
+    return computeTopicMastery(topic, modules, attemptsBySlot, feynmanAttempts)
+  }, [topic])
+
   if (!topic) {
     useTopicSessionStore.getState().exitSession()
     router.replace('/learn/library')
@@ -75,16 +99,42 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
           <p className="text-sm text-fg-tertiary">
             {doneCount}/{totalCount} 模块已完成
           </p>
+          {topicMastery && topicMastery.totalQuizzes > 0 && (
+            <div className="mt-3">
+              <p className="alc-label text-xs">整体掌握度</p>
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-bg-elevated rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-success rounded-full transition-all"
+                    style={{ width: `${topicMastery.aggregateMastery}%` }}
+                  />
+                </div>
+                <span className="text-xs text-fg-secondary shrink-0">
+                  {topicMastery.aggregateMastery}%
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-fg-tertiary">
+                {topicMastery.completedModules}/{topicMastery.moduleMasteries.length} 模块完成度
+                100%
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="alc-card p-5 space-y-2">
           {session.moduleIds.map((moduleId) => {
             const mod = loadStoredModule(storage, moduleId)
             const status = STATUS_ICON.done
+            const mastery = topicMastery?.moduleMasteries.find((m) => m.moduleId === moduleId)
             return (
               <div key={moduleId} className="flex items-center gap-2 text-sm">
                 <span className={status.className}>{status.icon}</span>
-                <span className="truncate text-fg-secondary">{mod?.title ?? moduleId}</span>
+                <span className="flex-1 truncate text-fg-secondary">{mod?.title ?? moduleId}</span>
+                {mastery && (
+                  <span className="text-xs text-fg-tertiary shrink-0">
+                    {mastery.mastery.moduleCompletion}%
+                  </span>
+                )}
               </div>
             )
           })}
@@ -118,6 +168,22 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
             />
           </div>
         )}
+        {topicMastery && topicMastery.totalQuizzes > 0 && (
+          <div>
+            <p className="alc-label text-xs">整体掌握度</p>
+            <div className="mt-1 flex items-center gap-2">
+              <div className="flex-1 h-1.5 bg-bg-elevated rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-success rounded-full transition-all"
+                  style={{ width: `${topicMastery.aggregateMastery}%` }}
+                />
+              </div>
+              <span className="text-xs text-fg-secondary shrink-0">
+                {topicMastery.aggregateMastery}%
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="alc-card p-5 space-y-1.5">
@@ -125,14 +191,20 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
           const mod = loadStoredModule(storage, moduleId)
           const status = session.moduleStatus[moduleId] ?? 'pending'
           const icon = STATUS_ICON[status]
+          const mastery = topicMastery?.moduleMasteries.find((m) => m.moduleId === moduleId)
           return (
             <div key={moduleId} className="flex items-center gap-2 text-sm">
               <span className={icon.className}>{icon.icon}</span>
               <span
-                className={`truncate ${status === 'done' ? 'text-fg-secondary' : 'text-fg-primary'}`}
+                className={`flex-1 truncate ${status === 'done' ? 'text-fg-secondary' : 'text-fg-primary'}`}
               >
                 {mod?.title ?? moduleId}
               </span>
+              {mastery && mastery.mastery.moduleCompletion > 0 && (
+                <span className="text-xs text-fg-tertiary shrink-0">
+                  {mastery.mastery.moduleCompletion}%
+                </span>
+              )}
             </div>
           )
         })}

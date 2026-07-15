@@ -1,10 +1,10 @@
 'use client'
 
 /**
- * QualitySummary — 编译质量摘要（M7.5 Task 6 配套 UI）
+ * QualitySummary -- compile quality summary (M7.5 Task 6 + F08 PA.5)
  *
- * 只读展示：题数、表达层级分布、Challenge 题数与涉及概念覆盖。
- * 不做成本估算（推迟到 M7.6）。
+ * Read-only display: quiz counts, expression distribution, challenge coverage,
+ * token usage, and estimated cost.
  */
 
 import type { CompileQualityReport } from '@/lib/compiler/quality/quality-report'
@@ -21,6 +21,20 @@ const EXPRESSION_LABELS: Record<1 | 2 | 3, string> = {
 
 function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`
+}
+
+function formatCost(cost: number): string {
+  return `$${cost.toFixed(4)} USD`
+}
+
+function formatTokenCount(count: number): string {
+  if (count >= 1_000_000) {
+    return `${(count / 1_000_000).toFixed(2)}M`
+  }
+  if (count >= 1_000) {
+    return `${(count / 1_000).toFixed(1)}K`
+  }
+  return String(count)
 }
 
 export function QualitySummary({ report }: QualitySummaryProps) {
@@ -128,6 +142,38 @@ export function QualitySummary({ report }: QualitySummaryProps) {
           </p>
         </div>
       </div>
+
+      {report.tokenUsage && (
+        <div className="space-y-1">
+          <p className="alc-label">Token 用量与成本</p>
+          <div className="grid grid-cols-4 gap-2 text-xs">
+            <div className="rounded border border-border-subtle bg-bg-surface px-2 py-1.5">
+              <p className="text-fg-secondary">输入</p>
+              <p className="text-fg-primary tabular-nums">
+                {formatTokenCount(report.tokenUsage.promptTokens)}
+              </p>
+            </div>
+            <div className="rounded border border-border-subtle bg-bg-surface px-2 py-1.5">
+              <p className="text-fg-secondary">输出</p>
+              <p className="text-fg-primary tabular-nums">
+                {formatTokenCount(report.tokenUsage.completionTokens)}
+              </p>
+            </div>
+            <div className="rounded border border-border-subtle bg-bg-surface px-2 py-1.5">
+              <p className="text-fg-secondary">总计</p>
+              <p className="text-fg-primary tabular-nums">
+                {formatTokenCount(report.tokenUsage.totalTokens)}
+              </p>
+            </div>
+            <div className="rounded border border-border-subtle bg-bg-surface px-2 py-1.5">
+              <p className="text-fg-secondary">估算成本</p>
+              <p className="text-fg-primary tabular-nums">
+                {report.estimatedCost ? formatCost(report.estimatedCost.totalCost) : '--'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {report.challengeCoverage.length > 0 && (
         <div className="space-y-1">

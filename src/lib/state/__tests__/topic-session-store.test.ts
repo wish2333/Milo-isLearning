@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { TopicProgress } from '@/types/domain'
 import type { Topic } from '@/types/domain'
 
 import { useTopicSessionStore } from '../topic-session-store'
@@ -244,5 +245,156 @@ describe('isActive', () => {
     useTopicSessionStore.getState().startSession('topic-1')
 
     expect(useTopicSessionStore.getState().isActive()).toBe(true)
+  })
+})
+
+// =================================================================
+// F22 主题进度快照测试
+// =================================================================
+
+describe('F22 topic progress snapshot', () => {
+  const progressKey = (topicId: string) => `alc:topic-progress:${topicId}`
+
+  it('exitSession writes snapshot with correct completedModuleIds', () => {
+    mockTopics.set('topic-1', {
+      id: 'topic-1',
+      name: '测试',
+      moduleIds: ['mod-1', 'mod-2', 'mod-3'],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    useTopicSessionStore.getState().startSession('topic-1')
+    useTopicSessionStore.getState().markCurrentModuleDone()
+    useTopicSessionStore.getState().advanceToNextModule()
+    useTopicSessionStore.getState().markCurrentModuleDone()
+
+    useTopicSessionStore.getState().exitSession()
+
+    const raw = store.get(progressKey('topic-1'))
+    expect(raw).not.toBeNull()
+    const progress = JSON.parse(raw!) as TopicProgress
+    expect(progress.topicId).toBe('topic-1')
+    expect(progress.completedModuleIds).toEqual(['mod-1', 'mod-2'])
+    expect(progress.lastVisitedAt).toBeGreaterThan(0)
+  })
+
+  it('exitSession writes empty completedModuleIds when no modules done', () => {
+    mockTopics.set('topic-1', {
+      id: 'topic-1',
+      name: '测试',
+      moduleIds: ['mod-1', 'mod-2'],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    useTopicSessionStore.getState().startSession('topic-1')
+
+    useTopicSessionStore.getState().exitSession()
+
+    const raw = store.get(progressKey('topic-1'))
+    expect(raw).not.toBeNull()
+    const progress = JSON.parse(raw!) as TopicProgress
+    expect(progress.completedModuleIds).toEqual([])
+  })
+
+  it('exitSession does not write snapshot when no session', () => {
+    useTopicSessionStore.getState().exitSession()
+    expect(store.get(progressKey('nonexistent'))).toBeUndefined()
+  })
+
+  it('startSession reads snapshot and marks modules as done', () => {
+    // Pre-seed a progress snapshot
+    const snapshot: TopicProgress = {
+      topicId: 'topic-1',
+      completedModuleIds: ['mod-1', 'mod-2'],
+      lastVisitedAt: Date.now() - 10000,
+    }
+    store.set(progressKey('topic-1'), JSON.stringify(snapshot))
+
+    mockTopics.set('topic-1', {
+      id: 'topic-1',
+      name: '测试',
+      moduleIds: ['mod-1', 'mod-2', 'mod-3'],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    useTopicSessionStore.getState().startSession('topic-1')
+
+    const { session } = useTopicSessionStore.getState()
+    expect(session).not.toBeNull()
+    expect(session!.moduleStatus).toEqual({
+      'mod-1': 'done',
+      'mod-2': 'done',
+      'mod-3': 'in_progress',
+    })
+    expect(session!.currentIndex).toBe(2)
+  })
+
+  it('startSession without prior progress keeps all modules pending', () => {
+    mockTopics.set('topic-1', {
+      id: 'topic-1',
+      name: '测试',
+      moduleIds: ['mod-1', 'mod-2'],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    useTopicSessionStore.getState().startSession('topic-1')
+
+    const { session } = useTopicSessionStore.getState()
+    expect(session!.moduleStatus).toEqual({
+      'mod-1': 'in_progress',
+      'mod-2': 'pending',
+    })
+    expect(session!.currentIndex).toBe(0)
+  })
+
+  it('startSession resumes from first module when all previously done', () => {
+    const snapshot: TopicProgress = {
+      topicId: 'topic-1',
+      completedModuleIds: ['mod-1', 'mod-2'],
+      lastVisitedAt: Date.now(),
+    }
+    store.set(progressKey('topic-1'), JSON.stringify(snapshot))
+
+    mockTopics.set('topic-1', {
+      id: 'topic-1',
+      name: '测试',
+      moduleIds: ['mod-1', 'mod-2'],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    useTopicSessionStore.getState().startSession('topic-1')
+
+    const { session } = useTopicSessionStore.getState()
+    // All modules were done, so fallback to index 0
+    expect(session!.moduleStatus).toEqual({
+      'mod-1': 'in_progress',
+      'mod-2': 'done',
+    })
+    expect(session!.currentIndex).toBe(0)
+  })
+
+  it('round-trip: exitSession then startSession restores progress', () => {
+    mockTopics.set('topic-1', {
+      id: 'topic-1',
+      name: '测试',
+      moduleIds: ['mod-1', 'mod-2', 'mod-3'],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+
+    // Complete mod-1 and mod-2, then exit
+    useTopicSessionStore.getState().startSession('topic-1')
+    useTopicSessionStore.getState().markCurrentModuleDone()
+    useTopicSessionStore.getState().advanceToNextModule()
+    useTopicSessionStore.getState().markCurrentModuleDone()
+    useTopicSessionStore.getState().exitSession()
+
+    // Re-enter
+    useTopicSessionStore.getState().startSession('topic-1')
+    const { session } = useTopicSessionStore.getState()
+    expect(session!.moduleStatus['mod-1']).toBe('done')
+    expect(session!.moduleStatus['mod-2']).toBe('done')
+    expect(session!.moduleStatus['mod-3']).toBe('in_progress')
+    expect(session!.currentIndex).toBe(2)
   })
 })

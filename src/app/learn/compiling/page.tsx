@@ -38,6 +38,7 @@ import { useCompileStore } from '@/lib/state/compile-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
+import { isProductionMode } from '@/lib/runtime/app-mode'
 import { track } from '@/lib/runtime/analytics'
 
 const SOURCE_KEY = 'alc:compile-source'
@@ -93,6 +94,7 @@ function CompilingPageInner() {
   const startedRef = useRef(false)
   const controllerRef = useRef<AbortController | null>(null)
   const jobIdRef = useRef<string | null>(null)
+  const sessionIdRef = useRef<string | null>(null)
   const streamStartTimeRef = useRef(Date.now())
   const [, startTransition] = useTransition()
 
@@ -197,16 +199,65 @@ function CompilingPageInner() {
       }
     }
 
+    // PB.3: 从 URL 读取 resumeFrom / sessionId（import 页 resume 路径）
+    const urlResumeFrom = searchParams.get('resumeFrom')
+    const urlSessionId = searchParams.get('sessionId')
+    if (urlSessionId && !sessionIdRef.current) {
+      sessionIdRef.current = urlSessionId
+    }
+
     // SSE 流式读取 — 用 ref 保存 controller 避免 Strict Mode 双挂载 abort
     const controller = new AbortController()
     controllerRef.current = controller
 
     async function streamCompile() {
       try {
+        // PB.3: production 模式下创建 session（如果 URL 上已有 sessionId 则跳过）
+        let activeSessionId = sessionIdRef.current
+        if (isProductionMode && !activeSessionId) {
+          try {
+            const md = rawMarkdown
+            if (!md) throw new Error('empty source')
+            const encoder = new TextEncoder()
+            const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(md))
+            const hashArray = Array.from(new Uint8Array(hashBuffer))
+            const sourceHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+
+            const sessionRes = await fetch('/api/compile/session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sourceHash }),
+              signal: controller.signal,
+            })
+            if (sessionRes.ok) {
+              const sessionData = await sessionRes.json()
+              activeSessionId = sessionData.sessionId
+              sessionIdRef.current = activeSessionId
+              // 将 sessionId 写入 job store
+              if (jobIdRef.current) {
+                updateCompileJob(storage, jobIdRef.current, {
+                  sessionId: activeSessionId,
+                })
+              }
+            }
+          } catch {
+            // session 创建失败不应阻断编译（checkpoint 是增强功能）
+          }
+        }
+
+        // 构建 SSE 请求 body（含 sessionId + resumeFrom）
+        const sseBody: Record<string, unknown> = { rawMarkdown, config: compileConfig }
+        if (activeSessionId) {
+          sseBody.sessionId = activeSessionId
+        }
+        if (urlResumeFrom && activeSessionId) {
+          sseBody.resumeFrom = urlResumeFrom
+        }
+
         const response = await fetch('/api/compile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawMarkdown, config: compileConfig }),
+          body: JSON.stringify(sseBody),
           signal: controller.signal,
         })
 
@@ -281,6 +332,8 @@ function CompilingPageInner() {
                     (sum, c) => sum + c.quizSeries.quizzes.length,
                     0,
                   ),
+                  totalTokens: parsed.qualityReport?.tokenUsage?.totalTokens,
+                  estimatedCost: parsed.qualityReport?.estimatedCost?.totalCost,
                 })
 
                 // 路由到概览页
@@ -354,6 +407,7 @@ function CompilingPageInner() {
     resetCompile()
     setError(null)
     startedRef.current = false
+    sessionIdRef.current = null
     streamStartTimeRef.current = Date.now()
     setRetryCount((c) => c + 1)
   }
@@ -367,6 +421,7 @@ function CompilingPageInner() {
     clearCompileJob(storage, recoveryJob.jobId)
     setRecoveryJob(null)
     startedRef.current = false
+    sessionIdRef.current = null
     // 创建新 job
     if (config) {
       const newJob = createCompileJob(storage, {

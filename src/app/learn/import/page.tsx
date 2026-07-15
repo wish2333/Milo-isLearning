@@ -10,20 +10,37 @@
  *   - Markdown 文本框（textarea）
  *   - 实时字数计数器（200-20000 范围）
  *   - LLM 配置检查（未配置时引导到 Settings）
- *   - 点击编译 → 存 sessionStorage → 路由到编译中页
+ *   - 点击编译 -> 存 sessionStorage -> 路由到编译中页
+ *   - PB.3: production 模式检测未完成编译，显示恢复提示
  */
 
 import { useRouter } from 'next/navigation'
-import { useState, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
+import type { CompileStage } from '@/lib/compiler/pipeline/types'
+import { isProductionMode } from '@/lib/runtime/app-mode'
 import { track } from '@/lib/runtime/analytics'
-
 import { INPUT_MAX_LENGTH, INPUT_MIN_LENGTH } from '@/lib/compiler/pipeline/types'
 import { storage } from '@/lib/persistence/client/local-storage'
 import { createCompileJob } from '@/lib/state/compile-job-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
+import { CompileResumePrompt } from '@/components/learn/CompileResumePrompt'
 
 const STORAGE_KEY = 'alc:compile-source'
+
+/** 通过 Web Crypto API 计算 SHA-256 hex digest */
+async function sha256(text: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(text)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+interface ResumeInfo {
+  sessionId: string
+  lastStage: CompileStage | null
+}
 
 export default function ImportPage() {
   const router = useRouter()
@@ -31,10 +48,102 @@ export default function ImportPage() {
 
   const [markdown, setMarkdown] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [resumeInfo, setResumeInfo] = useState<ResumeInfo | null>(null)
+  const [dismissedResume, setDismissedResume] = useState(false)
+  const resumeCheckDoneRef = useRef(false)
 
   const charCount = markdown.length
   const isValid = charCount >= INPUT_MIN_LENGTH && charCount <= INPUT_MAX_LENGTH
   const isShort = charCount > 0 && charCount < INPUT_MIN_LENGTH
+
+  // PB.3: production 模式下，检测未完成的编译 session
+  useEffect(() => {
+    if (!isProductionMode) return
+    if (resumeCheckDoneRef.current) return
+
+    let cancelled = false
+
+    async function checkResume() {
+      // 仅在有输入内容时检查（用户粘贴了 markdown 后回到此页面）
+      const savedSource = sessionStorage.getItem(STORAGE_KEY)
+      if (!savedSource) return
+
+      try {
+        const sourceHash = await sha256(savedSource)
+
+        // POST 创建/查找 session（如果已有 active session 会返回 resumed=true）
+        const sessionRes = await fetch('/api/compile/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceHash }),
+        })
+        if (!sessionRes.ok || cancelled) return
+
+        const sessionData = await sessionRes.json()
+        if (!sessionData.sessionId) return
+
+        // 如果是新创建的（非 resumed），没有可恢复的检查点
+        if (!sessionData.resumed) return
+
+        // 有可恢复的 session -> 查询 checkpoint 信息
+        const resumeRes = await fetch(`/api/compile/resume?sessionId=${sessionData.sessionId}`)
+        if (!resumeRes.ok || cancelled) return
+
+        const resumeData = await resumeRes.json()
+        if (!resumeData.lastStage) return
+
+        setResumeInfo({
+          sessionId: sessionData.sessionId,
+          lastStage: resumeData.lastStage,
+        })
+      } catch {
+        // 网络错误或 showcase 模式 -> 静默忽略
+      }
+    }
+
+    checkResume()
+    resumeCheckDoneRef.current = true
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleResume = useCallback(() => {
+    if (!resumeInfo) return
+    setDismissedResume(true)
+
+    // 将源文本放回 sessionStorage
+    sessionStorage.setItem(STORAGE_KEY, markdown || sessionStorage.getItem(STORAGE_KEY) || '')
+
+    // 创建 compile job，携带 sessionId
+    const sourceContent = markdown || sessionStorage.getItem(STORAGE_KEY) || ''
+    const job = createCompileJob(storage, {
+      sourceContent,
+      configSummary: { provider: config?.provider ?? '', model: config?.model ?? '' },
+      sessionId: resumeInfo.sessionId,
+    })
+
+    track('compile_resume', { sessionId: resumeInfo.sessionId })
+    router.push(
+      `/learn/compiling?jobId=${job.jobId}&resumeFrom=${resumeInfo.lastStage}&sessionId=${resumeInfo.sessionId}`,
+    )
+  }, [resumeInfo, markdown, config, router])
+
+  const handleRestart = useCallback(async () => {
+    if (!resumeInfo) return
+    setDismissedResume(true)
+
+    try {
+      await fetch(`/api/compile/session?sessionId=${resumeInfo.sessionId}`, {
+        method: 'DELETE',
+      })
+    } catch {
+      // 静默忽略
+    }
+
+    setResumeInfo(null)
+  }, [resumeInfo])
 
   const handleCompile = useCallback(() => {
     if (!isValid || submitting) return
@@ -61,6 +170,8 @@ export default function ImportPage() {
     router.push(`/learn/compiling?jobId=${job.jobId}`)
   }, [isValid, submitting, config, markdown, router])
 
+  const showResumePrompt = isProductionMode && resumeInfo && !dismissedResume
+
   return (
     <main className="alc-page">
       {/* Main content */}
@@ -76,6 +187,16 @@ export default function ImportPage() {
               支持任意技术文档、教程、笔记。AI 将自动拆分概念、生成练习、设计费曼任务。
             </p>
           </div>
+
+          {/* PB.3: Resume prompt */}
+          {showResumePrompt && (
+            <CompileResumePrompt
+              sessionId={resumeInfo.sessionId}
+              lastStage={resumeInfo.lastStage}
+              onResume={handleResume}
+              onRestart={handleRestart}
+            />
+          )}
 
           {/* Textarea */}
           <div className="space-y-2">

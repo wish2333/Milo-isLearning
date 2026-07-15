@@ -52,6 +52,14 @@ async function importPackage(page: Page) {
 test.describe('Module Library', () => {
   test.beforeEach(async ({ page }) => {
     await blockCompile(page)
+    // Enable studio mode: showcase mode filters user-imported modules out of
+    // the library by origin === 'showcase'. Studio mode bypasses this filter.
+    await page.addInitScript(() => {
+      sessionStorage.setItem(
+        'alc:runtime-mode',
+        JSON.stringify({ state: { studioMode: true }, version: 0 }),
+      )
+    })
   })
 
   test('shows empty state', async ({ page }) => {

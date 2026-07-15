@@ -24,7 +24,9 @@ test.describe('v1.0.0 showcase zero-regression', () => {
 
   test('AppShell does not render StorageError page', async ({ page }) => {
     await expect(page.locator('text=无法加载本地学习数据')).toBeHidden()
-    await expect(page.locator('[role="alert"]')).toHaveCount(0)
+    // Scope to main content — Next.js dev mode may inject aria-live regions
+    // outside <main> that are not related to StorageError.
+    await expect(page.locator('main [role="alert"]')).toHaveCount(0)
   })
 
   test('StorageStatus overlay does not render in showcase mode', async ({ page }) => {

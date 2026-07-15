@@ -36,6 +36,7 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+run.bat
 
 # Test / coverage
 coverage/
@@ -57,3 +58,7 @@ bun
 
 # SDD workflow artifacts (superpowers/sdd session files)
 .superpowers/
+
+# Font source files (large, downloaded manually)
+# Subset output (woff2 + result.css) is committed; source is not
+public/fonts/source-han-serif-sc/source/

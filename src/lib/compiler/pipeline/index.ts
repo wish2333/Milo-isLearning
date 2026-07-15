@@ -43,5 +43,6 @@ export {
   type CompileErrorPayload,
   type CompileErrorCode,
   type CompileEvent,
+  type CompileOptions,
   type CompileStage,
 } from './types'

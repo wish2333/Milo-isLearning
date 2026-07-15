@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-import type { Topic, KnowledgeSource, Module } from '@/types/domain'
+import type { Topic, TopicProgress, KnowledgeSource, Module } from '@/types/domain'
 import type { StoredModuleSummary } from '@/lib/persistence/module-library'
 import { loadStoredModule } from '@/lib/persistence/module-library'
 import { downloadWrongQuestionBookForTopic } from '@/lib/persistence/wrong-question-book'
@@ -51,6 +51,13 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
   const completedCount = modules.filter((m) => m.completed).length
   const totalCount = modules.length
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+
+  // F22: 读取上次进度快照
+  const savedProgress: TopicProgress | null = storage.get<TopicProgress>(
+    StorageKeys.topicProgress(topic.id),
+  )
+  const savedCompleted = savedProgress?.completedModuleIds.length ?? 0
+  const hasSavedProgress = savedCompleted > 0 && savedCompleted < totalCount
 
   const handleStartTopic = () => {
     const ok = useTopicSessionStore.getState().startSession(topic.id)
@@ -117,6 +124,13 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
               style={{ width: `${progressPercent}%` }}
             />
           </div>
+        )}
+
+        {/* F22: 上次进度提示 */}
+        {hasSavedProgress && (
+          <p className="text-xs text-fg-tertiary">
+            上次完成 {savedCompleted}/{totalCount} 个模块
+          </p>
         )}
 
         {/* 模块状态列表 */}

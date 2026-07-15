@@ -24,6 +24,10 @@ import type { FeynmanEvalOutput } from '@/lib/compiler/schemas/feynman-eval'
 import { createProvider } from '@/lib/providers'
 import { getEnvLLMConfig } from '@/lib/providers/env-fallback'
 import type { LLMConfig } from '@/lib/providers/types'
+import { APP_MODE } from '@/lib/runtime/app-mode'
+import { isStorageEnabled } from '@/lib/persistence/server/config'
+import { insertEvents } from '@/lib/persistence/server/events-repo'
+import { getDb } from '@/lib/persistence/server/db-singleton'
 
 export const runtime = 'nodejs'
 
@@ -59,7 +63,8 @@ export async function POST(req: NextRequest) {
   }
 
   // 客户端未携带 llmConfig 时（展示模式），fallback 到服务端环境变量
-  const config = llmConfig ?? getEnvLLMConfig()
+  const envConfig = llmConfig ? null : getEnvLLMConfig()
+  const config = llmConfig ?? envConfig
   if (!config) {
     return Response.json(
       { error: 'LLM 配置不可用：请在设置页配置，或在服务端 .env.local 中设置 DEEPSEEK_API_KEY' },
@@ -67,10 +72,26 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // PA.7: env fallback 埋点 — 服务端直接写入 SQLite，不走客户端 track
+  if (!llmConfig && envConfig && isStorageEnabled) {
+    try {
+      insertEvents(getDb(), [
+        {
+          name: 'env_fallback_used',
+          props: { route: 'feynman-eval', provider: envConfig.provider, model: envConfig.model },
+          app_mode: APP_MODE,
+          occurred_at: Date.now(),
+        },
+      ])
+    } catch {
+      // 遥测失败不阻塞 API 响应
+    }
+  }
+
   try {
     const provider = createProvider(config)
 
-    const output = await runAgent(
+    const { data: output } = await runAgent(
       'feynman-eval',
       {
         finalPrompt,

@@ -17,9 +17,10 @@
  * schema validation. This keeps tests focused on pipeline orchestration.
  */
 import { describe, expect, it, vi } from 'vitest'
-import type { CompileEvent, CompileErrorCode } from '@/lib/compiler/pipeline'
+import type { CompileEvent, CompileErrorCode, CompileOptions } from '@/lib/compiler/pipeline'
 import { ProviderError } from '@/lib/providers'
 import { AgentOutputError } from '@/lib/compiler/agents/errors'
+import type { TokenUsage } from '@/lib/providers/types'
 
 // -------------------------------------------------------------------
 // Mock runAgent: replace the agent-runner so pipeline tests don't
@@ -290,6 +291,9 @@ function makeCannedQuiz(
 }
 
 // -------------------------------------------------------------------
+/** Default mock usage (per LLM call) */
+const MOCK_USAGE: TokenUsage = { promptTokens: 100, completionTokens: 200, totalTokens: 300 }
+
 // Default mock setup: for any agent kind, return CANNED data.
 // Tests can override via mockedRunAgent.mockImplementation(...).
 // -------------------------------------------------------------------
@@ -312,7 +316,7 @@ function setupDefaultMock(): void {
           expressionLevel: p.expressionLevel,
         })
       })
-      return { reasoning: 'r', quizzes } as never
+      return { data: { reasoning: 'r', quizzes }, usage: { ...MOCK_USAGE } } as never
     }
     if (kind === 'challenge-batch') {
       const quizzes = [
@@ -385,12 +389,12 @@ function setupDefaultMock(): void {
           involvedConceptIds: ['concept-1', 'concept-2'],
         },
       ]
-      return { reasoning: 'r', quizzes } as never
+      return { data: { reasoning: 'r', quizzes }, usage: { ...MOCK_USAGE } } as never
     }
     const k = kind as AgentKind
     const canned = CANNED[k]
     if (!canned) throw new Error(`No canned data for kind: ${kind}`)
-    return canned as never
+    return { data: canned, usage: { ...MOCK_USAGE } } as never
   })
 }
 
@@ -504,6 +508,22 @@ describe('B. Input validation', () => {
     }
   })
 
+  it('B2.5: input containing U+FFFD yields error(input_invalid_encoding), no LLM call', async () => {
+    mockedRunAgent.mockReset()
+    // 200 chars + one replacement character in the middle
+    const badEncodingInput = 'A'.repeat(100) + '\uFFFD' + 'B'.repeat(99)
+    const events = await collectEvents(badEncodingInput)
+
+    expect(events[0]).toBeDefined()
+    expect(events[0]!.kind).toBe('error')
+    if (events[0]!.kind === 'error') {
+      expect(events[0]!.error.code).toBe('input_invalid_encoding')
+      expect(events[0]!.error.stage).toBe('input')
+      expect(events[0]!.error.retryable).toBe(false)
+    }
+    expect(mockedRunAgent).not.toHaveBeenCalled()
+  })
+
   it('B3: input length = 200 (boundary) enters import stage', async () => {
     setupDefaultMock()
     const boundaryInput = 'A'.repeat(INPUT_MIN_LENGTH)
@@ -591,7 +611,7 @@ describe('D. Per-stage failure', () => {
       const k = kind as AgentKind
       const canned = CANNED[k]
       if (!canned) throw new Error(`No canned data for kind: ${kind}`)
-      return canned as never
+      return { data: canned, usage: { ...MOCK_USAGE } } as never
     })
     const events = await collectEvents(VALID_INPUT)
 
@@ -614,7 +634,7 @@ describe('D. Per-stage failure', () => {
       const k = kind as AgentKind
       const canned = CANNED[k]
       if (!canned) throw new Error(`No canned data for kind: ${kind}`)
-      return canned as never
+      return { data: canned, usage: { ...MOCK_USAGE } } as never
     })
     const events = await collectEvents(VALID_INPUT)
 
@@ -637,7 +657,7 @@ describe('D. Per-stage failure', () => {
         const k = kind as AgentKind
         const canned = CANNED[k]
         if (!canned) throw new Error(`No canned data for kind: ${kind}`)
-        return canned as never
+        return { data: canned, usage: { ...MOCK_USAGE } } as never
       })
       const events = await collectEvents(VALID_INPUT)
 
@@ -666,7 +686,7 @@ describe('E. LLM error propagation', () => {
         const k = kind as AgentKind
         const canned = CANNED[k]
         if (!canned) throw new Error(`No canned data for kind: ${kind}`)
-        return canned as never
+        return { data: canned, usage: { ...MOCK_USAGE } } as never
       })
       const events = await collectEvents(VALID_INPUT)
 
@@ -686,7 +706,7 @@ describe('E. LLM error propagation', () => {
       const k = kind as AgentKind
       const canned = CANNED[k]
       if (!canned) throw new Error(`No canned data for kind: ${kind}`)
-      return canned as never
+      return { data: canned, usage: { ...MOCK_USAGE } } as never
     })
     const events = await collectEvents(VALID_INPUT)
 
@@ -707,7 +727,7 @@ describe('E. LLM error propagation', () => {
       const k = kind as AgentKind
       const canned = CANNED[k]
       if (!canned) throw new Error(`No canned data for kind: ${kind}`)
-      return canned as never
+      return { data: canned, usage: { ...MOCK_USAGE } } as never
     })
     const events = await collectEvents(VALID_INPUT)
 
@@ -760,12 +780,12 @@ describe('F. Quiz circuit breaker and degradation', () => {
             expressionLevel: p.expressionLevel,
           })
         })
-        return { reasoning: 'r', quizzes } as never
+        return { data: { reasoning: 'r', quizzes }, usage: { ...MOCK_USAGE } } as never
       }
       const k = kind as AgentKind
       const canned = CANNED[k]
       if (!canned) throw new Error(`No canned data for kind: ${kind}`)
-      return canned as never
+      return { data: canned, usage: { ...MOCK_USAGE } } as never
     })
     const events = await collectEvents(VALID_INPUT)
 
@@ -814,12 +834,12 @@ describe('F. Quiz circuit breaker and degradation', () => {
             expressionLevel: p.expressionLevel,
           })
         })
-        return { reasoning: 'r', quizzes } as never
+        return { data: { reasoning: 'r', quizzes }, usage: { ...MOCK_USAGE } } as never
       }
       const k = kind as AgentKind
       const canned = CANNED[k]
       if (!canned) throw new Error(`No canned data for kind: ${kind}`)
-      return canned as never
+      return { data: canned, usage: { ...MOCK_USAGE } } as never
     })
     const events = await collectEvents(VALID_INPUT)
 
@@ -890,7 +910,7 @@ describe('G. consumeStream helper', () => {
         const k = kind as AgentKind
         const canned = CANNED[k]
         if (!canned) throw new Error(`No canned data for kind: ${kind}`)
-        return canned as never
+        return { data: canned, usage: { ...MOCK_USAGE } } as never
       })
       const stream = compileMarkdown(VALID_INPUT, {
         compileModel: 'test-model',
@@ -933,5 +953,148 @@ describe('H. ERROR_TABLE completeness', () => {
       expect(mapping.messageTemplate).toBeTruthy()
       expect(typeof mapping.httpStatus).toBe('number')
     }
+  })
+})
+
+// ===================================================================
+// I. Checkpoint & Resume (PB.2 F04)
+// ===================================================================
+describe('I. Checkpoint & Resume (PB.2)', () => {
+  const DEFAULT_CONFIG = {
+    compileModel: 'test-model',
+    lightweightModel: 'test-model',
+    llm: {
+      provider: 'deepseek' as const,
+      apiKey: 'test-key',
+      model: 'test-model',
+    },
+  }
+
+  /** Collect events with optional CompileOptions. */
+  async function collectEventsWithOptions(
+    rawMarkdown: string,
+    options?: CompileOptions,
+  ): Promise<CompileEvent[]> {
+    const events: CompileEvent[] = []
+    const stream = compileMarkdown(rawMarkdown, DEFAULT_CONFIG, options)
+    for await (const event of stream) {
+      events.push(event)
+    }
+    return events
+  }
+
+  it('I1: writeCheckpoint called with module artifact after stage 4 when sessionId is set', async () => {
+    mockedRunAgent.mockClear()
+    const writeCheckpoint = vi.fn()
+    setupDefaultMock()
+    await collectEventsWithOptions(VALID_INPUT, { sessionId: 'sess-1', writeCheckpoint })
+
+    const calls = writeCheckpoint.mock.calls as Array<[string, unknown, ...unknown[]]>
+    const moduleCall = calls.find((c) => c[0] === 'module')
+    expect(moduleCall).toBeDefined()
+    expect(moduleCall![1]).toHaveProperty('concepts')
+
+    const conceptsCall = calls.find((c) => c[0] === 'module-concepts')
+    expect(conceptsCall).toBeDefined()
+    expect(Array.isArray(conceptsCall![1])).toBe(true)
+  })
+
+  it('I2: no checkpoint writes when writeCheckpoint is not provided (showcase mode)', async () => {
+    mockedRunAgent.mockClear()
+    setupDefaultMock()
+    // No writeCheckpoint callback → tryWriteCheckpoint is a no-op
+    const events = await collectEventsWithOptions(VALID_INPUT)
+
+    const complete = events.find((e) => e.kind === 'complete')
+    expect(complete).toBeDefined()
+    if (complete?.kind !== 'complete') return
+    expect(complete.module.concepts).toHaveLength(2)
+  })
+
+  it('I3: writeCheckpoint called with challenge artifact after stage 6.5 when sessionId is set', async () => {
+    mockedRunAgent.mockClear()
+    const writeCheckpoint = vi.fn()
+    setupDefaultMock()
+    await collectEventsWithOptions(VALID_INPUT, { sessionId: 'sess-1', writeCheckpoint })
+
+    const calls = writeCheckpoint.mock.calls as Array<[string, unknown, ...unknown[]]>
+    const challengeCall = calls.find((c) => c[0] === 'challenge')
+    expect(challengeCall).toBeDefined()
+    expect(challengeCall![1]).toHaveProperty('challengeQuizzes')
+  })
+
+  it('I4: resume from module skips stages 1-4, uses checkpoint, completes pipeline', async () => {
+    mockedRunAgent.mockClear()
+
+    // Construct checkpoint data from CANNED fixtures
+    const checkpointConcepts = (CANNED.concept.concepts as Array<Record<string, unknown>>).map(
+      (raw, idx) => ({
+        id: raw.id,
+        name: raw.name,
+        definition: raw.definition,
+        type: raw.type,
+        keyPoints: raw.keyPoints,
+        parentChunkId: raw.parentChunkId,
+        moduleId: 'module-1',
+        order: idx + 1,
+        quizSeries: { quizzes: [] },
+      }),
+    )
+
+    const checkpointModuleData = {
+      id: 'module-1',
+      title: 'RAG Intro',
+      intro: 'After this module, you can master RAG basics',
+      goal: 'Understand RAG principles',
+      concepts: checkpointConcepts,
+      feynmanTask: { moduleId: 'module-1', steps: [], finalPrompt: '', rubric: [] },
+      challengeQuizzes: [],
+      sourceId: 'source-resume-test',
+    }
+
+    const checkpointData = new Map<string, { artifact: unknown }>([
+      ['import', { artifact: CANNED.import }],
+      ['chunk', { artifact: CANNED.chunk }],
+      ['concept', { artifact: CANNED.concept }],
+      ['module', { artifact: checkpointModuleData }],
+      ['module-concepts', { artifact: checkpointConcepts }],
+    ])
+
+    setupDefaultMock()
+    const events = await collectEventsWithOptions(VALID_INPUT, {
+      resumeFrom: 'module',
+      checkpointData,
+    })
+
+    // Pipeline should produce a complete event
+    const complete = events.find((e) => e.kind === 'complete')
+    expect(complete).toBeDefined()
+    if (complete?.kind !== 'complete') return
+
+    expect(complete.module.concepts).toHaveLength(2)
+    expect(complete.module.feynmanTask.steps).toHaveLength(6)
+
+    // Stages 1-4 should NOT have been called (resume skipped them)
+    const calledKinds = mockedRunAgent.mock.calls.map((c) => c[0] as string)
+    expect(calledKinds).not.toContain('import')
+    expect(calledKinds).not.toContain('chunk')
+    expect(calledKinds).not.toContain('concept')
+    expect(calledKinds).not.toContain('module')
+
+    // Stages 5-7 should have been called
+    expect(calledKinds).toContain('mission')
+    expect(calledKinds).toContain('challenge-batch')
+    expect(calledKinds).toContain('feynman')
+
+    // Resume progress event with "从断点恢复" message
+    const resumeEvent = events.find(
+      (e) =>
+        e.kind === 'progress' &&
+        'stage' in e &&
+        e.stage === 'module' &&
+        'message' in e &&
+        (e as { message: string }).message.includes('\u65ad\u70b9\u6062\u590d'),
+    )
+    expect(resumeEvent).toBeDefined()
   })
 })

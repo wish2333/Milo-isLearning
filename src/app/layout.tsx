@@ -15,6 +15,7 @@ const fraunces = Fraunces({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://milo-islearning.netlify.app/'),
   title: 'AI Learning Compiler',
   description: '将任何知识自动编译为一条低摩擦、高掌握度的学习路径',
   openGraph: {
@@ -23,11 +24,20 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'zh_CN',
     siteName: 'AI Learning Compiler',
+    images: [
+      {
+        url: '/og-image.svg',
+        width: 1200,
+        height: 630,
+        alt: 'AI Learning Compiler - 将 Markdown 编译为交互式学习模块',
+      },
+    ],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'AI Learning Compiler',
     description: '将任何知识自动编译为一条低摩擦、高掌握度的学习路径',
+    images: ['/og-image.svg'],
   },
   icons: {
     icon: '/favicon.ico',

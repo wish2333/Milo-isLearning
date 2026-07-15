@@ -178,6 +178,10 @@ export interface AttemptRecord {
   timestamp: number
   /** 用户自报"蒙对"，默认 undefined/false。蒙对题不计入真正掌握度。 */
   guessed?: boolean
+  /** 提交时间戳（F13 学习时长统计） */
+  answeredAt?: number
+  /** 本题耗时毫秒（F13 学习时长统计） */
+  timeSpentMs?: number
 }
 
 /**
@@ -280,12 +284,43 @@ export interface TopicSession {
 }
 
 /**
+ * 主题级别聚合掌握度（F23 / PB.6）
+ *
+ * 通过加权平均各模块的 moduleCompletion 计算主题整体掌握度。
+ * 权重 = 模块总测验数（Concept quiz + Challenge quiz + Feynman steps）。
+ */
+export interface TopicMastery {
+  topicId: string
+  /** 加权平均掌握度 0-100 */
+  aggregateMastery: number
+  moduleMasteries: Array<{
+    moduleId: string
+    moduleTitle: string
+    mastery: Mastery
+    weight: number
+  }>
+  totalQuizzes: number
+  completedModules: number
+}
+
+/**
  * 错题重刷的筛选维度。
  * - 'all'：错题 + 蒙对题（当前行为）
  * - 'wrong'：仅错题（score < 80）
  * - 'guessed'：仅蒙对题（guessed === true）
  */
 export type ReviewFilter = 'all' | 'wrong' | 'guessed'
+
+/**
+ * 主题进度快照（F22 主题进度恢复）。
+ * exitSession 时写入，startSession 时读取合并。
+ * 独立于 TopicSession（运行时会话状态），用于 TopicCard 展示"上次进度"。
+ */
+export interface TopicProgress {
+  topicId: string
+  completedModuleIds: string[]
+  lastVisitedAt: number
+}
 
 // =================================================================
 // 便捷类型导出

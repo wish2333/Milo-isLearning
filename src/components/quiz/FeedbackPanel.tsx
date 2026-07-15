@@ -101,18 +101,20 @@ export function FeedbackPanel({
             type="button"
             onClick={onMarkGuessed}
             disabled={isGuessed}
+            aria-label={isGuessed ? '已标记为蒙对' : '标记为蒙对'}
             className={`text-xs transition-colors ${
               isGuessed
                 ? 'text-fg-quaternary cursor-default'
                 : 'text-fg-tertiary hover:text-fg-secondary'
             }`}
           >
-            {isGuessed ? '✓ 已标记蒙对' : '其实是蒙对的'}
+            {isGuessed ? '已标记蒙对' : '其实是蒙对的'}
           </button>
           {isGuessed && onUnmarkGuessed && (
             <button
               type="button"
               onClick={onUnmarkGuessed}
+              aria-label="撤销蒙对标记"
               className="text-xs text-fg-quaternary hover:text-fg-tertiary transition-colors underline"
             >
               撤销

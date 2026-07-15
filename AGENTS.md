@@ -219,6 +219,23 @@ NEXT_PUBLIC_APP_MODE=production ALC_STORAGE_BACKEND=sqlite bun run build
 
 See `docs/v1.0.0/Deploying.md` for full deployment guide.
 
+### PR workflow
+
+```bash
+gh pr create --base main --head <branch> --title "feat: <summary>" --body-file <pr-body.md>
+gh pr view <pr-number> --json mergeable,mergeStateStatus
+gh pr merge <pr-number> --merge --admin   # bypass branch protection for admin repos
+```
+
+Tag workflow:
+
+```bash
+git tag <tag-name>
+git push origin <tag-name> --force
+```
+
+See `.agents/skills/release-workflow/SKILL.md` for the full closeout pipeline (review doc → commit → PR → merge → tag).
+
 ## NOTES
 
 - **`outputFileTracingIncludes`** in `next.config.ts` bundles `src/lib/compiler/prompts/*.md` into serverless output — if you move prompt files, update this config

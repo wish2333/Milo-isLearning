@@ -51,6 +51,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/eslintrc": "^3",
     "@playwright/test": "^1.61.1",
     "@types/bun": "^1.1.0",
@@ -58,6 +59,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.19",
+    "cn-font-split": "^7.4.3",
     "eslint": "^9",
     "eslint-config-next": "^15",
     "husky": "^9",

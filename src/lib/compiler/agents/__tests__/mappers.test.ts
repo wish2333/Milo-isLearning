@@ -229,14 +229,15 @@ describe('assemble helpers', () => {
   })
 
   it('assembleQuiz flattens distractors[].text to string[]', () => {
-    const q = assembleQuiz(quizOutput.quiz)
+    const { quiz: q, answerMoved } = assembleQuiz(quizOutput.quiz)
     expect(q.distractors).toEqual(['B', 'C', 'D'])
     expect(q.options).toEqual(['A', 'B', 'C', 'D'])
     expect(q.interactionType).toBe('choice')
+    expect(answerMoved).toBe(false)
   })
 
   it('assembleQuiz preserves enriched pedagogy fields', () => {
-    const q = assembleQuiz(quizOutput.quiz)
+    const { quiz: q } = assembleQuiz(quizOutput.quiz)
     expect(q.background).toBe(quizOutput.quiz.background)
     expect(q.answerHint).toBe(quizOutput.quiz.answerHint)
     expect(q.acceptableAnswers).toEqual(['A', '选项 A'])
@@ -281,5 +282,15 @@ describe('assemble helpers', () => {
       order: 5,
     })
     expect(m.order).toBe(5)
+  })
+
+  it('assembleQuiz reports answerMoved=true when answer is not at options[0]', () => {
+    const output = {
+      ...quizOutput.quiz,
+      options: ['B', 'C', 'A', 'D'], // answer 'A' is at index 2
+    }
+    const { quiz: q, answerMoved } = assembleQuiz(output)
+    expect(q.options).toEqual(['A', 'B', 'C', 'D'])
+    expect(answerMoved).toBe(true)
   })
 })

@@ -21,11 +21,12 @@ import { loadStoredModule } from '@/lib/persistence/module-library'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { storage } from '@/lib/persistence/client/local-storage'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
-import type { ReviewFilter } from '@/types/domain'
+import type { ReviewFilter, AttemptRecord } from '@/types/domain'
 
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
 import { createProvider } from '@/lib/providers'
+import { computeLearningTime } from '@/lib/runtime/learning-time'
 
 type Phase = 'answering' | 'evaluating' | 'feedback'
 
@@ -44,6 +45,8 @@ function FilterTab({
     <button
       type="button"
       onClick={onClick}
+      aria-label={`筛选: ${label}${active ? ' (当前选中)' : ''}`}
+      aria-pressed={active}
       className={`text-xs px-3 py-1.5 rounded transition-colors ${
         active ? 'alc-button-primary' : 'alc-button-secondary'
       }`}
@@ -72,6 +75,8 @@ export default function ReviewPage() {
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [empty, setEmpty] = useState(false)
+  /** 记录当前题目展示时间，用于计算答题耗时 */
+  const quizDisplayStart = useRef<number>(Date.now())
 
   const moduleData = useMemo(() => loadStoredModule(storage, params.moduleId!), [params.moduleId])
 
@@ -116,6 +121,14 @@ export default function ReviewPage() {
   const currentQuiz = currentQueueItem?.quiz ?? null
   const isFinished = session !== null && session.currentIndex >= session.queue.length
 
+  // 当题目切换时记录展示时间
+  useEffect(() => {
+    if (currentQuiz && phase === 'answering') {
+      quizDisplayStart.current = Date.now()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentQuiz?.id, phase])
+
   const handleAnswer = useCallback(
     async (userAnswer: string) => {
       if (!currentQuiz || !session) return
@@ -143,6 +156,8 @@ export default function ReviewPage() {
           gaps: result.gaps,
           nextAction: result.nextAction,
           timestamp: Date.now(),
+          answeredAt: Date.now(),
+          timeSpentMs: Date.now() - quizDisplayStart.current,
         })
 
         recordResult(currentQuiz.id, result.score)
@@ -209,6 +224,13 @@ export default function ReviewPage() {
     const total = session.results.length
     const rate = total > 0 ? Math.round((passed / total) * 100) : 0
 
+    // 聚合本次复习的学习时长
+    const reviewAttempts = session.queue
+      .map((item) => attemptsBySlot[item.slotId])
+      .filter((a): a is AttemptRecord[] => !!a && a.length > 0)
+      .map((arr) => arr[arr.length - 1]!)
+    const timeSummary = computeLearningTime(reviewAttempts)
+
     return (
       <main className="alc-page">
         <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-16 text-center space-y-6">
@@ -217,6 +239,16 @@ export default function ReviewPage() {
           <p className="text-sm text-fg-secondary">
             正确 {passed} / 共 {total} 题
           </p>
+          {timeSummary.hasTimeData && (
+            <p className="text-xs text-fg-tertiary">
+              本次复习时长：{timeSummary.formattedTotal}
+              {' / '}
+              平均每题：{timeSummary.formattedAvg}
+            </p>
+          )}
+          {!timeSummary.hasTimeData && total > 0 && (
+            <p className="text-xs text-fg-quaternary">时长未记录</p>
+          )}
           <button
             type="button"
             onClick={handleEnd}
@@ -248,6 +280,7 @@ export default function ReviewPage() {
               <button
                 type="button"
                 onClick={handleEnd}
+                aria-label="退出复习"
                 className="alc-button-secondary text-xs px-3 py-1.5"
               >
                 退出

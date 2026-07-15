@@ -27,4 +27,30 @@ describe('getEnvLLMConfig', () => {
     const config = getEnvLLMConfig()
     expect(config!.baseURL).toBe('https://api.deepseek.com')
   })
+
+  describe('openai-compat provider', () => {
+    beforeEach(() => {
+      vi.stubEnv('DEFAULT_LLM_PROVIDER', 'openai-compat')
+      vi.stubEnv('DEFAULT_LLM_MODEL', 'my-model')
+      vi.stubEnv('OPENAI_COMPAT_API_KEY', 'sk-oc-test')
+    })
+
+    it('returns null when baseURL is not set', () => {
+      vi.stubEnv('OPENAI_COMPAT_BASE_URL', undefined)
+      expect(getEnvLLMConfig()).toBeNull()
+    })
+
+    it('returns null when baseURL is empty string', () => {
+      vi.stubEnv('OPENAI_COMPAT_BASE_URL', '')
+      expect(getEnvLLMConfig()).toBeNull()
+    })
+
+    it('returns config when baseURL is provided', () => {
+      vi.stubEnv('OPENAI_COMPAT_BASE_URL', 'https://api.example.com/v1')
+      const config = getEnvLLMConfig()
+      expect(config).not.toBeNull()
+      expect(config!.provider).toBe('openai-compat')
+      expect(config!.baseURL).toBe('https://api.example.com/v1')
+    })
+  })
 })

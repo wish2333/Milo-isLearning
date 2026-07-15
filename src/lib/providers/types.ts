@@ -71,6 +71,18 @@ export interface ChatResponse {
   }
 }
 
+/**
+ * 管道/代理级别的 token 用量聚合类型。
+ *
+ * 从 ChatResponse.usage 映射而来，totalTokens = promptTokens + completionTokens。
+ * 当 provider 未返回 usage 时，所有字段默认为 0。
+ */
+export interface TokenUsage {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+}
+
 /** ping 健康检查结果 */
 export interface PingResult {
   ok: boolean
