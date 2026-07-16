@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     siteName: 'AI Learning Compiler',
     images: [
       {
-        url: '/og-image.svg',
+        url: '/og-image.png',
         width: 1200,
         height: 630,
         alt: 'AI Learning Compiler - 将 Markdown 编译为交互式学习模块',
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AI Learning Compiler',
     description: '将任何知识自动编译为一条低摩擦、高掌握度的学习路径',
-    images: ['/og-image.svg'],
+    images: ['/og-image.png'],
   },
   icons: {
     icon: '/favicon.ico',

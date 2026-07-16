@@ -18,6 +18,8 @@ interface TopicSessionStoreState {
   startSession: (topicId: string) => boolean
   markCurrentModuleDone: () => void
   advanceToNextModule: () => string | null
+  skipCurrentModule: () => string | null
+  reenterModule: (moduleId: string) => void
   getCurrentModuleId: () => string | null
   exitSession: () => void
   isActive: () => boolean
@@ -32,19 +34,28 @@ export const useTopicSessionStore = create<TopicSessionStoreState>()(
         const topic = getTopic(storage, topicId)
         if (!topic || topic.moduleIds.length === 0) return false
 
-        // F22: 读取上次进度快照，恢复已完成模块状态
+        // F22: 读取上次进度快照，恢复已完成/已跳过模块状态
         const saved: TopicProgress | null = storage.get<TopicProgress>(
           StorageKeys.topicProgress(topicId),
         )
         const completedSet = new Set(saved?.completedModuleIds ?? [])
+        const skippedSet = new Set(saved?.skippedModuleIds ?? [])
 
-        // 从第一个未完成模块开始（全部完成则从头）
-        const firstIncompleteIndex = topic.moduleIds.findIndex((mid) => !completedSet.has(mid))
+        // 从第一个未完成且未跳过的模块开始
+        const firstIncompleteIndex = topic.moduleIds.findIndex(
+          (mid) => !completedSet.has(mid) && !skippedSet.has(mid),
+        )
         const startIndex = firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0
 
         const moduleStatusWithProgress: Record<string, ModuleTopicStatus> = {}
         for (const mid of topic.moduleIds) {
-          moduleStatusWithProgress[mid] = completedSet.has(mid) ? 'done' : 'pending'
+          if (completedSet.has(mid)) {
+            moduleStatusWithProgress[mid] = 'done'
+          } else if (skippedSet.has(mid)) {
+            moduleStatusWithProgress[mid] = 'skipped'
+          } else {
+            moduleStatusWithProgress[mid] = 'pending'
+          }
         }
         if (startIndex < topic.moduleIds.length) {
           moduleStatusWithProgress[topic.moduleIds[startIndex]!] = 'in_progress'
@@ -99,6 +110,54 @@ export const useTopicSessionStore = create<TopicSessionStoreState>()(
         return nextModuleId
       },
 
+      skipCurrentModule: () => {
+        const state = get()
+        if (!state.session) return null
+        const currentId = state.session.moduleIds[state.session.currentIndex]
+        if (!currentId) return null
+
+        const nextIndex = state.session.currentIndex + 1
+        const isLast = nextIndex >= state.session.moduleIds.length
+
+        const updatedStatus = {
+          ...state.session.moduleStatus,
+          [currentId]: 'skipped' as const,
+        }
+
+        if (!isLast) {
+          const nextModuleId = state.session.moduleIds[nextIndex]!
+          updatedStatus[nextModuleId] = 'in_progress'
+        }
+
+        set({
+          session: {
+            ...state.session,
+            currentIndex: isLast ? state.session.currentIndex : nextIndex,
+            moduleStatus: updatedStatus,
+          },
+        })
+
+        return isLast ? null : state.session.moduleIds[nextIndex]!
+      },
+
+      reenterModule: (moduleId: string) => {
+        const state = get()
+        if (!state.session) return
+        const index = state.session.moduleIds.indexOf(moduleId)
+        if (index < 0) return
+
+        set({
+          session: {
+            ...state.session,
+            currentIndex: index,
+            moduleStatus: {
+              ...state.session.moduleStatus,
+              [moduleId]: 'in_progress',
+            },
+          },
+        })
+      },
+
       getCurrentModuleId: () => {
         const session = get().session
         if (!session) return null
@@ -111,9 +170,13 @@ export const useTopicSessionStore = create<TopicSessionStoreState>()(
           const completed = Object.entries(session.moduleStatus)
             .filter(([, status]) => status === 'done')
             .map(([moduleId]) => moduleId)
+          const skipped = Object.entries(session.moduleStatus)
+            .filter(([, status]) => status === 'skipped')
+            .map(([moduleId]) => moduleId)
           const progress: TopicProgress = {
             topicId: session.topicId,
             completedModuleIds: completed,
+            skippedModuleIds: skipped,
             lastVisitedAt: Date.now(),
           }
           storage.set(StorageKeys.topicProgress(session.topicId), progress)

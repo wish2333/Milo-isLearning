@@ -47,10 +47,22 @@ interface ModuleStoreState {
   /** 重命名当前 Module 的 title（同步持久化 + 更新内存状态） */
   renameCurrentModule: (newTitle: string) => void
 
-  /** 修正当前 Module 内某道 Quiz 的字段（F40 修正答案 / F41 标记忽略） */
+  /** 修正当前 Module 内某道 Quiz 的字段（F40 修正答案 / F41 标记忽略 / 题目编辑） */
   correctQuizAnswer: (
     quizId: string,
-    patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers' | 'ignored'>>,
+    patch: Partial<
+      Pick<
+        Quiz,
+        | 'answer'
+        | 'options'
+        | 'acceptableAnswers'
+        | 'ignored'
+        | 'stem'
+        | 'explanation'
+        | 'distractors'
+        | 'answerHint'
+      >
+    >,
   ) => void
 }
 

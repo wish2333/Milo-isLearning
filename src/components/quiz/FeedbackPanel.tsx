@@ -34,8 +34,21 @@ interface FeedbackPanelProps {
   canCorrect?: boolean
   /** current quiz (for correction UI + ignored state) */
   quiz?: Quiz
-  /** correction answer callback (F40) */
-  onCorrectAnswer?: (patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers'>>) => void
+  /** correction answer callback (F40 / 题目编辑) */
+  onCorrectAnswer?: (
+    patch: Partial<
+      Pick<
+        Quiz,
+        | 'answer'
+        | 'options'
+        | 'acceptableAnswers'
+        | 'stem'
+        | 'explanation'
+        | 'distractors'
+        | 'answerHint'
+      >
+    >,
+  ) => void
   /** ignore quiz callback (F41) */
   onIgnoreQuiz?: () => void
   /** undo ignore callback */
@@ -173,8 +186,8 @@ export function FeedbackPanel({
         mode === 'idle' && (
           <div className="flex items-center gap-3 flex-wrap">
             <ConfirmInline
-              trigger="修正答案"
-              confirmLabel="确认修正答案？"
+              trigger="编辑此题"
+              confirmLabel="确认编辑此题？"
               onConfirm={() => setMode('correcting')}
               triggerClassName="text-xs text-fg-tertiary hover:text-fg-secondary transition-colors"
             />

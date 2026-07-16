@@ -183,7 +183,20 @@ export default function ReviewPage() {
   const canCorrect = moduleData?.origin !== 'showcase'
 
   const handleCorrectAnswer = useCallback(
-    async (patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers'>>) => {
+    async (
+      patch: Partial<
+        Pick<
+          Quiz,
+          | 'answer'
+          | 'options'
+          | 'acceptableAnswers'
+          | 'stem'
+          | 'explanation'
+          | 'distractors'
+          | 'answerHint'
+        >
+      >,
+    ) => {
       if (!currentQuiz) return
       correctQuizAnswer(currentQuiz.id, patch)
       const correctedQuiz: Quiz = { ...currentQuiz, ...patch }
