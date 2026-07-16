@@ -17,6 +17,7 @@
 import { useEffect, useState, useCallback } from 'react'
 
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
+import { createProvider } from '@/lib/providers'
 import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
 import { track } from '@/lib/runtime/analytics'
 import {
@@ -58,6 +59,10 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
   const getNextAttemptVersion = useAttemptsStore((s) => s.getNextAttemptVersion)
   const markGuessed = useAttemptsStore((s) => s.markGuessed)
   const unmarkGuessed = useAttemptsStore((s) => s.unmarkGuessed)
+  const reevaluateLastAttempt = useAttemptsStore((s) => s.reevaluateLastAttempt)
+
+  const correctQuizAnswer = useModuleStore((s) => s.correctQuizAnswer)
+  const canCorrect = currentModule?.origin !== 'showcase'
 
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
@@ -86,6 +91,16 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizIndex])
+
+  // auto-skip ignored challenge quizzes (do not display, do not count)
+  useEffect(() => {
+    if (!slotQuiz) return
+    if (!slotQuiz.ignored) return
+    if (phase !== 'answering') return
+    clearCurrentQuiz()
+    advance()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quizIndex, slotQuiz, phase])
 
   const slotId = slotQuiz?.id ?? ''
 
@@ -208,6 +223,49 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
     }
   }, [quiz, config, currentModule, slotId, replaceCurrentQuiz, retry])
 
+  const handleCorrectAnswer = useCallback(
+    async (
+      patch: Partial<
+        Pick<
+          Quiz,
+          | 'answer'
+          | 'options'
+          | 'acceptableAnswers'
+          | 'stem'
+          | 'explanation'
+          | 'distractors'
+          | 'answerHint'
+        >
+      >,
+    ) => {
+      if (!quiz) return
+      correctQuizAnswer(quiz.id, patch)
+      const correctedQuiz: Quiz = { ...quiz, ...patch }
+      const provider =
+        config && correctedQuiz.interactionType === 'fill_blank' ? createProvider(config) : null
+      try {
+        const result = await reevaluateLastAttempt(slotId, correctedQuiz, provider)
+        setFeedback(result)
+        setIsGuessed(false)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '重评失败')
+      }
+    },
+    [quiz, slotId, config, correctQuizAnswer, reevaluateLastAttempt],
+  )
+
+  const handleIgnoreQuiz = useCallback(() => {
+    if (!quiz) return
+    correctQuizAnswer(quiz.id, { ignored: true })
+    clearCurrentQuiz()
+    advance()
+  }, [quiz, correctQuizAnswer, clearCurrentQuiz, advance])
+
+  const handleUnignoreQuiz = useCallback(() => {
+    if (!quiz) return
+    correctQuizAnswer(quiz.id, { ignored: false })
+  }, [quiz, correctQuizAnswer])
+
   // --- 渲染 ---
 
   if (!quiz) {
@@ -287,6 +345,11 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
                 unmarkGuessed(slotId)
                 setIsGuessed(false)
               }}
+              canCorrect={canCorrect}
+              quiz={quiz}
+              onCorrectAnswer={handleCorrectAnswer}
+              onIgnoreQuiz={handleIgnoreQuiz}
+              onUnignoreQuiz={handleUnignoreQuiz}
             />
 
             {/* Action buttons */}

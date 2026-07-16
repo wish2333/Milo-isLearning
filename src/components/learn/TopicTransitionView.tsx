@@ -12,6 +12,7 @@ import { useProgressStore } from '@/lib/state/progress-store'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
 import { computeTopicMastery } from '@/lib/runtime/topic-mastery'
+import { ConfirmInline } from '@/components/common/ConfirmInline'
 
 import type { FeynmanAttempt, Module, ModuleTopicStatus } from '@/types/domain'
 
@@ -23,6 +24,7 @@ const STATUS_ICON: Record<ModuleTopicStatus, { icon: string; className: string }
   done: { icon: '\u2713', className: 'text-success' },
   in_progress: { icon: '\u25CF', className: 'text-accent-primary' },
   pending: { icon: '\u25CB', className: 'text-fg-tertiary' },
+  skipped: { icon: '\u25CC', className: 'text-fg-tertiary' },
 }
 
 export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
@@ -65,7 +67,9 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
 
   if (!session) return null
 
-  const doneCount = Object.values(session.moduleStatus).filter((s) => s === 'done').length
+  const doneCount = Object.values(session.moduleStatus).filter(
+    (s) => s === 'done' || s === 'skipped',
+  ).length
   const totalCount = session.moduleIds.length
   const allDone = doneCount === totalCount
   const progressPercent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
@@ -82,6 +86,29 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
     useModuleStore.getState().setModule(moduleData)
     useProgressStore.getState().startModule(nextModuleId)
     router.push(`/learn/module/${nextModuleId}`)
+  }
+
+  const handleSkip = () => {
+    const nextModuleId = useTopicSessionStore.getState().skipCurrentModule()
+    if (!nextModuleId) return
+    const moduleData = loadStoredModule(storage, nextModuleId)
+    if (!moduleData) {
+      useTopicSessionStore.getState().exitSession()
+      router.push('/learn/library')
+      return
+    }
+    useModuleStore.getState().setModule(moduleData)
+    useProgressStore.getState().startModule(nextModuleId)
+    router.push(`/learn/module/${nextModuleId}`)
+  }
+
+  const handleReenter = (moduleId: string) => {
+    const moduleData = loadStoredModule(storage, moduleId)
+    if (!moduleData) return
+    useTopicSessionStore.getState().reenterModule(moduleId)
+    useModuleStore.getState().setModule(moduleData)
+    useProgressStore.getState().startModule(moduleId)
+    router.push(`/learn/module/${moduleId}`)
   }
 
   const handleExit = () => {
@@ -192,6 +219,28 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
           const status = session.moduleStatus[moduleId] ?? 'pending'
           const icon = STATUS_ICON[status]
           const mastery = topicMastery?.moduleMasteries.find((m) => m.moduleId === moduleId)
+          const isSkipped = status === 'skipped'
+
+          if (isSkipped) {
+            return (
+              <button
+                key={moduleId}
+                type="button"
+                onClick={() => handleReenter(moduleId)}
+                className="flex items-center gap-2 text-sm w-full text-left hover:bg-bg-elevated rounded px-1 py-0.5 transition-colors group"
+              >
+                <span className={icon.className}>{icon.icon}</span>
+                <span className="flex-1 truncate text-fg-tertiary group-hover:text-fg-secondary">
+                  {mod?.title ?? moduleId}
+                </span>
+                <span className="text-xs text-fg-quaternary shrink-0">已跳过</span>
+                <span className="text-xs text-fg-quaternary group-hover:text-fg-tertiary shrink-0">
+                  重新进入
+                </span>
+              </button>
+            )
+          }
+
           return (
             <div key={moduleId} className="flex items-center gap-2 text-sm">
               <span className={icon.className}>{icon.icon}</span>
@@ -218,6 +267,12 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
         >
           继续学习
         </button>
+        <ConfirmInline
+          trigger="跳过此题库"
+          confirmLabel="确认跳过？可稍后回来"
+          onConfirm={handleSkip}
+          triggerClassName="alc-button-secondary flex-1 text-sm"
+        />
         <button type="button" onClick={handleExit} className="alc-button-secondary flex-1 text-sm">
           退出主题
         </button>

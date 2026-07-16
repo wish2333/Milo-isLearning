@@ -184,7 +184,20 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
   }, [clearCurrentQuiz, advance])
 
   const handleCorrectAnswer = useCallback(
-    async (patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers'>>) => {
+    async (
+      patch: Partial<
+        Pick<
+          Quiz,
+          | 'answer'
+          | 'options'
+          | 'acceptableAnswers'
+          | 'stem'
+          | 'explanation'
+          | 'distractors'
+          | 'answerHint'
+        >
+      >,
+    ) => {
       if (!quiz) return
       correctQuizAnswer(quiz.id, patch)
       const correctedQuiz: Quiz = { ...quiz, ...patch }

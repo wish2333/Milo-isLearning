@@ -101,7 +101,19 @@ export function updateQuizInModule(
   repo: StorageRepository,
   moduleId: string,
   quizId: string,
-  patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers' | 'ignored'>>,
+  patch: Partial<
+    Pick<
+      Quiz,
+      | 'answer'
+      | 'options'
+      | 'acceptableAnswers'
+      | 'ignored'
+      | 'stem'
+      | 'explanation'
+      | 'distractors'
+      | 'answerHint'
+    >
+  >,
 ): Module {
   const storedModule = loadStoredModule(repo, moduleId)
   if (!storedModule) throw new Error(`Module ${moduleId} not found`)

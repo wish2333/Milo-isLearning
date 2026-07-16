@@ -188,7 +188,20 @@ export default function TopicReviewPage() {
   }, [currentQueueItem, topicModules])
 
   const handleCorrectAnswer = useCallback(
-    async (patch: Partial<Pick<Quiz, 'answer' | 'options' | 'acceptableAnswers'>>) => {
+    async (
+      patch: Partial<
+        Pick<
+          Quiz,
+          | 'answer'
+          | 'options'
+          | 'acceptableAnswers'
+          | 'stem'
+          | 'explanation'
+          | 'distractors'
+          | 'answerHint'
+        >
+      >,
+    ) => {
       if (!currentQuiz) return
       correctQuizAnswer(currentQuiz.id, patch)
       const correctedQuiz: Quiz = { ...currentQuiz, ...patch }

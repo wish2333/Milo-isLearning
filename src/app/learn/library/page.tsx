@@ -34,6 +34,7 @@ import { QualitySummary } from '@/components/library/QualitySummary'
 import { TopicSection } from '@/components/library/TopicSection'
 import { TopicCreator } from '@/components/library/TopicCreator'
 import { UngroupedSection } from '@/components/library/UngroupedSection'
+import { IgnoredQuizSection } from '@/components/library/IgnoredQuizSection'
 
 function getTopicModules(topic: Topic, allModules: StoredModuleSummary[]): StoredModuleSummary[] {
   return topic.moduleIds
@@ -286,6 +287,9 @@ export default function LibraryPage() {
             该 Module 没有保存质量报告（可能是 M7.5 之前编译的旧数据）。
           </p>
         )}
+
+        {/* 已忽略题目 */}
+        <IgnoredQuizSection />
 
         {/* 主题创建/编辑模态 */}
         {showCreator && (

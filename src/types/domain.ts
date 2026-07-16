@@ -268,7 +268,7 @@ export interface Topic {
 /**
  * 主题会话中单个题库的状态。
  */
-export type ModuleTopicStatus = 'pending' | 'in_progress' | 'done'
+export type ModuleTopicStatus = 'pending' | 'in_progress' | 'done' | 'skipped'
 
 /**
  * 主题刷题会话 — 持久化到 LocalStorage，支持刷新恢复。
@@ -321,6 +321,8 @@ export type ReviewFilter = 'all' | 'wrong' | 'guessed'
 export interface TopicProgress {
   topicId: string
   completedModuleIds: string[]
+  /** F24: Modules the user skipped. Backward-compatible: absent = empty. */
+  skippedModuleIds?: string[]
   lastVisitedAt: number
 }
 
