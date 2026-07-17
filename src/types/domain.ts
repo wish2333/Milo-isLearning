@@ -184,6 +184,44 @@ export interface AttemptRecord {
   answeredAt?: number
   /** 本题耗时毫秒（F13 学习时长统计） */
   timeSpentMs?: number
+  /** 作答所属模块（FSRS 调度上下文；旧记录缺失时由迁移/重放补全） */
+  moduleId?: string
+  /** 作答所属概念（FSRS 调度上下文；旧记录缺失时由迁移/重放补全） */
+  conceptId?: string
+}
+
+/**
+ * FSRS 调度状态。该对象是可由 AttemptRecord[] 全量重放得到的派生缓存，
+ * 不是学习数据的独立真值；始终维护，FSRS 开关只控制是否消费到期队列。
+ */
+export interface SchedulingData {
+  /** 调度槽位（通常为 conceptId:slotIndex，但不依赖其可解析性） */
+  slotId: string
+  moduleId: string
+  conceptId: string
+  stability: number
+  difficulty: number
+  elapsed_days: number
+  scheduled_days: number
+  reps: number
+  lapses: number
+  state: 'new' | 'learning' | 'review' | 'relearning'
+  due: string
+  last_review: string | null
+  schemaVersion: number
+  contentRevision: string
+  configRevision: string
+  lastAppliedAttemptId: string
+  /** ts-fsrs 短期学习步；旧缓存没有该字段时按 0 处理。 */
+  learning_steps?: number
+}
+
+/** 按浏览器本地日期统计的学习连续打卡。 */
+export interface StudyStreak {
+  currentStreak: number
+  longestStreak: number
+  lastStudyDate: string
+  totalStudyDays: number
 }
 
 /**

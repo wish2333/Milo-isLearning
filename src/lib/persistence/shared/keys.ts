@@ -44,6 +44,10 @@ export const StorageKeys = {
   topicIndex: `${STORAGE_NAMESPACE}:topic-index`,
   /** F22 主题进度快照（exitSession 写入，startSession 读取） */
   topicProgress: (topicId: string) => `${STORAGE_NAMESPACE}:topic-progress:${topicId}`,
+  /** SchedulingData：单个 quiz 槽位的 FSRS 派生调度缓存 */
+  schedule: (slotId: string) => `${STORAGE_NAMESPACE}:schedule:${slotId}`,
+  /** StudyStreak：全局连续学习统计 */
+  streak: `${STORAGE_NAMESPACE}:streak`,
 } as const
 
 /**
