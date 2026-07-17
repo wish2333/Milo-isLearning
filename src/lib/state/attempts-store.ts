@@ -24,6 +24,7 @@ import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { getStorage } from '@/lib/persistence/client/storage'
 import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 import { triggerAutoBackup } from '@/lib/persistence/client/auto-backup-trigger'
+import { scheduleLibrary } from '@/lib/persistence/schedule-library'
 
 interface AttemptsStoreState {
   /** 以 originalQuizId（槽位 id）为 key 的作答历史 */
@@ -91,6 +92,7 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
         set((state) => {
           const next = { ...state.attemptsBySlot }
           delete next[slotId]
+          scheduleLibrary.remove(slotId)
           return { attemptsBySlot: next }
         }),
 
@@ -147,7 +149,10 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
         return result
       },
 
-      clearAll: () => set({ attemptsBySlot: {} }),
+      clearAll: () => {
+        set({ attemptsBySlot: {} })
+        scheduleLibrary.clearAll()
+      },
     }),
     {
       name: 'alc:state:attempts',

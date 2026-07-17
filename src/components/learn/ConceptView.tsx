@@ -17,6 +17,7 @@ import { useEffect, useState, useCallback } from 'react'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
 import { createProvider } from '@/lib/providers'
 import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
+import { synchronizeScheduleForSlot } from '@/lib/runtime/fsrs-schedule-coordinator'
 import { track } from '@/lib/runtime/analytics'
 import { findQuizInModule } from '@/lib/runtime/adaptive-sequencer'
 import {
@@ -153,8 +154,17 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
           gaps: result.gaps,
           nextAction: result.nextAction,
           timestamp: Date.now(),
+          moduleId: currentModule.id,
+          conceptId: concept?.id ?? quiz.conceptId,
         }
         addAttempt(attempt)
+        synchronizeScheduleForSlot({
+          slotId,
+          moduleId: currentModule.id,
+          conceptId: concept?.id ?? quiz.conceptId,
+          quiz,
+          attempts: getAttempts(slotId),
+        })
 
         track('quiz_attempt', {
           interactionType: quiz.interactionType,
@@ -175,7 +185,17 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
         setPhase('answering')
       }
     },
-    [quiz, currentModule, slotId, phase, config, getNextAttemptVersion, getAttempts, addAttempt],
+    [
+      quiz,
+      currentModule,
+      concept,
+      slotId,
+      phase,
+      config,
+      getNextAttemptVersion,
+      getAttempts,
+      addAttempt,
+    ],
   )
 
   const handleAdvance = useCallback(() => {
@@ -205,13 +225,31 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
         config && correctedQuiz.interactionType === 'fill_blank' ? createProvider(config) : null
       try {
         const result = await reevaluateLastAttempt(slotId, correctedQuiz, provider)
+        if (currentModule) {
+          synchronizeScheduleForSlot({
+            slotId,
+            moduleId: currentModule.id,
+            conceptId: concept?.id ?? correctedQuiz.conceptId,
+            quiz: correctedQuiz,
+            attempts: getAttempts(slotId),
+          })
+        }
         setFeedback(result)
         setIsGuessed(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : '重评失败')
       }
     },
-    [quiz, slotId, config, correctQuizAnswer, reevaluateLastAttempt],
+    [
+      quiz,
+      currentModule,
+      concept,
+      slotId,
+      config,
+      correctQuizAnswer,
+      reevaluateLastAttempt,
+      getAttempts,
+    ],
   )
 
   const handleIgnoreQuiz = useCallback(() => {
@@ -302,10 +340,28 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
               isGuessed={isGuessed}
               onMarkGuessed={() => {
                 markGuessed(slotId)
+                if (currentModule) {
+                  synchronizeScheduleForSlot({
+                    slotId,
+                    moduleId: currentModule.id,
+                    conceptId: concept?.id ?? quiz.conceptId,
+                    quiz,
+                    attempts: getAttempts(slotId),
+                  })
+                }
                 setIsGuessed(true)
               }}
               onUnmarkGuessed={() => {
                 unmarkGuessed(slotId)
+                if (currentModule) {
+                  synchronizeScheduleForSlot({
+                    slotId,
+                    moduleId: currentModule.id,
+                    conceptId: concept?.id ?? quiz.conceptId,
+                    quiz,
+                    attempts: getAttempts(slotId),
+                  })
+                }
                 setIsGuessed(false)
               }}
               canCorrect={canCorrect}

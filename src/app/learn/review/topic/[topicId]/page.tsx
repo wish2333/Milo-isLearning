@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { collectReviewItemsForModules } from '@/lib/runtime/topic-review'
 import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
+import { synchronizeScheduleForSlot } from '@/lib/runtime/fsrs-schedule-coordinator'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useReviewStore } from '@/lib/state/review-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
@@ -119,7 +120,8 @@ export default function TopicReviewPage() {
     }
   }, [hydrated, params.topicId, currentFilter, startTopicSession])
 
-  const currentQuiz = session ? (session.queue[session.currentIndex]?.quiz ?? null) : null
+  const currentQueueItem = session ? session.queue[session.currentIndex] : null
+  const currentQuiz = currentQueueItem?.quiz ?? null
   const isFinished = session !== null && session.currentIndex >= session.queue.length
 
   // 当题目切换时记录展示时间
@@ -137,7 +139,9 @@ export default function TopicReviewPage() {
 
       setPhase('evaluating')
 
-      const attemptVersion = getNextAttemptVersion(currentQuiz.id)
+      if (!currentQueueItem) return
+      const slotId = currentQueueItem.slotId
+      const attemptVersion = getNextAttemptVersion(slotId)
 
       try {
         const provider =
@@ -150,7 +154,7 @@ export default function TopicReviewPage() {
               ? crypto.randomUUID()
               : `rev-${Date.now()}`,
           quizId: currentQuiz.id,
-          originalQuizId: currentQuiz.id,
+          originalQuizId: slotId,
           attemptVersion,
           userAnswer,
           score: result.score,
@@ -159,6 +163,15 @@ export default function TopicReviewPage() {
           timestamp: Date.now(),
           answeredAt: Date.now(),
           timeSpentMs: Date.now() - quizDisplayStart.current,
+          moduleId: currentQueueItem.moduleId,
+          conceptId: currentQuiz.conceptId,
+        })
+        synchronizeScheduleForSlot({
+          slotId,
+          moduleId: currentQueueItem.moduleId,
+          conceptId: currentQuiz.conceptId,
+          quiz: currentQuiz,
+          attempts: useAttemptsStore.getState().getAttempts(slotId),
         })
 
         recordResult(currentQuiz.id, result.score)
@@ -168,7 +181,16 @@ export default function TopicReviewPage() {
         setPhase('answering')
       }
     },
-    [currentQuiz, session, phase, config, getNextAttemptVersion, addAttempt, recordResult],
+    [
+      currentQuiz,
+      currentQueueItem,
+      session,
+      phase,
+      config,
+      getNextAttemptVersion,
+      addAttempt,
+      recordResult,
+    ],
   )
 
   const handleNext = useCallback(() => {
@@ -177,8 +199,6 @@ export default function TopicReviewPage() {
     setFeedback(null)
     nextQuestion()
   }, [session, nextQuestion])
-
-  const currentQueueItem = session ? session.queue[session.currentIndex] : null
 
   // canCorrect: check the module that owns the current quiz
   const canCorrect = useMemo(() => {
@@ -202,19 +222,26 @@ export default function TopicReviewPage() {
         >
       >,
     ) => {
-      if (!currentQuiz) return
+      if (!currentQuiz || !currentQueueItem) return
       correctQuizAnswer(currentQuiz.id, patch)
       const correctedQuiz: Quiz = { ...currentQuiz, ...patch }
       const provider =
         config && correctedQuiz.interactionType === 'fill_blank' ? createProvider(config) : null
       try {
-        const result = await reevaluateLastAttempt(currentQuiz.id, correctedQuiz, provider)
+        const result = await reevaluateLastAttempt(currentQueueItem.slotId, correctedQuiz, provider)
+        synchronizeScheduleForSlot({
+          slotId: currentQueueItem.slotId,
+          moduleId: currentQueueItem.moduleId,
+          conceptId: correctedQuiz.conceptId,
+          quiz: correctedQuiz,
+          attempts: useAttemptsStore.getState().getAttempts(currentQueueItem.slotId),
+        })
         setFeedback(result)
       } catch {
         // keep existing feedback on error
       }
     },
-    [currentQuiz, config, correctQuizAnswer, reevaluateLastAttempt],
+    [currentQuiz, currentQueueItem, config, correctQuizAnswer, reevaluateLastAttempt],
   )
 
   const handleIgnoreQuiz = useCallback(() => {
