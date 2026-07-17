@@ -50,7 +50,11 @@ describe('WriteQueue', () => {
     // 等待全部重试 + 进入 failed
     await new Promise((r) => setTimeout(r, 200))
     expect(queue.getFailedTasks()).toHaveLength(1)
-    expect(queue.getFailedTasks()[0]?.key).toBe('a')
+    expect(queue.getFailedTasks()[0]).toMatchObject({
+      key: 'a',
+      lastError: 'mock failure',
+    })
+    expect(queue.getFailedTasks()[0]?.failedAt).toEqual(expect.any(Number))
   })
 
   it('retryFailed 重新入队失败任务', async () => {
@@ -58,12 +62,17 @@ describe('WriteQueue', () => {
     queue.enqueue('a', '1')
     await new Promise((r) => setTimeout(r, 200))
     expect(queue.getFailedTasks()).toHaveLength(1)
+    const failedTask = queue.getFailedTasks()[0]
+    expect(failedTask?.lastError).toBe('first fail')
+    expect(failedTask?.failedAt).toEqual(expect.any(Number))
     // 移除错误，重试应成功
     processErrors.delete('a')
     queue.retryFailed()
     await queue.flushNow()
     expect(queue.getFailedTasks()).toHaveLength(0)
     expect(processed).toContainEqual({ key: 'a', value: '1' })
+    expect(failedTask?.lastError).toBeUndefined()
+    expect(failedTask?.failedAt).toBeUndefined()
   })
 
   it('hasPending 反映队列状态', async () => {
