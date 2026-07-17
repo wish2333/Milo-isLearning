@@ -1,14 +1,44 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // vi.hoisted: 这些变量必须在 vi.mock 工厂之前可用（工厂会被提升到文件顶部）
-const { loadFromServerMock, flushNowMock, registerFlushHandlersMock, showcaseModeRef } = vi.hoisted(
-  () => ({
+const {
+  loadFromServerMock,
+  flushNowMock,
+  registerFlushHandlersMock,
+  showcaseModeRef,
+  storageMock,
+} = vi.hoisted(() => {
+  const values = new Map<string, string>()
+  return {
     loadFromServerMock: vi.fn().mockResolvedValue(undefined),
     flushNowMock: vi.fn().mockResolvedValue(undefined),
     registerFlushHandlersMock: vi.fn().mockReturnValue(() => {}),
     showcaseModeRef: { value: false },
-  }),
-)
+    storageMock: {
+      loadFromServer: vi.fn().mockResolvedValue(undefined),
+      flushNow: vi.fn().mockResolvedValue(undefined),
+      get: <T>(key: string): T | null => {
+        const raw = values.get(key)
+        return raw === undefined ? null : (JSON.parse(raw) as T)
+      },
+      set: <T>(key: string, value: T): void => {
+        values.set(key, JSON.stringify(value))
+      },
+      remove: (key: string): void => {
+        values.delete(key)
+      },
+      has: (key: string): boolean => values.has(key),
+      keys: (): string[] => [...values.keys()],
+      getRaw: (key: string): string | null => values.get(key) ?? null,
+      setRaw: (key: string, value: string): void => {
+        values.set(key, value)
+      },
+      clearAll: (): void => {
+        values.clear()
+      },
+    },
+  }
+})
 
 // mock client-only（client-only 包在 SSR/Node 下抛错）
 vi.mock('client-only', () => ({}))
@@ -18,10 +48,16 @@ vi.mock('@/lib/state/progress-store', () => ({
   useProgressStore: { persist: { rehydrate: vi.fn().mockResolvedValue(undefined) } },
 }))
 vi.mock('@/lib/state/settings-store', () => ({
-  useSettingsStore: { persist: { rehydrate: vi.fn().mockResolvedValue(undefined) } },
+  useSettingsStore: {
+    persist: { rehydrate: vi.fn().mockResolvedValue(undefined) },
+    getState: () => ({ fsrs: { enabled: false, requestRetention: 0.9, maximumInterval: 365 } }),
+  },
 }))
 vi.mock('@/lib/state/attempts-store', () => ({
-  useAttemptsStore: { persist: { rehydrate: vi.fn().mockResolvedValue(undefined) } },
+  useAttemptsStore: {
+    persist: { rehydrate: vi.fn().mockResolvedValue(undefined) },
+    getState: () => ({ attemptsBySlot: {} }),
+  },
 }))
 vi.mock('@/lib/state/module-store', () => ({
   useModuleStore: { persist: { rehydrate: vi.fn().mockResolvedValue(undefined) } },
@@ -36,6 +72,7 @@ vi.mock('@/lib/state/topic-session-store', () => ({
 // mock storage / flush-manager
 vi.mock('@/lib/persistence/client/storage', () => ({
   getProductionStorage: () => ({
+    ...storageMock,
     loadFromServer: loadFromServerMock,
     flushNow: flushNowMock,
   }),

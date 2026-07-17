@@ -348,8 +348,9 @@ export interface TopicMastery {
  * - 'all'：错题 + 蒙对题（当前行为）
  * - 'wrong'：仅错题（score < 80）
  * - 'guessed'：仅蒙对题（guessed === true）
+ * - 'due'：FSRS 已到期题（schedule.due <= 当前时刻）
  */
-export type ReviewFilter = 'all' | 'wrong' | 'guessed'
+export type ReviewFilter = 'all' | 'wrong' | 'guessed' | 'due'
 
 /**
  * 主题进度快照（F22 主题进度恢复）。

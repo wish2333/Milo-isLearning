@@ -18,6 +18,7 @@ import {
 } from './shared/keys'
 import type { StorageRepository } from './shared/repository'
 import { cascadeDeleteModule } from './topic-library'
+import { scheduleLibrary } from './schedule-library'
 
 export const MAX_STORED_MODULES: number | null = STORAGE_MAX_HISTORY_MODULES
 
@@ -162,6 +163,12 @@ export function removeModule(repo: StorageRepository, moduleId: string): string 
   repo.remove(StorageKeys.attemptsModule(moduleId))
   repo.remove(StorageKeys.qualityReport(moduleId))
   removeGlobalAttemptsForModule(repo, moduleId)
+
+  // SchedulingData 是按 slot 派生的缓存；删除 Module 时必须清理该模块的
+  // 全部槽位，但不能影响其他 Module 的调度记录。
+  for (const schedule of scheduleLibrary.listByModule(moduleId, repo)) {
+    scheduleLibrary.remove(schedule.slotId, repo)
+  }
 
   // M8.1：从主题中级联移除引用
   cascadeDeleteModule(repo, moduleId)

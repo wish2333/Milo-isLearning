@@ -85,11 +85,12 @@ export default function ReviewPage() {
   const moduleData = useMemo(() => loadStoredModule(storage, params.moduleId!), [params.moduleId])
 
   const counts = useMemo(() => {
-    if (!moduleData) return { all: 0, wrong: 0, guessed: 0 }
+    if (!moduleData) return { all: 0, wrong: 0, guessed: 0, due: 0 }
     return {
       all: collectReviewItemsForModules([moduleData], attemptsBySlot, 'all').length,
       wrong: collectReviewItemsForModules([moduleData], attemptsBySlot, 'wrong').length,
       guessed: collectReviewItemsForModules([moduleData], attemptsBySlot, 'guessed').length,
+      due: collectReviewItemsForModules([moduleData], attemptsBySlot, 'due').length,
     }
   }, [moduleData, attemptsBySlot])
 
@@ -383,6 +384,12 @@ export default function ReviewPage() {
               count={counts.guessed}
               active={currentFilter === 'guessed'}
               onClick={() => handleTabChange('guessed')}
+            />
+            <FilterTab
+              label="今日到期"
+              count={counts.due}
+              active={currentFilter === 'due'}
+              onClick={() => handleTabChange('due')}
             />
           </div>
         </div>

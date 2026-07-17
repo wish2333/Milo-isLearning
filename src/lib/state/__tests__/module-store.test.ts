@@ -79,7 +79,9 @@ vi.mock('@/lib/persistence/client/zustand-storage-adapter', () => ({
 
 // Import after mocks are set up
 const { useModuleStore } = await import('../module-store')
+const { useAttemptsStore } = await import('../attempts-store')
 const { loadStoredModule } = await import('@/lib/persistence/module-library')
+const { scheduleLibrary } = await import('@/lib/persistence/schedule-library')
 
 // --- Fixtures ---
 
@@ -147,6 +149,7 @@ describe('module-store correctQuizAnswer', () => {
   beforeEach(() => {
     mockRepo.clearAll()
     useModuleStore.getState().clear()
+    useAttemptsStore.setState({ attemptsBySlot: {} })
   })
 
   it('correctQuizAnswer updates currentModule with patched answer', () => {
@@ -224,5 +227,85 @@ describe('module-store correctQuizAnswer', () => {
     expect(reloaded).not.toBeNull()
     const reloadedQuiz = reloaded!.concepts[0]!.quizSeries.quizzes[0]!
     expect(reloadedQuiz.answer).toBe('d')
+  })
+
+  it('ignoring a quiz removes only its schedule cache', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+    scheduleLibrary.set('module-1:concept-1:slot-1', {
+      slotId: 'module-1:concept-1:slot-1',
+      moduleId: 'module-1',
+      conceptId: 'concept-1',
+      state: 'review',
+      due: new Date(1_000).toISOString(),
+      stability: 1,
+      difficulty: 5,
+      reps: 1,
+      lapses: 0,
+      elapsed_days: 0,
+      scheduled_days: 1,
+      last_review: new Date(1_000).toISOString(),
+      schemaVersion: 1,
+      contentRevision: 'v1',
+      configRevision: 'v1',
+      lastAppliedAttemptId: 'attempt-1',
+    })
+    scheduleLibrary.set('module-1:concept-2:slot-1', {
+      slotId: 'module-1:concept-2:slot-1',
+      moduleId: 'module-1',
+      conceptId: 'concept-2',
+      state: 'review',
+      due: new Date(1_000).toISOString(),
+      stability: 1,
+      difficulty: 5,
+      reps: 1,
+      lapses: 0,
+      elapsed_days: 0,
+      scheduled_days: 1,
+      last_review: new Date(1_000).toISOString(),
+      schemaVersion: 1,
+      contentRevision: 'v1',
+      configRevision: 'v1',
+      lastAppliedAttemptId: 'attempt-2',
+    })
+
+    useModuleStore.getState().correctQuizAnswer('module-1:concept-1:slot-1', { ignored: true })
+
+    expect(scheduleLibrary.get('module-1:concept-1:slot-1')).toBeNull()
+    expect(scheduleLibrary.get('module-1:concept-2:slot-1')).not.toBeNull()
+  })
+
+  it('restoring a quiz rebuilds its schedule from attempts history', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+    const slotId = 'module-1:concept-1:slot-1'
+    useAttemptsStore.setState({
+      attemptsBySlot: {
+        [slotId]: [
+          {
+            id: 'attempt-1',
+            quizId: slotId,
+            originalQuizId: slotId,
+            userAnswer: 'a',
+            score: 100,
+            gaps: [],
+            nextAction: 'advance',
+            timestamp: 1_000,
+            attemptVersion: 0,
+          },
+        ],
+      },
+    })
+
+    useModuleStore.getState().correctQuizAnswer(slotId, { ignored: false })
+
+    expect(scheduleLibrary.get(slotId)).toMatchObject({
+      slotId,
+      moduleId: 'module-1',
+      conceptId: 'concept-1',
+      lastAppliedAttemptId: 'attempt-1',
+    })
   })
 })

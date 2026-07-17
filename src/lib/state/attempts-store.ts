@@ -25,6 +25,7 @@ import { getStorage } from '@/lib/persistence/client/storage'
 import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 import { triggerAutoBackup } from '@/lib/persistence/client/auto-backup-trigger'
 import { scheduleLibrary } from '@/lib/persistence/schedule-library'
+import { localDateString, loadStreak, saveStreak, updateStreak } from '@/lib/runtime/streak'
 
 interface AttemptsStoreState {
   /** 以 originalQuizId（槽位 id）为 key 的作答历史 */
@@ -79,6 +80,7 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
           }
         })
         void triggerAutoBackup(false)
+        recordStudyDay()
       },
 
       getAttempts: (slotId) => get().attemptsBySlot[slotId] ?? [],
@@ -161,3 +163,15 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
     },
   ),
 )
+
+/** Streak 是反馈数据，写入失败不能阻断已经完成的作答。 */
+function recordStudyDay(): void {
+  try {
+    const repo = getStorage()
+    const current = loadStreak(repo)
+    const next = updateStreak(current, localDateString())
+    saveStreak(next, repo)
+  } catch (error) {
+    console.warn('[streak] 保存学习连续统计失败', error)
+  }
+}

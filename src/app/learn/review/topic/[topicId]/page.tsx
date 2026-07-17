@@ -97,6 +97,7 @@ export default function TopicReviewPage() {
       all: collectReviewItemsForModules(topicModules, attemptsBySlot, 'all').length,
       wrong: collectReviewItemsForModules(topicModules, attemptsBySlot, 'wrong').length,
       guessed: collectReviewItemsForModules(topicModules, attemptsBySlot, 'guessed').length,
+      due: collectReviewItemsForModules(topicModules, attemptsBySlot, 'due').length,
     }),
     [topicModules, attemptsBySlot],
   )
@@ -370,6 +371,12 @@ export default function TopicReviewPage() {
               count={counts.guessed}
               active={currentFilter === 'guessed'}
               onClick={() => handleTabChange('guessed')}
+            />
+            <FilterTab
+              label="今日到期"
+              count={counts.due}
+              active={currentFilter === 'due'}
+              onClick={() => handleTabChange('due')}
             />
           </div>
         </div>

@@ -3,6 +3,9 @@
  */
 
 import type { AttemptRecord, Module, Quiz, ReviewFilter } from '@/types/domain'
+import { scheduleLibrary } from '@/lib/persistence/schedule-library'
+import { isDue } from '@/lib/runtime/fsrs'
+import { useSettingsStore } from '@/lib/state/settings-store'
 
 const PASS_THRESHOLD = 80
 
@@ -12,7 +15,17 @@ const PASS_THRESHOLD = 80
 export function matchesFilter(
   attempts: AttemptRecord[] | undefined,
   filter: ReviewFilter,
+  slotId?: string,
+  timezone: string = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+  now: Date = new Date(),
 ): boolean {
+  if (filter === 'due') {
+    const settings = useSettingsStore.getState() as { fsrs?: { enabled?: boolean } }
+    if (settings.fsrs?.enabled !== true) return false
+    if (!slotId) return false
+    const schedule = scheduleLibrary.get(slotId)
+    return schedule !== null && isDue(schedule, now, timezone)
+  }
   if (!attempts || attempts.length === 0) return false
   const hasWrong = attempts.some((a) => a.score < PASS_THRESHOLD)
   const hasGuessed = attempts.some((a) => a.guessed === true)
@@ -39,6 +52,7 @@ export function collectReviewItemsForModules(
   modules: Module[],
   attemptsBySlot: Record<string, AttemptRecord[]>,
   filter: ReviewFilter,
+  options?: { timezone?: string; now?: Date },
 ): CollectedReviewItem[] {
   const items: CollectedReviewItem[] = []
 
@@ -49,7 +63,9 @@ export function collectReviewItemsForModules(
     ]
     for (const quiz of allQuizzes) {
       if (quiz.ignored) continue
-      if (matchesFilter(attemptsBySlot[quiz.id], filter)) {
+      if (
+        matchesFilter(attemptsBySlot[quiz.id], filter, quiz.id, options?.timezone, options?.now)
+      ) {
         items.push({ moduleId: mod.id, slotId: quiz.id, quiz })
       }
     }

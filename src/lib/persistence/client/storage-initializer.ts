@@ -11,6 +11,7 @@ import { useTopicSessionStore } from '@/lib/state/topic-session-store'
 
 import { getProductionStorage } from './storage'
 import { registerFlushHandlers } from './flush-manager'
+import { rebuildAllSchedulesIfNeeded } from '@/lib/runtime/fsrs-migrate'
 
 /**
  * StorageInitializer 状态机（评审 3.2.2 定案）
@@ -89,7 +90,16 @@ async function doInit(): Promise<void> {
     await useRatingStore.persist.rehydrate()
     await useTopicSessionStore.persist.rehydrate()
 
-    // 4. 注册 flush handler（页面隐藏时强制落盘）
+    // 6 个 store 都完成 rehydrate 后再回填 FSRS 派生缓存。这样旧 attempts、Module
+    // 和当前设置均已可读；showcase 在 initClientStorage 入口直接跳过整个流程。
+    const settings = useSettingsStore.getState()
+    rebuildAllSchedulesIfNeeded({
+      repository: repo,
+      attemptsBySlot: useAttemptsStore.getState().attemptsBySlot,
+      fsrsConfig: settings.fsrs,
+    })
+
+    // 5. 注册 flush handler（页面隐藏时强制落盘）
     if (flushCleanup) flushCleanup() // 先清理旧的（HMR 安全）
     flushCleanup = registerFlushHandlers({
       flushNow: () => repo.flushNow(),

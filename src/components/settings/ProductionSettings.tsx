@@ -64,6 +64,8 @@ export function ProductionSettings() {
   const clearConfig = useSettingsStore((s) => s.clear)
   const confirmReviewEnabled = useSettingsStore((s) => s.confirmReviewEnabled)
   const setConfirmReviewEnabled = useSettingsStore((s) => s.setConfirmReviewEnabled)
+  const fsrs = useSettingsStore((s) => s.fsrs)
+  const updateFsrsConfig = useSettingsStore((s) => s.updateFsrsConfig)
   const resetPreferences = useSettingsStore((s) => s.resetPreferences)
 
   // 表单状态（从已保存配置初始化或用默认值）
@@ -403,6 +405,70 @@ export function ProductionSettings() {
             )}
           </div>
         </div>
+
+        {/* FSRS 设置 */}
+        <section className="space-y-4 pt-4 border-t border-border-subtle">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-fg-primary">FSRS 间隔重复</p>
+              <p className="text-xs text-fg-tertiary">
+                开启后 Today 和到期队列会消费 FSRS 调度；历史调度缓存始终维护。
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={fsrs.enabled}
+              onClick={() => updateFsrsConfig({ enabled: !fsrs.enabled })}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                fsrs.enabled ? 'bg-accent-primary' : 'bg-border-default'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-bg-base transition-transform ${
+                  fsrs.enabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="space-y-2">
+              <span className="alc-label">目标留存率</span>
+              <input
+                type="number"
+                min={0.7}
+                max={0.99}
+                step={0.01}
+                value={fsrs.requestRetention}
+                onChange={(event) => {
+                  const value = Number(event.target.value)
+                  if (Number.isFinite(value)) updateFsrsConfig({ requestRetention: value })
+                }}
+                className="alc-input text-sm font-mono"
+                aria-label="FSRS 目标留存率"
+              />
+              <span className="text-xs text-fg-tertiary">范围 0.70–0.99</span>
+            </label>
+            <label className="space-y-2">
+              <span className="alc-label">最大间隔（天）</span>
+              <input
+                type="number"
+                min={1}
+                max={36500}
+                step={1}
+                value={fsrs.maximumInterval}
+                onChange={(event) => {
+                  const value = Number(event.target.value)
+                  if (Number.isFinite(value)) updateFsrsConfig({ maximumInterval: value })
+                }}
+                className="alc-input text-sm font-mono"
+                aria-label="FSRS 最大间隔"
+              />
+              <span className="text-xs text-fg-tertiary">范围 1–36500 天</span>
+            </label>
+          </div>
+        </section>
 
         {/* 数据统计（production-only，异步拉取） */}
         <section className="pt-4 border-t border-border-subtle">

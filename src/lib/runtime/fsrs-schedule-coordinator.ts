@@ -9,6 +9,7 @@
 import type { AttemptRecord, Quiz } from '@/types/domain'
 import { scheduleLibrary } from '@/lib/persistence/schedule-library'
 import type { StorageRepository } from '@/lib/persistence/shared/repository'
+import { useSettingsStore } from '@/lib/state/settings-store'
 
 import { computeConfigRevision, computeContentRevision } from './content-revision'
 import { rebuildScheduleForSlot, type FsrsReplayConfig } from './fsrs-replay'
@@ -44,10 +45,11 @@ export function synchronizeScheduleForSlot({
   conceptId,
   quiz,
   attempts,
-  fsrsConfig = DEFAULT_FSRS_REPLAY_CONFIG,
+  fsrsConfig,
   repository,
 }: SynchronizeScheduleForSlotParams): ScheduleSynchronizationResult {
   try {
+    const effectiveConfig = fsrsConfig ?? readFsrsReplayConfig()
     const schedule = rebuildScheduleForSlot({
       slotId,
       moduleId,
@@ -55,8 +57,8 @@ export function synchronizeScheduleForSlot({
       quiz,
       attempts,
       contentRevision: computeContentRevision(quiz),
-      configRevision: computeConfigRevision(fsrsConfig),
-      fsrsConfig,
+      configRevision: computeConfigRevision(effectiveConfig),
+      fsrsConfig: effectiveConfig,
     })
 
     if (schedule === null) {
@@ -70,5 +72,14 @@ export function synchronizeScheduleForSlot({
     // 派生缓存可由 AttemptRecord 重建，不能让它破坏既有答题体验。
     console.error('[fsrs] 同步调度缓存失败', error)
     return 'failed'
+  }
+}
+
+function readFsrsReplayConfig(): FsrsReplayConfig {
+  const configured = useSettingsStore.getState().fsrs
+  if (!configured) return DEFAULT_FSRS_REPLAY_CONFIG
+  return {
+    requestRetention: configured.requestRetention,
+    maximumInterval: configured.maximumInterval,
   }
 }
