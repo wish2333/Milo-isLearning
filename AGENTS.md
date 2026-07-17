@@ -188,6 +188,12 @@ Core symbols (highest centrality). Full compiler map → `src/lib/compiler/AGENT
 - **Quiz editing (F42)** — `QuizEditPatch` type exported from `AnswerCorrector.tsx`; widening flows through `module-library.updateQuizInModule` → `module-store.correctQuizAnswer` → `FeedbackPanel.onCorrectAnswer` → `AnswerCorrector.onSave`. Edit is pure field patch, no re-compile/LLM call
 - **Topic skip (F24)** — `ModuleTopicStatus` has 4 states (`pending`/`in_progress`/`done`/`skipped`). `allDone` = `done + skipped === total`. `TopicProgress.skippedModuleIds` persists across exit/resume. Skipped modules are re-enterable (status → `in_progress`)
 
+## GIT 提交与批次工作流
+
+- **批次提交** — 按 v2.0.0 plan 拆分 subagent 后，子代理只负责实现与验证，不单独提交；根代理完成整批 code review、测试和构建后，每批统一创建一次提交。
+- **提交标题风格** — 沿用仓库既有的中文 Conventional Commit 风格：功能使用 `feat: 完成 ...`，修复使用 `fix: 修正 ...`，文档使用 `docs: 新增 ...` 或 `docs: 完善 ...`，测试使用 `test: ...`。除非历史上下文明确要求，不新增英文 scope 风格。
+- **历史重写** — 只有用户明确要求时，才重写本地且未共享的提交标题；只改 message，不改变提交内容。已推送或多人共享的历史默认不重写。
+
 ## ANTI-PATTERNS (THIS PROJECT)
 
 - **NO `console.log`** — ESLint `no-console` allows only `.warn/.error/.info`
