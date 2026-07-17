@@ -104,6 +104,18 @@ export class WriteQueue {
     void this.processNext()
   }
 
+  /** 手动重试指定 key 的失败任务。 */
+  retryOne(key: string): void {
+    const task = this.failed.get(key)
+    if (!task) return
+
+    task.status = 'pending'
+    task.attempts = 0
+    this.failed.delete(key)
+    this.pending.set(task.key, task)
+    void this.processNext()
+  }
+
   // ----- 内部 -----
 
   /** 取下一个 pending 任务（按 operationId 升序）。 */

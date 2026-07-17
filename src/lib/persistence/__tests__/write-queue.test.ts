@@ -75,6 +75,24 @@ describe('WriteQueue', () => {
     expect(failedTask?.failedAt).toBeUndefined()
   })
 
+  it('retryOne 只重新入队指定 key 的失败任务', async () => {
+    processErrors.set('a', new Error('a failed'))
+    processErrors.set('b', new Error('b failed'))
+    queue.enqueue('a', '1')
+    queue.enqueue('b', '2')
+    await new Promise((r) => setTimeout(r, 250))
+    expect(queue.getFailedTasks().map((task) => task.key)).toEqual(['a', 'b'])
+
+    processErrors.delete('a')
+    queue.retryOne('a')
+    await queue.flushNow()
+
+    expect(processed).toContainEqual({ key: 'a', value: '1' })
+    expect(queue.getFailedTasks()).toMatchObject([
+      { key: 'b', lastError: 'b failed', failedAt: expect.any(Number) },
+    ])
+  })
+
   it('hasPending 反映队列状态', async () => {
     expect(queue.hasPending()).toBe(false)
     queue.enqueue('a', '1')
