@@ -64,6 +64,14 @@
    - keyPoints 列出 2-4 个**理解该概念必须知道的关键点**（不是细节）
 5. **标注 parentChunkId**：概念的主要来源 Chunk
 
+### 锚点标记（仅 AI 扩充模式）
+
+如果输入 Chunk 的标题或正文中包含形如 `[anchor-1]`、`[anchor-2]` 的锚点标记（由 KnowledgeExpander 注入），你**必须**：
+- 将该锚点 ID（如 `anchor-1`）原样填入对应 concept 的 `sourceAnchorId` 字段
+- 每个 concept 最多对应一个锚点；如果某个概念跨越多个锚点章节，选最贴切的一个
+
+普通输入（无 `[anchor-N]` 标记）则**省略** `sourceAnchorId` 字段。
+
 ### reasoning 字段（私有 CoT，必须输出）
 
 在 JSON 中输出 `reasoning` 字段，包含：
@@ -135,6 +143,11 @@
           "parentChunkId": {
             "type": "string",
             "pattern": "^chunk-\\d+$"
+          },
+          "sourceAnchorId": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "AI 扩充模式：对应输入中的 [anchor-N] 标记；普通模式省略"
           }
         },
         "required": ["id", "name", "definition", "type", "keyPoints", "parentChunkId"]

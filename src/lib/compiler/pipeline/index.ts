@@ -24,6 +24,11 @@
  */
 export { compileMarkdown, consumeStream } from './pipeline'
 export {
+  compileWithExpand,
+  backfillKnowledgePagesById,
+  type BackfillResult,
+} from './compile-with-expand'
+export {
   ERROR_TABLE,
   makeError,
   makeInputError,
