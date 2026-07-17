@@ -48,6 +48,8 @@ export const StorageKeys = {
   schedule: (slotId: string) => `${STORAGE_NAMESPACE}:schedule:${slotId}`,
   /** StudyStreak：全局连续学习统计 */
   streak: `${STORAGE_NAMESPACE}:streak`,
+  /** TodaySession：今日复习会话（刷新可恢复） */
+  todaySession: `${STORAGE_NAMESPACE}:state:today-session`,
 } as const
 
 /**

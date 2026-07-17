@@ -1,0 +1,229 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
+import { createProvider } from '@/lib/providers'
+import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
+import { synchronizeScheduleForSlot } from '@/lib/runtime/fsrs-schedule-coordinator'
+import { useHydrated } from '@/lib/hooks/useHydrated'
+import { useAttemptsStore } from '@/lib/state/attempts-store'
+import { useSettingsStore } from '@/lib/state/settings-store'
+import { useTodaySessionStore } from '@/lib/state/today-session-store'
+import { QuizRenderer } from '@/components/quiz/QuizRenderer'
+import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
+
+type Phase = 'answering' | 'evaluating' | 'feedback'
+
+/** 今日复习执行页。题目和分母均来自持久化的 TodaySession 快照。 */
+export function TodayReviewView() {
+  const router = useRouter()
+  const hydrated = useHydrated()
+  const session = useTodaySessionStore((state) => state.session)
+  const hydrate = useTodaySessionStore((state) => state.hydrate)
+  const recordResult = useTodaySessionStore((state) => state.recordResult)
+  const nextQuestion = useTodaySessionStore((state) => state.nextQuestion)
+  const config = useSettingsStore((state) => state.config)
+  const addAttempt = useAttemptsStore((state) => state.addAttempt)
+  const getAttempts = useAttemptsStore((state) => state.getAttempts)
+  const getNextAttemptVersion = useAttemptsStore((state) => state.getNextAttemptVersion)
+  const markGuessed = useAttemptsStore((state) => state.markGuessed)
+  const unmarkGuessed = useAttemptsStore((state) => state.unmarkGuessed)
+  const [phase, setPhase] = useState<Phase>('answering')
+  const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
+  const [isGuessed, setIsGuessed] = useState(false)
+  const quizDisplayStart = useRef(Date.now())
+
+  useEffect(() => {
+    if (hydrated) hydrate()
+  }, [hydrated, hydrate])
+
+  const currentQueueItem = session ? session.queue[session.currentIndex] : undefined
+  const currentQuiz = currentQueueItem?.quiz
+  const isFinished = session !== null && session.currentIndex >= session.queue.length
+
+  useEffect(() => {
+    if (!currentQueueItem) return
+    quizDisplayStart.current = Date.now()
+    const latest = getAttempts(currentQueueItem.slotId).at(-1)
+    setIsGuessed(latest?.guessed === true)
+    setPhase('answering')
+    setFeedback(null)
+  }, [currentQueueItem, getAttempts])
+
+  const handleAnswer = useCallback(
+    async (userAnswer: string) => {
+      if (!currentQueueItem || !currentQuiz || !session || phase !== 'answering') return
+      setPhase('evaluating')
+
+      try {
+        const provider =
+          config && currentQuiz.interactionType === 'fill_blank' ? createProvider(config) : null
+        const result = await evaluateAnswerAsync(currentQuiz, userAnswer, provider)
+        const slotId = currentQueueItem.slotId
+        const timestamp = Date.now()
+        addAttempt({
+          id:
+            typeof crypto !== 'undefined' && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `today-${timestamp}`,
+          quizId: currentQuiz.id,
+          originalQuizId: slotId,
+          attemptVersion: getNextAttemptVersion(slotId),
+          userAnswer,
+          score: result.score,
+          gaps: result.gaps,
+          nextAction: result.nextAction,
+          timestamp,
+          answeredAt: timestamp,
+          timeSpentMs: timestamp - quizDisplayStart.current,
+          moduleId: currentQueueItem.moduleId,
+          conceptId: currentQuiz.conceptId,
+        })
+        synchronizeScheduleForSlot({
+          slotId,
+          moduleId: currentQueueItem.moduleId,
+          conceptId: currentQuiz.conceptId,
+          quiz: currentQuiz,
+          attempts: getAttempts(slotId),
+        })
+        recordResult(slotId, result.score)
+        setFeedback(result)
+        setPhase('feedback')
+      } catch {
+        setPhase('answering')
+      }
+    },
+    [
+      addAttempt,
+      config,
+      currentQueueItem,
+      currentQuiz,
+      getAttempts,
+      getNextAttemptVersion,
+      phase,
+      recordResult,
+      session,
+    ],
+  )
+
+  const syncGuessed = useCallback(
+    (guessed: boolean) => {
+      if (!currentQueueItem || !currentQuiz) return
+      if (guessed) markGuessed(currentQueueItem.slotId)
+      else unmarkGuessed(currentQueueItem.slotId)
+      synchronizeScheduleForSlot({
+        slotId: currentQueueItem.slotId,
+        moduleId: currentQueueItem.moduleId,
+        conceptId: currentQuiz.conceptId,
+        quiz: currentQuiz,
+        attempts: getAttempts(currentQueueItem.slotId),
+      })
+      setIsGuessed(guessed)
+    },
+    [currentQueueItem, currentQuiz, getAttempts, markGuessed, unmarkGuessed],
+  )
+
+  const handleNext = useCallback(() => {
+    setFeedback(null)
+    setPhase('answering')
+    nextQuestion()
+  }, [nextQuestion])
+
+  if (!hydrated) return null
+
+  if (!session) {
+    return (
+      <main className="alc-page">
+        <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-16 text-center space-y-4">
+          <p className="text-sm text-fg-secondary">没有正在进行的今日复习。</p>
+          <button
+            type="button"
+            className="alc-button-secondary text-sm px-4 py-2"
+            onClick={() => router.push('/learn/today')}
+          >
+            返回今日复习
+          </button>
+        </div>
+      </main>
+    )
+  }
+
+  if (isFinished) {
+    const passed = session.results.filter((result) => result.passed).length
+    const total = session.initialDueSnapshot.length
+    const rate = total > 0 ? Math.round((passed / total) * 100) : 0
+    return (
+      <main className="alc-page">
+        <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-16 text-center space-y-5">
+          <p className="text-lg font-medium text-fg-primary">今日复习完成</p>
+          <p className="text-4xl font-semibold text-accent-primary">{rate}%</p>
+          <p className="text-sm text-fg-secondary">
+            正确 {passed} / 共 {total} 题
+          </p>
+          <button
+            type="button"
+            className="alc-button-primary text-sm px-4 py-2"
+            onClick={() => router.push('/learn/today')}
+          >
+            查看今日进度
+          </button>
+        </div>
+      </main>
+    )
+  }
+
+  if (!currentQueueItem || !currentQuiz) return null
+  const progress = `${session.currentIndex + 1} / ${session.initialDueSnapshot.length}`
+
+  return (
+    <main className="alc-page">
+      <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 space-y-6">
+        <header className="flex items-center justify-between">
+          <div>
+            <p className="alc-label">今日复习</p>
+            <h1 className="text-lg font-medium text-fg-primary">按计划巩固记忆</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-fg-tertiary">{progress}</span>
+            <button
+              type="button"
+              className="alc-button-secondary text-xs px-3 py-1.5"
+              onClick={() => router.push('/learn/today')}
+            >
+              退出
+            </button>
+          </div>
+        </header>
+
+        <QuizRenderer quiz={currentQuiz} disabled={phase !== 'answering'} onAnswer={handleAnswer} />
+
+        {phase === 'evaluating' && (
+          <p className="text-sm text-fg-tertiary animate-pulse">正在评估...</p>
+        )}
+
+        {phase === 'feedback' && feedback && (
+          <>
+            <FeedbackPanel
+              feedback={feedback}
+              explanation={currentQuiz.explanation}
+              misconception={currentQuiz.misconception}
+              extendedKnowledge={currentQuiz.extendedKnowledge}
+              isGuessed={isGuessed}
+              onMarkGuessed={() => syncGuessed(true)}
+              onUnmarkGuessed={() => syncGuessed(false)}
+            />
+            <button
+              type="button"
+              className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm"
+              onClick={handleNext}
+            >
+              {session.currentIndex + 1 >= session.queue.length ? '查看结果' : '下一题'}
+            </button>
+          </>
+        )}
+      </div>
+    </main>
+  )
+}

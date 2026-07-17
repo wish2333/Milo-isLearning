@@ -365,6 +365,30 @@ export interface TopicProgress {
   lastVisitedAt: number
 }
 
+/**
+ * 今日复习会话快照。
+ *
+ * queue 在启动时固定，initialDueSnapshot 是进度分母；后续答题改变
+ * schedule 的 due 时间也不会改变本轮的题目总数。会话按浏览器本地日
+ * 期归属，刷新页面后可从同一快照继续。
+ */
+export interface TodaySession {
+  date: string
+  initialDueSnapshot: string[]
+  queue: Array<{
+    quiz: Quiz
+    moduleId: string
+    slotId: string
+  }>
+  currentIndex: number
+  results: Array<{
+    slotId: string
+    score: number
+    passed: boolean
+  }>
+  startedAt: number
+}
+
 // =================================================================
 // 便捷类型导出
 // =================================================================

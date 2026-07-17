@@ -16,6 +16,7 @@ import { loadStoredModule } from '@/lib/persistence/module-library'
 import { getTopic } from '@/lib/persistence/topic-library'
 import { storage } from '@/lib/persistence/client/local-storage'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
+import { useTodaySessionStore } from '@/lib/state/today-session-store'
 
 const PASS_THRESHOLD = 80
 
@@ -44,6 +45,8 @@ interface ReviewStoreState {
   session: ReviewSession | null
   startSession: (moduleId: string, filter?: ReviewFilter) => boolean
   startTopicSession: (topicId: string, filter?: ReviewFilter) => boolean
+  /** 启动并持久化一轮 Today 快照；题目队列由调用方在启动时固定。 */
+  startTodaySession: (queue: ReviewQueueItem[], date: string) => boolean
   recordResult: (slotId: string, score: number) => void
   nextQuestion: () => void
   endSession: () => void
@@ -117,6 +120,24 @@ export const useReviewStore = create<ReviewStoreState>()((set) => ({
         topicId,
         filter,
         queue,
+        currentIndex: 0,
+        results: [],
+      },
+    })
+    return true
+  },
+
+  startTodaySession: (queue, date) => {
+    if (queue.length === 0 || date.length === 0) return false
+
+    const started = useTodaySessionStore.getState().startSession(queue, date)
+    if (!started) return false
+
+    set({
+      session: {
+        moduleId: 'today',
+        filter: 'due',
+        queue: [...queue],
         currentIndex: 0,
         results: [],
       },
