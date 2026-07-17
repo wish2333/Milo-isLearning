@@ -66,6 +66,10 @@ export interface Concept {
   moduleId: string
   name: string
   definition: string
+  /** AI 扩充模式生成的知识页（普通 Markdown 编译时为空） */
+  knowledgePage?: string
+  /** AI 扩充模式中用于回填知识页的稳定锚点 ID */
+  sourceAnchorId?: string
   type: 'fact' | 'procedure' | 'theory'
   keyPoints: string[]
   quizSeries: QuizSeries

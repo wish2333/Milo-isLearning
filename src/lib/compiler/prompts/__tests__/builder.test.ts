@@ -29,6 +29,7 @@ const ALL_KINDS: AgentKind[] = [
   'feynman-eval',
   'quiz-batch',
   'challenge-batch',
+  'knowledge-expander',
 ]
 
 /** 每个 Agent 的最小可用输入（满足其模板占位符） */
@@ -117,6 +118,10 @@ const SAMPLE_INPUTS: Record<AgentKind, Record<string, unknown>> = {
     moduleContext: { title: '理解 RAG', intro: 'RAG 与 Embedding 的综合应用' },
     total: 3,
     conceptCount: 2,
+  },
+  'knowledge-expander': {
+    topic: '检索增强生成',
+    constraints: '面向有编程基础的学习者',
   },
 }
 

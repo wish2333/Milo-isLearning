@@ -47,6 +47,8 @@ export const AGENT_CONFIG: Readonly<Record<AgentKind, AgentCallConfig>> = Object
   'feynman-eval': { temperature: 0.2, disableThinking: true },
   'quiz-batch': { temperature: 0.7, disableThinking: true },
   'challenge-batch': { temperature: 0.7, disableThinking: true },
+  // AI 扩充需兼顾长文结构化生成与稳定 JSON，采用中低温度。
+  'knowledge-expander': { temperature: 0.4, disableThinking: true },
 })
 
 /** 取某 Agent 的调用配置 */

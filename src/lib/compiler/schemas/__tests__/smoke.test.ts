@@ -12,12 +12,13 @@ import {
   moduleSchema,
   quizSchema,
   schemasByAgentKind,
+  expandedKnowledgeSchema,
 } from '../index'
 
 /**
  * Schema smoke 测试
  *
- * 目的：保证 10 个 Zod Schema 在编译期与运行时都可用。
+ * 目的：保证所有注册的 Zod Schema 在编译期与运行时都可用。
  * M1 之前 Schema 从未跑过 tsc，本测试是最低限度的运行时回归基线。
  */
 
@@ -34,7 +35,7 @@ const ALL_SCHEMAS = {
 } as const
 
 describe('compiler schemas — smoke test', () => {
-  it('schemasByAgentKind exports all 11 agent kinds', () => {
+  it('schemasByAgentKind exports all 12 agent kinds', () => {
     const kinds = Object.keys(schemasByAgentKind).sort()
     expect(kinds).toEqual(
       [
@@ -49,13 +50,15 @@ describe('compiler schemas — smoke test', () => {
         'module',
         'quiz',
         'quiz-batch',
+        'knowledge-expander',
       ].sort(),
     )
-    expect(kinds).toHaveLength(11)
+    expect(kinds).toHaveLength(12)
   })
 
   it('every schema is a ZodSchema (has safeParse + parse)', () => {
-    for (const [name, schema] of Object.entries(ALL_SCHEMAS)) {
+    const schemas = { ...ALL_SCHEMAS, 'knowledge-expander': expandedKnowledgeSchema }
+    for (const [name, schema] of Object.entries(schemas)) {
       expect(typeof schema.safeParse, `${name}.safeParse`).toBe('function')
       expect(typeof schema.parse, `${name}.parse`).toBe('function')
     }
