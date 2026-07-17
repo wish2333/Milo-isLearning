@@ -24,6 +24,7 @@ import { synchronizeScheduleForSlot } from '@/lib/runtime/fsrs-schedule-coordina
 import { getStorage } from '@/lib/persistence/client/storage'
 import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 import { scheduleLibrary } from '@/lib/persistence/schedule-library'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { useAttemptsStore } from './attempts-store'
 
 interface ModuleStoreState {
@@ -67,6 +68,9 @@ interface ModuleStoreState {
       >
     >,
   ) => void
+
+  /** 更新 Concept 的 knowledgePage 内容（AI 扩充模式编辑） */
+  updateKnowledgePage: (conceptId: string, content: string) => void
 }
 
 export const useModuleStore = create<ModuleStoreState>()(
@@ -116,6 +120,22 @@ export const useModuleStore = create<ModuleStoreState>()(
             attempts: useAttemptsStore.getState().getAttempts(quizId),
           })
         }
+      },
+
+      updateKnowledgePage: (conceptId, content) => {
+        const current = get().currentModule
+        if (!current) return
+        if (current.origin === 'showcase') return
+
+        const targetConcept = current.concepts.find((c) => c.id === conceptId)
+        if (!targetConcept) return
+
+        const updatedConcepts = current.concepts.map((c) =>
+          c.id === conceptId ? { ...c, knowledgePage: content } : c,
+        )
+        const updatedModule: Module = { ...current, concepts: updatedConcepts }
+        getStorage().set(StorageKeys.module(current.id), updatedModule)
+        set({ currentModule: updatedModule })
       },
     }),
     {

@@ -31,6 +31,7 @@ import { FeynmanIntroView } from '@/components/learn/FeynmanIntroView'
 import { FeynmanStepView } from '@/components/learn/FeynmanStepView'
 import { FeynmanFinalView } from '@/components/learn/FeynmanFinalView'
 import { ModuleIntroView } from '@/components/learn/ModuleIntroView'
+import { KnowledgePageView } from '@/components/learn/KnowledgePageView'
 import { LearnShell } from '@/components/learn/LearnShell'
 
 function getStageLabel(stage: ModuleStage): string {
@@ -46,7 +47,8 @@ function getStageLabel(stage: ModuleStage): string {
     case 'done':
       return 'Done'
     case 'module_intro':
-      return 'Intro'
+    case 'concept_intro':
+      return stage.kind === 'module_intro' ? 'Intro' : '概念导论'
   }
 }
 
@@ -103,6 +105,10 @@ export default function ModulePage() {
   switch (stage.kind) {
     case 'module_intro':
       content = <ModuleIntroView />
+      break
+
+    case 'concept_intro':
+      content = <KnowledgePageView conceptIndex={stage.conceptIndex} />
       break
 
     case 'concept':

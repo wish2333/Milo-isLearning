@@ -46,7 +46,10 @@ export default function ImportPage() {
   const router = useRouter()
   const config = useSettingsStore((s) => s.config)
 
+  const [mode, setMode] = useState<'markdown' | 'expand'>('markdown')
   const [markdown, setMarkdown] = useState('')
+  const [topic, setTopic] = useState('')
+  const [constraints, setConstraints] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [resumeInfo, setResumeInfo] = useState<ResumeInfo | null>(null)
   const [dismissedResume, setDismissedResume] = useState(false)
@@ -55,6 +58,9 @@ export default function ImportPage() {
   const charCount = markdown.length
   const isValid = charCount >= INPUT_MIN_LENGTH && charCount <= INPUT_MAX_LENGTH
   const isShort = charCount > 0 && charCount < INPUT_MIN_LENGTH
+
+  const topicLen = topic.trim().length
+  const isTopicValid = topicLen >= 5 && topicLen <= 50
 
   // PB.3: production 模式下，检测未完成的编译 session
   useEffect(() => {
@@ -164,11 +170,40 @@ export default function ImportPage() {
 
     setSubmitting(true)
     track('compile_start', {
+      mode: 'markdown',
       sourceLength: markdown.length,
       provider: config.provider ?? 'unknown',
     })
     router.push(`/learn/compiling?jobId=${job.jobId}`)
   }, [isValid, submitting, config, markdown, router])
+
+  const handleExpandCompile = useCallback(() => {
+    if (!isTopicValid || submitting) return
+
+    if (!config) {
+      router.push('/settings')
+      return
+    }
+
+    const trimmedTopic = topic.trim()
+    sessionStorage.setItem(STORAGE_KEY, trimmedTopic)
+
+    const job = createCompileJob(storage, {
+      sourceContent: trimmedTopic,
+      configSummary: { provider: config.provider, model: config.model },
+      compileMode: 'expand',
+      topic: trimmedTopic,
+      constraints: constraints.trim() || undefined,
+    })
+
+    setSubmitting(true)
+    track('compile_start', {
+      mode: 'expand',
+      topicLength: trimmedTopic.length,
+      provider: config.provider ?? 'unknown',
+    })
+    router.push(`/learn/compiling?jobId=${job.jobId}`)
+  }, [isTopicValid, submitting, config, topic, constraints, router])
 
   const showResumePrompt = isProductionMode && resumeInfo && !dismissedResume
 
@@ -181,10 +216,14 @@ export default function ImportPage() {
           <div className="space-y-1">
             <p className="alc-label uppercase tracking-wider">Source material</p>
             <h2 className="text-2xl font-semibold text-fg-primary">
-              粘贴 Markdown，编译为学习路径
+              {mode === 'markdown'
+                ? '粘贴 Markdown，编译为学习路径'
+                : '输入主题，AI 扩充为学习路径'}
             </h2>
             <p className="text-sm text-fg-secondary">
-              支持任意技术文档、教程、笔记。AI 将自动拆分概念、生成练习、设计费曼任务。
+              {mode === 'markdown'
+                ? '支持任意技术文档、教程、笔记。AI 将自动拆分概念、生成练习、设计费曼任务。'
+                : '只需一个短主题词，AI 自动扩充知识材料并编译为完整学习模块。'}
             </p>
           </div>
 
@@ -198,45 +237,123 @@ export default function ImportPage() {
             />
           )}
 
-          {/* Textarea */}
-          <div className="space-y-2">
-            <textarea
-              value={markdown}
-              onChange={(e) => setMarkdown(e.target.value)}
-              placeholder="在此粘贴 Markdown 内容..."
-              className="alc-textarea h-72 text-sm font-mono"
-              maxLength={INPUT_MAX_LENGTH + 1000}
-            />
-
-            {/* Character counter */}
-            <div className="flex items-center justify-between text-xs">
-              <span className="alc-muted">
-                {charCount === 0 ? '等待输入...' : `${charCount.toLocaleString()} 字`}
-              </span>
-              <span
-                className={
-                  isShort
-                    ? 'text-warning'
-                    : isValid
-                      ? 'text-success'
-                      : charCount > INPUT_MAX_LENGTH
-                        ? 'text-danger'
-                        : 'alc-muted'
-                }
-              >
-                {INPUT_MIN_LENGTH} - {INPUT_MAX_LENGTH.toLocaleString()} 字
-              </span>
-            </div>
+          {/* Mode tab */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setMode('markdown')}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                mode === 'markdown'
+                  ? 'bg-accent-primary text-bg-base'
+                  : 'border border-border-strong text-fg-secondary hover:bg-bg-elevated'
+              }`}
+            >
+              📝 粘贴 Markdown
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('expand')}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                mode === 'expand'
+                  ? 'bg-accent-primary text-bg-base'
+                  : 'border border-border-strong text-fg-secondary hover:bg-bg-elevated'
+              }`}
+            >
+              ✨ AI 扩充
+            </button>
           </div>
 
-          {/* Submit */}
-          <button
-            onClick={handleCompile}
-            disabled={!isValid || submitting}
-            className="alc-button-primary w-full py-3 text-sm"
-          >
-            {!config ? '配置 LLM 后开始' : submitting ? '准备中...' : '开始编译'}
-          </button>
+          {/* Markdown mode form */}
+          {mode === 'markdown' && (
+            <>
+              <div className="space-y-2">
+                <textarea
+                  value={markdown}
+                  onChange={(e) => setMarkdown(e.target.value)}
+                  placeholder="在此粘贴 Markdown 内容..."
+                  className="alc-textarea h-72 text-sm font-mono"
+                  maxLength={INPUT_MAX_LENGTH + 1000}
+                />
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="alc-muted">
+                    {charCount === 0 ? '等待输入...' : `${charCount.toLocaleString()} 字`}
+                  </span>
+                  <span
+                    className={
+                      isShort
+                        ? 'text-warning'
+                        : isValid
+                          ? 'text-success'
+                          : charCount > INPUT_MAX_LENGTH
+                            ? 'text-danger'
+                            : 'alc-muted'
+                    }
+                  >
+                    {INPUT_MIN_LENGTH} - {INPUT_MAX_LENGTH.toLocaleString()} 字
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleCompile}
+                disabled={!isValid || submitting}
+                className="alc-button-primary w-full py-3 text-sm"
+              >
+                {!config ? '配置 LLM 后开始' : submitting ? '准备中...' : '开始编译'}
+              </button>
+            </>
+          )}
+
+          {/* Expand mode form */}
+          {mode === 'expand' && (
+            <>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="alc-label uppercase tracking-wider">主题词</label>
+                  <input
+                    type="text"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder="例：注意力机制、RAG 检索增强生成、梯度下降..."
+                    className="alc-textarea py-3 text-sm"
+                    maxLength={50}
+                  />
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="alc-muted">
+                      {topicLen === 0 ? '等待输入...' : `${topicLen} 字`}
+                    </span>
+                    <span
+                      className={
+                        isTopicValid ? 'text-success' : topicLen > 0 ? 'text-warning' : 'alc-muted'
+                      }
+                    >
+                      5 - 50 字
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="alc-label uppercase tracking-wider">约束（可选）</label>
+                  <textarea
+                    value={constraints}
+                    onChange={(e) => setConstraints(e.target.value)}
+                    placeholder="例：面向工程师，侧重实践；或：覆盖原理和常见误区..."
+                    className="alc-textarea h-24 text-sm"
+                    maxLength={200}
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleExpandCompile}
+                disabled={!isTopicValid || submitting}
+                className="alc-button-primary w-full py-3 text-sm"
+              >
+                {!config ? '配置 LLM 后开始' : submitting ? '准备中...' : '开始 AI 扩充'}
+              </button>
+            </>
+          )}
 
           {!config && (
             <p className="text-warning text-xs text-center">需要先配置 LLM 供应商才能编译</p>

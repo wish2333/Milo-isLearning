@@ -309,3 +309,79 @@ describe('module-store correctQuizAnswer', () => {
     })
   })
 })
+
+describe('module-store updateKnowledgePage', () => {
+  beforeEach(() => {
+    mockRepo.clearAll()
+    useModuleStore.getState().clear()
+  })
+
+  it('updates knowledgePage on the matching concept', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+
+    useModuleStore.getState().updateKnowledgePage('concept-1', 'new knowledge content')
+
+    const current = useModuleStore.getState().currentModule
+    expect(current).not.toBeNull()
+    expect(current!.concepts[0]!.knowledgePage).toBe('new knowledge content')
+    expect(current!.concepts[1]!.knowledgePage).toBeUndefined()
+  })
+
+  it('is a no-op when conceptId does not exist', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+
+    expect(() =>
+      useModuleStore.getState().updateKnowledgePage('nonexistent', 'content'),
+    ).not.toThrow()
+
+    const current = useModuleStore.getState().currentModule
+    expect(current!.concepts[0]!.knowledgePage).toBeUndefined()
+  })
+
+  it('is a no-op for showcase modules', () => {
+    const testModule = makeModule({ origin: 'showcase' })
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+
+    useModuleStore.getState().updateKnowledgePage('concept-1', 'new content')
+
+    const current = useModuleStore.getState().currentModule
+    expect(current!.concepts[0]!.knowledgePage).toBeUndefined()
+  })
+
+  it('is a no-op when currentModule is null', () => {
+    expect(() =>
+      useModuleStore.getState().updateKnowledgePage('concept-1', 'content'),
+    ).not.toThrow()
+    expect(useModuleStore.getState().currentModule).toBeNull()
+  })
+
+  it('returns a new object (immutable update)', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+    const before = useModuleStore.getState().currentModule
+
+    useModuleStore.getState().updateKnowledgePage('concept-1', 'new content')
+
+    const after = useModuleStore.getState().currentModule
+    expect(before).not.toBe(after)
+    expect(before!.concepts[0]).not.toBe(after!.concepts[0])
+  })
+
+  it('persists updated knowledgePage to storage', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+
+    useModuleStore.getState().updateKnowledgePage('concept-2', 'knowledge for concept 2')
+
+    const reloaded = loadStoredModule(mockRepo, 'module-1')
+    expect(reloaded).not.toBeNull()
+    expect(reloaded!.concepts[1]!.knowledgePage).toBe('knowledge for concept 2')
+  })
+})

@@ -129,9 +129,32 @@ export const useProgressStore = create<ProgressStoreState>()(
 
         switch (stage.kind) {
           case 'module_intro': {
-            // 导言 → 第一道 concept 题
+            // 导言 → 第一个 concept 的知识页（如有）或第一道题
+            const firstConcept = currentModule.concepts[0]
+            if (firstConcept?.knowledgePage) {
+              set({
+                stage: { kind: 'concept_intro', conceptIndex: 0 },
+                updatedAt: Date.now(),
+              })
+            } else {
+              set({
+                stage: { kind: 'concept', conceptIndex: 0, quizIndex: 0 },
+                updatedAt: Date.now(),
+              })
+            }
+            break
+          }
+
+          case 'concept_intro': {
             set({
-              stage: { kind: 'concept', conceptIndex: 0, quizIndex: 0 },
+              stage: {
+                kind: 'concept',
+                conceptIndex: stage.conceptIndex,
+                quizIndex: 0,
+                ...(stage.reviewSlots && stage.reviewSlots.length > 0
+                  ? { reviewSlots: stage.reviewSlots }
+                  : {}),
+              },
               updatedAt: Date.now(),
             })
             break
@@ -174,13 +197,21 @@ export const useProgressStore = create<ProgressStoreState>()(
 
               const nextReviewSlots = [...wrongSlots, ...carriedSlots, ...confirmSlots]
 
+              const nextConceptIdx = conceptIndex + 1
+              const nextConcept = currentModule.concepts[nextConceptIdx]
+              const reviewSlotsPayload =
+                nextReviewSlots.length > 0 ? { reviewSlots: nextReviewSlots } : {}
+              const nextStage: ModuleStage = nextConcept?.knowledgePage
+                ? { kind: 'concept_intro', conceptIndex: nextConceptIdx, ...reviewSlotsPayload }
+                : {
+                    kind: 'concept',
+                    conceptIndex: nextConceptIdx,
+                    quizIndex: 0,
+                    ...reviewSlotsPayload,
+                  }
+
               set({
-                stage: {
-                  kind: 'concept',
-                  conceptIndex: conceptIndex + 1,
-                  quizIndex: 0,
-                  ...(nextReviewSlots.length > 0 ? { reviewSlots: nextReviewSlots } : {}),
-                },
+                stage: nextStage,
                 updatedAt: Date.now(),
               })
               return

@@ -272,6 +272,7 @@ export interface Mastery {
  */
 export type ModuleStage =
   | { kind: 'module_intro' }
+  | { kind: 'concept_intro'; conceptIndex: number; reviewSlots?: string[] }
   | { kind: 'concept'; conceptIndex: number; quizIndex: number; reviewSlots?: string[] }
   | { kind: 'challenge'; quizIndex: number }
   | { kind: 'feynman_intro' }
