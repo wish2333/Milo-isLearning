@@ -26,6 +26,7 @@ import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { getStorage } from '@/lib/persistence/client/storage'
 import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 import { storage } from '@/lib/persistence/client/local-storage'
+import { triggerAutoBackup } from '@/lib/persistence/client/auto-backup-trigger'
 
 import {
   collectReviewSlots,
@@ -291,7 +292,9 @@ export const useProgressStore = create<ProgressStoreState>()(
           }
         }),
 
-      submitFeynman: (finalOutput, finalScore, finalGaps) =>
+      submitFeynman: (finalOutput, finalScore, finalGaps) => {
+        if (!get().feynmanAttempt) return
+
         set((state) => {
           if (!state.feynmanAttempt) return state
           return {
@@ -305,7 +308,10 @@ export const useProgressStore = create<ProgressStoreState>()(
             },
             updatedAt: Date.now(),
           }
-        }),
+        })
+
+        void triggerAutoBackup(true)
+      },
 
       setStage: (stage) => set({ stage, updatedAt: Date.now() }),
 

@@ -23,6 +23,7 @@ import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { getStorage } from '@/lib/persistence/client/storage'
 import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
+import { triggerAutoBackup } from '@/lib/persistence/client/auto-backup-trigger'
 
 interface AttemptsStoreState {
   /** 以 originalQuizId（槽位 id）为 key 的作答历史 */
@@ -66,7 +67,7 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
     (set, get) => ({
       attemptsBySlot: {},
 
-      addAttempt: (attempt) =>
+      addAttempt: (attempt) => {
         set((state) => {
           const existing = state.attemptsBySlot[attempt.originalQuizId] ?? []
           return {
@@ -75,7 +76,9 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
               [attempt.originalQuizId]: [...existing, attempt],
             },
           }
-        }),
+        })
+        void triggerAutoBackup(false)
+      },
 
       getAttempts: (slotId) => get().attemptsBySlot[slotId] ?? [],
 
