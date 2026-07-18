@@ -276,6 +276,7 @@ Core symbols (highest centrality). Full compiler map → `src/lib/compiler/AGENT
 - **NO per-page SEO metadata** — all OG/Twitter/icons centralized in `app/layout.tsx`
 - **NO reading `.env.local`** — contains provider API keys (DEEPSEEK/GLM). Never `cat`/`read`/`grep` it. Keys are proxied to client via `/api/env-config`; use `settings-store.getLLMConfig()` at runtime
 - **NO dismissing test warnings/failures as "pre-existing"** — EVERY warning and failure in any test run (unit/e2e/typecheck/lint/build) MUST be investigated and either fixed or explicitly justified with a concrete reason, never hand-waved away as "already broken before my change". If unrelated to the current change, state the root cause with evidence (file:line, failing assertion) and link/track it; do not silently skip. Pre-existing is a hypothesis to verify, not an excuse to ignore.
+- **NO mixing storage instances for per-module progress keys** — `alc:progress:{moduleId}` 必须通过 `storage`（LocalStorageRepository 单例）读写；`getStorage()` 仅用于 Zustand persist 全局 blob `alc:state:progress`。production 模式下 `getStorage()` 返回 SQLite Repository，per-module 数据在 LS 不在 SQLite。详见 V2.0.1 fix-report §3.3
 
 ## COMMANDS
 

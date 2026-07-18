@@ -37,6 +37,16 @@ import { useAttemptsStore } from './attempts-store'
 import { useModuleStore } from './module-store'
 import { useSettingsStore } from './settings-store'
 
+/**
+ * Storage Invariant (V2.0.1): per-module progress keys
+ *
+ * `alc:progress:{moduleId}` 在所有运行模式下均通过 `storage`（LocalStorageRepository
+ * 单例）读写。`getStorage()` 仅用于 Zustand persist 的全局 blob `alc:state:progress`。
+ *
+ * （production 的 getStorage() 返回 SQLite Repository，per-module 数据在 LS 不在 SQLite）。
+ *
+ * 详见 docs/v2.0.0/v2.0.1-fix-report.md §3。
+ */
 interface ProgressStoreState {
   /** 当前 Module ID；null = 未开始 */
   moduleId: string | null
@@ -101,6 +111,7 @@ export const useProgressStore = create<ProgressStoreState>()(
     (set, get) => ({
       ...initialState,
 
+      // TODO(V2.0.1 F1-1): 新增 `resumeModule(moduleId)` action 时，MUST use `storage`（LS）读 per-module snapshot，禁止 `getStorage()`。详见文件顶部 Storage Invariant。
       startModule: (moduleId) =>
         set({
           moduleId,
