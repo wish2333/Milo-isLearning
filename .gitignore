@@ -51,6 +51,10 @@ playwright-report/
 # v1.0.0 SQLite data (production mode only, root-level only)
 /data/
 
+# macOS local production launchers and runtime state (intentionally untracked)
+/.local/production/
+/生产模式-*.command
+
 # CodingAgent
 .omo/run-continuation/
 .reasonix
