@@ -8,6 +8,7 @@
 import type { Module, ProgressState, Quiz } from '@/types/domain'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
+import { computeModuleProgress, type ModuleProgressInfo } from '@/lib/runtime/module-progress'
 
 import { StorageKeys } from './shared/keys'
 import type { StorageRepository } from './shared/repository'
@@ -23,6 +24,10 @@ export interface StoredModuleSummary {
   quizCount: number
   updatedAt: number
   completed: boolean
+  /** V2.0.1: 该模块的 per-module 进度 snapshot（来自 alc:progress:{moduleId}）。可能为 null（未开始） */
+  progress?: ProgressState | null
+  /** V2.0.1: 预计算的展示用进度信息 */
+  progressInfo?: ModuleProgressInfo
 }
 
 /**
@@ -50,6 +55,7 @@ export function listStoredModules(repo: StorageRepository): StoredModuleSummary[
       )
       const challengeCount = module.challengeQuizzes?.length ?? 0
       const feynmanStepCount = module.feynmanTask.steps.length
+      const progressInfo = computeModuleProgress(module, progress ?? null)
       return {
         id: module.id,
         sourceId: module.sourceId,
@@ -58,6 +64,8 @@ export function listStoredModules(repo: StorageRepository): StoredModuleSummary[
         quizCount: conceptQuizCount + challengeCount + feynmanStepCount,
         updatedAt: progress?.updatedAt ?? 0,
         completed: progress?.stage.kind === 'done',
+        progress: progress ?? null,
+        progressInfo,
       }
     })
     .sort((a, b) => b.updatedAt - a.updatedAt)

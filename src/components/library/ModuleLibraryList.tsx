@@ -131,6 +131,39 @@ export function ModuleLibraryRow({
           <p className="alc-label mt-0.5">
             {m.conceptCount} 概念 · {m.quizCount} 题 · {formatDate(m.updatedAt)}
           </p>
+          {m.progressInfo && (
+            <div className="mt-1.5">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span
+                  className={
+                    m.progressInfo.done
+                      ? 'text-[var(--success)]'
+                      : m.progressInfo.started
+                        ? 'text-[var(--accent-primary)]'
+                        : 'text-[var(--fg-tertiary)]'
+                  }
+                >
+                  {m.progressInfo.label}
+                </span>
+                <span className="text-[var(--fg-tertiary)] tabular-nums">
+                  {m.progressInfo.conceptPercent}%
+                </span>
+              </div>
+              <div className="w-full h-1 rounded-full bg-[var(--bg-elevated)]">
+                <div
+                  className="h-full rounded-full transition-[width] duration-300 ease-out"
+                  style={{
+                    width: `${m.progressInfo.conceptPercent}%`,
+                    backgroundColor: m.progressInfo.done
+                      ? 'var(--success)'
+                      : m.progressInfo.started
+                        ? 'var(--accent-primary)'
+                        : 'transparent',
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
         <span
           className={`text-xs px-2 py-0.5 rounded shrink-0 ${getStatusBadge(m.completed, m.updatedAt).className}`}
