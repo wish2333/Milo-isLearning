@@ -18,8 +18,7 @@ import { createModulePackage } from '@/lib/persistence/module-package'
 import { createTopicPackage, downloadTopicPackage } from '@/lib/persistence/topic-package'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
-import { useModuleStore } from '@/lib/state/module-store'
-import { useProgressStore } from '@/lib/state/progress-store'
+import { enterModule } from '@/lib/runtime/enter-module'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { storage } from '@/lib/persistence/client/local-storage'
 
@@ -64,10 +63,8 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
     if (!ok) return
     const firstModuleId = useTopicSessionStore.getState().getCurrentModuleId()
     if (!firstModuleId) return
-    const moduleData = loadStoredModule(storage, firstModuleId)
-    if (!moduleData) return
-    useModuleStore.getState().setModule(moduleData)
-    useProgressStore.getState().startModule(firstModuleId)
+    const entered = enterModule({ moduleId: firstModuleId, allowResume: true })
+    if (!entered) return
     router.push(`/learn/module/${firstModuleId}`)
   }
 

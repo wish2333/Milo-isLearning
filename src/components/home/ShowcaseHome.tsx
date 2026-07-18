@@ -17,11 +17,10 @@ import {
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
+import { enterModule } from '@/lib/runtime/enter-module'
 import { ShowcaseModuleCard } from '@/components/showcase/ShowcaseModuleCard'
 import { ShowcaseTopicCard } from '@/components/showcase/ShowcaseTopicCard'
 import { MockCompileOverlay } from '@/components/showcase/MockCompileOverlay'
-import { loadStoredModule } from '@/lib/persistence/module-library'
-import { storage } from '@/lib/persistence/client/local-storage'
 
 type ShowcaseHomeStatus = 'idle' | 'loading-manifest' | 'ready' | 'mock-compiling' | 'error'
 
@@ -71,10 +70,8 @@ export function ShowcaseHome() {
       if (!ok) throw new Error('主题会话启动失败')
       const firstModuleId = useTopicSessionStore.getState().getCurrentModuleId()
       if (!firstModuleId) throw new Error('无法获取第一个模块')
-      const moduleData = loadStoredModule(storage, firstModuleId)
-      if (!moduleData) throw new Error('模块加载失败')
-      setModule(moduleData)
-      startModule(firstModuleId)
+      const entered = enterModule({ moduleId: firstModuleId, allowResume: true })
+      if (!entered) throw new Error('模块加载失败')
       router.push(`/learn/module/${firstModuleId}`)
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : '主题加载失败')

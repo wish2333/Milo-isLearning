@@ -7,8 +7,7 @@ import { getTopic } from '@/lib/persistence/topic-library'
 import { loadStoredModule } from '@/lib/persistence/module-library'
 import { storage } from '@/lib/persistence/client/local-storage'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
-import { useModuleStore } from '@/lib/state/module-store'
-import { useProgressStore } from '@/lib/state/progress-store'
+import { enterModule } from '@/lib/runtime/enter-module'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
 import { computeTopicMastery } from '@/lib/runtime/topic-mastery'
@@ -77,37 +76,31 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
   const handleContinue = () => {
     const nextModuleId = useTopicSessionStore.getState().advanceToNextModule()
     if (!nextModuleId) return
-    const moduleData = loadStoredModule(storage, nextModuleId)
-    if (!moduleData) {
+    const entered = enterModule({ moduleId: nextModuleId, allowResume: true })
+    if (!entered) {
       useTopicSessionStore.getState().exitSession()
       router.push('/learn/library')
       return
     }
-    useModuleStore.getState().setModule(moduleData)
-    useProgressStore.getState().startModule(nextModuleId)
     router.push(`/learn/module/${nextModuleId}`)
   }
 
   const handleSkip = () => {
     const nextModuleId = useTopicSessionStore.getState().skipCurrentModule()
     if (!nextModuleId) return
-    const moduleData = loadStoredModule(storage, nextModuleId)
-    if (!moduleData) {
+    const entered = enterModule({ moduleId: nextModuleId, allowResume: true })
+    if (!entered) {
       useTopicSessionStore.getState().exitSession()
       router.push('/learn/library')
       return
     }
-    useModuleStore.getState().setModule(moduleData)
-    useProgressStore.getState().startModule(nextModuleId)
     router.push(`/learn/module/${nextModuleId}`)
   }
 
   const handleReenter = (moduleId: string) => {
-    const moduleData = loadStoredModule(storage, moduleId)
-    if (!moduleData) return
+    const entered = enterModule({ moduleId, allowResume: true })
+    if (!entered) return
     useTopicSessionStore.getState().reenterModule(moduleId)
-    useModuleStore.getState().setModule(moduleData)
-    useProgressStore.getState().startModule(moduleId)
     router.push(`/learn/module/${moduleId}`)
   }
 
