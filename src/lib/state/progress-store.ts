@@ -62,6 +62,9 @@ interface ProgressStoreState {
   /** 初始化 Module 学习：设置 moduleId + stage = module_intro */
   startModule: (moduleId: string) => void
 
+  /** 恢复模块进度（三级 fallback：snapshot → 全局 blob → startModule）。不重置。 */
+  resumeModule: (moduleId: string) => void
+
   /** 从 module_intro 进入 concept(0, 0) */
   startConcept: () => void
 
@@ -111,7 +114,57 @@ export const useProgressStore = create<ProgressStoreState>()(
     (set, get) => ({
       ...initialState,
 
-      // TODO(V2.0.1 F1-1): 新增 `resumeModule(moduleId)` action 时，MUST use `storage`（LS）读 per-module snapshot，禁止 `getStorage()`。详见文件顶部 Storage Invariant。
+      /**
+       * 恢复模块进度（不重置）。
+       *
+       * 恢复优先级：
+       *   1. 读取 LS 中的 per-module snapshot（storage.get）
+       *   2. 若当前全局 blob 的 moduleId === 目标 moduleId，比较 updatedAt，取更新的快照
+       *   3. 若快照 stage.kind === 'done' → 走 startModule 语义（让用户从头看）
+       *   4. 若无任何有效进度 → 走 startModule 语义
+       *
+       * Storage Invariant: 必须用 `storage`（LS）读 per-module，不能用 getStorage()
+       * 已知限制: feynmanAttempt 在恢复时清空（per-module snapshot 不保存该字段）
+       */
+      resumeModule: (moduleId: string) => {
+        const snapshot = storage.get<ProgressState>(StorageKeys.progress(moduleId))
+
+        const current = get()
+        const globalMatched =
+          current.moduleId === moduleId && current.stage !== null
+            ? { stage: current.stage, updatedAt: current.updatedAt }
+            : null
+
+        let winner: { stage: ModuleStage; updatedAt: number } | null = null
+        if (snapshot && snapshot.stage && snapshot.stage.kind !== 'done') {
+          winner = { stage: snapshot.stage, updatedAt: snapshot.updatedAt }
+        }
+        if (
+          globalMatched &&
+          globalMatched.stage.kind !== 'done' &&
+          (!winner || globalMatched.updatedAt > winner.updatedAt)
+        ) {
+          winner = globalMatched
+        }
+
+        if (winner) {
+          set({
+            moduleId,
+            stage: winner.stage,
+            updatedAt: winner.updatedAt,
+            feynmanAttempt: null,
+          })
+          return
+        }
+
+        set({
+          moduleId,
+          stage: { kind: 'module_intro' },
+          updatedAt: Date.now(),
+          feynmanAttempt: null,
+        })
+      },
+
       startModule: (moduleId) =>
         set({
           moduleId,
