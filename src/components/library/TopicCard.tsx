@@ -109,7 +109,7 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
             {topic.description && <p className="alc-label mt-1 text-xs">{topic.description}</p>}
           </div>
           <span className="text-xs text-fg-tertiary shrink-0">
-            {completedCount}/{totalCount} 完成
+            {completedCount === 0 ? '未开始' : `${completedCount}/${totalCount} 已完成`}
           </span>
         </div>
 
@@ -143,6 +143,34 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
                   >
                     {m.title}
                   </span>
+                  {m.progressInfo && (
+                    <>
+                      <span
+                        className={
+                          m.progressInfo.done
+                            ? 'text-xs text-[var(--success)] shrink-0'
+                            : m.progressInfo.started
+                              ? 'text-xs text-[var(--accent-primary)] shrink-0'
+                              : 'text-xs text-[var(--fg-tertiary)] shrink-0'
+                        }
+                      >
+                        {m.progressInfo.label}
+                      </span>
+                      <div className="w-16 h-1 rounded-full bg-[var(--bg-elevated)] shrink-0">
+                        <div
+                          className="h-full rounded-full transition-[width] duration-300 ease-out"
+                          style={{
+                            width: `${m.progressInfo.conceptPercent}%`,
+                            backgroundColor: m.progressInfo.done
+                              ? 'var(--success)'
+                              : m.progressInfo.started
+                                ? 'var(--accent-primary)'
+                                : 'transparent',
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               )
             })}
