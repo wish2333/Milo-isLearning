@@ -112,6 +112,7 @@ export function createExpandJob(
   args: {
     sourceHash: string
     topicId?: string
+    constraints?: string
     items: Array<{
       itemId?: string
       moduleIndex: number
@@ -135,6 +136,7 @@ export function createExpandJob(
   const job: ExpandJob = {
     jobId: `expand-job-${nanoid()}`,
     ...(args.topicId !== undefined ? { topicId: args.topicId } : {}),
+    ...(args.constraints !== undefined ? { constraints: args.constraints } : {}),
     sourceHash: args.sourceHash,
     itemIds: items.map((item) => item.itemId),
     items,

@@ -43,6 +43,8 @@ export interface ExpandJobCheckpoint {
 export interface ExpandJob {
   jobId: string
   topicId?: string
+  /** 批量任务共享的扩充约束，供刷新后 resume 使用。 */
+  constraints?: string
   sourceHash: string
   itemIds: string[]
   items: ExpandJobItem[]

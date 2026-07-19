@@ -7,6 +7,7 @@
  */
 import type { CompileQualityReport } from '@/lib/compiler/quality/quality-report'
 import { expandJobLibrary } from '@/lib/persistence/expand-job-library'
+import { assignLocalModuleIdentity } from '@/lib/persistence/module-package'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import type { StorageRepository } from '@/lib/persistence/shared/repository'
 import type { KnowledgeSource, Module } from '@/types/domain'
@@ -35,7 +36,7 @@ export interface TopicExpandPipelineOptions {
     item: ExpandJobItem,
     qualityReport: CompileQualityReport | undefined,
     repository: StorageRepository | undefined,
-  ) => void | Promise<void>
+  ) => Module | void | Promise<Module | void>
 }
 
 export interface ExpandJobCounts {
@@ -88,25 +89,27 @@ function persistCompletedModule(
   item: ExpandJobItem,
   qualityReport: CompileQualityReport | undefined,
   repository: StorageRepository | undefined,
-): void {
-  if (!repository) return
+): Module {
+  if (!repository) return module
 
   const now = Date.now()
+  const storedModule = assignLocalModuleIdentity(module)
   const source: KnowledgeSource = {
-    id: module.sourceId,
+    id: storedModule.sourceId,
     type: 'markdown',
     content: item.source,
     createdAt: now,
   }
   repository.set(StorageKeys.source(source.id), source)
-  repository.set(StorageKeys.module(module.id), {
-    ...module,
+  repository.set(StorageKeys.module(storedModule.id), {
+    ...storedModule,
     origin: 'user' as const,
     importedAt: now,
   })
   if (qualityReport) {
-    repository.set(StorageKeys.qualityReport(module.id), qualityReport)
+    repository.set(StorageKeys.qualityReport(storedModule.id), qualityReport)
   }
+  return storedModule
 }
 
 function toItemError(error: CompileErrorPayload): CompileErrorPayload {
@@ -283,13 +286,15 @@ export async function* compileTopicWithExpand(
       return
     }
 
+    let persistedModuleId = compiledModule.id
     try {
-      await (options.writeModule ?? persistCompletedModule)(
+      const persistedModule = await (options.writeModule ?? persistCompletedModule)(
         compiledModule,
         currentItem,
         qualityReport,
         options.repository,
       )
+      persistedModuleId = persistedModule?.id ?? compiledModule.id
     } catch (error: unknown) {
       const translated = makeUnexpectedError('unknown', error)
       library.updateItem(
@@ -320,14 +325,14 @@ export async function* compileTopicWithExpand(
     library.updateItem(
       options.jobId,
       currentItem.itemId,
-      { status: 'done', attempts, moduleId: compiledModule.id, error: null },
+      { status: 'done', attempts, moduleId: persistedModuleId, error: null },
       options.repository,
     )
     yield {
       kind: 'item_completed',
       jobId: options.jobId,
       itemId: currentItem.itemId,
-      moduleId: compiledModule.id,
+      moduleId: persistedModuleId,
     }
 
     const afterItem = library.get(options.jobId, options.repository)

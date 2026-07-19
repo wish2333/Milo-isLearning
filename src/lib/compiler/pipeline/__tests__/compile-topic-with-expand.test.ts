@@ -148,8 +148,17 @@ describe('compileTopicWithExpand', () => {
       'topic_expand_completed',
     ])
     expect(expandJobLibrary.get(job.jobId, repo)).toMatchObject({ status: 'completed' })
-    expect(repo.get<Module>(StorageKeys.module('module-item-1'))?.origin).toBe('user')
-    expect(repo.get<Module>(StorageKeys.module('module-item-2'))?.origin).toBe('user')
+    const completedModuleIds = events
+      .filter(
+        (event): event is Extract<CompileEvent, { kind: 'item_completed' }> =>
+          event.kind === 'item_completed',
+      )
+      .map((event) => event.moduleId)
+    expect(completedModuleIds).toHaveLength(2)
+    expect(new Set(completedModuleIds).size).toBe(2)
+    for (const moduleId of completedModuleIds) {
+      expect(repo.get<Module>(StorageKeys.module(moduleId))?.origin).toBe('user')
+    }
   })
 
   it('单 item 失败时保留已完成 Module 与 done checkpoint', async () => {
@@ -177,11 +186,13 @@ describe('compileTopicWithExpand', () => {
     expect(restored?.status).toBe('failed')
     expect(restored?.items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ itemId: 'item-1', status: 'done', moduleId: 'module-item-1' }),
+        expect.objectContaining({ itemId: 'item-1', status: 'done' }),
         expect.objectContaining({ itemId: 'item-2', status: 'failed' }),
       ]),
     )
-    expect(repo.get<Module>(StorageKeys.module('module-item-1'))).not.toBeNull()
+    const completedModuleId = restored?.items.find((item) => item.itemId === 'item-1')?.moduleId
+    expect(completedModuleId).toBeTruthy()
+    expect(repo.get<Module>(StorageKeys.module(completedModuleId!))).not.toBeNull()
     expect(events.some((event) => event.kind === 'item_failed')).toBe(true)
   })
 

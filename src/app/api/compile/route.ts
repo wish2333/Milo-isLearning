@@ -159,6 +159,7 @@ export async function POST(req: NextRequest) {
           {
             sourceHash: topicExpandSourceHash,
             topicId: typeof parsedBody.topicId === 'string' ? parsedBody.topicId : undefined,
+            constraints,
             items: topicExpandItems,
           },
           topicExpandRepository,
