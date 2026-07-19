@@ -34,6 +34,11 @@ export const StorageKeys = {
   qualityReport: (moduleId: string) => `${STORAGE_NAMESPACE}:quality:${moduleId}`,
   /** 编译 job 状态（M7.5：刷新恢复用，不存 stage outputs） */
   compileJob: (jobId: string) => `${STORAGE_NAMESPACE}:compile-job:${jobId}`,
+  /** V2.1.0 P1：批量扩充 job 元数据与 item 顺序 */
+  expandJob: (jobId: string) => `${STORAGE_NAMESPACE}:expand-job:${jobId}`,
+  /** V2.1.0 P1：批量扩充单 Module checkpoint */
+  expandJobCheckpoint: (jobId: string, itemId: string) =>
+    `${STORAGE_NAMESPACE}:expand-job-checkpoint:${jobId}:${itemId}`,
   /** 用户设置（LLM Provider / API Key 等），单一全局 key */
   settings: `${STORAGE_NAMESPACE}:settings`,
   /** 埋点事件批量缓冲 */
