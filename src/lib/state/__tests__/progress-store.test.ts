@@ -1,13 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useProgressStore } from '../progress-store'
-import type { ProgressState, ModuleStage } from '@/types/domain'
+import type { FeynmanAttempt, ProgressState, ModuleStage } from '@/types/domain'
 import { storage } from '@/lib/persistence/client/local-storage'
 
 vi.mock('@/lib/persistence/client/local-storage', () => ({
-  storage: { get: vi.fn<(key: string) => ProgressState | null>(), set: vi.fn() },
+  storage: {
+    get: vi.fn<(key: string) => ProgressState | null>(),
+    set: vi.fn<(key: string, value: ProgressState) => void>(),
+  },
 }))
 
 const mockStorageGet = vi.mocked(storage.get)
+const mockStorageSet = vi.mocked(storage.set)
 
 vi.mock('@/lib/persistence/client/storage', () => ({
   getStorage: () => ({ getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() }),
@@ -45,6 +49,12 @@ vi.mock('./settings-store', () => ({
 
 const MODULE_ID = 'module-test-123'
 
+const feynmanAttempt: FeynmanAttempt = {
+  moduleId: MODULE_ID,
+  stepResults: [{ stepOrder: 1, score: 80 }],
+  submittedAt: 999,
+}
+
 function makeSnapshot(overrides: Partial<ProgressState> = {}): ProgressState {
   return {
     moduleId: MODULE_ID,
@@ -62,6 +72,7 @@ describe('progress-store resumeModule', () => {
       updatedAt: 0,
       feynmanAttempt: null,
     })
+    vi.clearAllMocks()
     mockStorageGet.mockReturnValue(null)
   })
 
@@ -85,6 +96,19 @@ describe('progress-store resumeModule', () => {
     expect(state.updatedAt).toBe(1000)
   })
 
+  it('restores feynmanAttempt from a per-module snapshot', () => {
+    mockStorageGet.mockReturnValue(
+      makeSnapshot({
+        stage: { kind: 'feynman_step', stepOrder: 2 },
+        feynmanAttempt,
+      }),
+    )
+
+    useProgressStore.getState().resumeModule(MODULE_ID)
+
+    expect(useProgressStore.getState().feynmanAttempt).toEqual(feynmanAttempt)
+  })
+
   it('falls back to module_intro when snapshot stage is done', () => {
     mockStorageGet.mockReturnValue(makeSnapshot({ stage: { kind: 'done' }, updatedAt: 1000 }))
 
@@ -101,7 +125,7 @@ describe('progress-store resumeModule', () => {
       moduleId: MODULE_ID,
       stage: globalStage,
       updatedAt: 2000,
-      feynmanAttempt: null,
+      feynmanAttempt,
     })
     mockStorageGet.mockReturnValue(
       makeSnapshot({
@@ -115,6 +139,7 @@ describe('progress-store resumeModule', () => {
     const state = useProgressStore.getState()
     expect(state.stage).toEqual(globalStage)
     expect(state.updatedAt).toBe(2000)
+    expect(state.feynmanAttempt).toEqual(feynmanAttempt)
   })
 
   it('uses snapshot when global moduleId does not match', () => {
@@ -152,27 +177,57 @@ describe('progress-store resumeModule', () => {
     expect(second.updatedAt).toBe(first.updatedAt)
   })
 
-  it('clears feynmanAttempt even when snapshot has one', () => {
+  it('falls back to null for an old snapshot without feynmanAttempt', () => {
     mockStorageGet.mockReturnValue(
       makeSnapshot({
-        stage: { kind: 'concept', conceptIndex: 1, quizIndex: 2 },
+        stage: { kind: 'feynman_step', stepOrder: 2 },
         updatedAt: 1000,
       }),
     )
     useProgressStore.setState({
-      moduleId: null,
-      stage: null,
-      updatedAt: 0,
-      feynmanAttempt: {
-        moduleId: MODULE_ID,
-        stepResults: [{ stepOrder: 1, score: 80 }],
-        submittedAt: 999,
-      },
+      moduleId: MODULE_ID,
+      stage: { kind: 'feynman_step', stepOrder: 1 },
+      updatedAt: 500,
+      feynmanAttempt,
     })
 
     useProgressStore.getState().resumeModule(MODULE_ID)
 
-    const state = useProgressStore.getState()
-    expect(state.feynmanAttempt).toBeNull()
+    expect(useProgressStore.getState().feynmanAttempt).toBeNull()
+  })
+
+  it('persists feynmanAttempt in the per-module snapshot', () => {
+    useProgressStore.getState().startModule(MODULE_ID)
+    mockStorageSet.mockClear()
+
+    useProgressStore.getState().startFeynman()
+
+    expect(mockStorageSet).toHaveBeenLastCalledWith(
+      `alc:progress:${MODULE_ID}`,
+      expect.objectContaining({
+        feynmanAttempt: {
+          moduleId: MODULE_ID,
+          stepResults: [],
+          submittedAt: 0,
+        },
+      }),
+    )
+  })
+
+  it('clears feynmanAttempt on startModule and reset', () => {
+    useProgressStore.setState({
+      moduleId: MODULE_ID,
+      stage: { kind: 'feynman_step', stepOrder: 1 },
+      updatedAt: 1000,
+      feynmanAttempt,
+    })
+
+    useProgressStore.getState().startModule(MODULE_ID)
+    expect(useProgressStore.getState().feynmanAttempt).toBeNull()
+
+    useProgressStore.setState({ feynmanAttempt })
+    useProgressStore.getState().reset()
+
+    expect(useProgressStore.getState().feynmanAttempt).toBeNull()
   })
 })

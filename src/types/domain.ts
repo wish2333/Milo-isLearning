@@ -284,6 +284,8 @@ export interface ProgressState {
   moduleId: string
   stage: ModuleStage
   updatedAt: number
+  /** 费曼作答记录；旧 snapshot 缺失该字段时按 null 兼容。 */
+  feynmanAttempt?: FeynmanAttempt | null
 }
 
 // =================================================================
