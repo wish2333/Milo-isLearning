@@ -29,6 +29,16 @@ export {
   type BackfillResult,
 } from './compile-with-expand'
 export {
+  compileTopicWithExpand,
+  countTopicExpandItems,
+  getTopicExpandRunnableItems,
+  planTopicExpandCancellation,
+  validateTopicExpandSourceHash,
+  type ExpandJobCancellationPlan,
+  type ExpandJobCounts,
+  type TopicExpandPipelineOptions,
+} from './compile-topic-with-expand'
+export {
   ERROR_TABLE,
   makeError,
   makeInputError,
@@ -50,4 +60,5 @@ export {
   type CompileEvent,
   type CompileOptions,
   type CompileStage,
+  type TopicExpandEvent,
 } from './types'
