@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
@@ -142,30 +142,45 @@ export default function TodayPage() {
             <p className="text-xs text-fg-tertiary">天</p>
           </div>
           <div className="alc-card p-4">
-            <p className="alc-label">今日到期</p>
-            <p className="mt-2 text-2xl font-semibold text-fg-primary">{initialCount}</p>
-            <p className="text-xs text-fg-tertiary">题</p>
+            <p className="alc-label">今日到期（FSRS）</p>
+            <p className="mt-2 text-2xl font-semibold text-fg-primary">
+              {fsrsEnabled ? initialCount : '—'}
+            </p>
+            <p className="text-xs text-fg-tertiary">
+              {fsrsEnabled ? '启动时快照 · 不等于今日总作答' : 'FSRS 未启用，due 不可用'}
+            </p>
           </div>
           <div className="alc-card p-4">
             <p className="alc-label">完成进度</p>
             <p className="mt-2 text-2xl font-semibold text-fg-primary">
               {completedCount} / {initialCount}
             </p>
-            <p className="text-xs text-fg-tertiary">基于启动快照</p>
+            <p className="text-xs text-fg-tertiary">已完成 / 启动时到期</p>
           </div>
         </section>
 
         {!fsrsEnabled && (
           <section className="alc-card p-4 space-y-2" role="status">
             <p className="text-sm text-fg-primary">FSRS 尚未启用</p>
-            <p className="text-xs text-fg-secondary">开启后这里会显示按本地时间到期的复习题。</p>
-            <button
-              type="button"
-              className="alc-button-secondary text-xs px-3 py-1.5"
-              onClick={() => router.push('/settings')}
-            >
-              前往设置
-            </button>
+            <p className="text-xs text-fg-secondary">
+              今日到期队列不可用；基础作答记录和学习日统计仍会保留在学习统计中。
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="alc-button-secondary text-xs px-3 py-1.5"
+                onClick={() => router.push('/settings')}
+              >
+                前往设置
+              </button>
+              <button
+                type="button"
+                className="alc-button-secondary text-xs px-3 py-1.5"
+                onClick={() => router.push('/learn/stats')}
+              >
+                查看学习统计
+              </button>
+            </div>
           </section>
         )}
 
@@ -187,7 +202,9 @@ export default function TodayPage() {
         )}
 
         {fsrsEnabled && moduleGroups.length === 0 && !activeSession && (
-          <div className="alc-card p-5 text-sm text-fg-secondary">今天没有已到期的题目。</div>
+          <div className="alc-card p-5 text-sm text-fg-secondary" role="status">
+            今天没有已到期的题目。到期数量来自当前 FSRS schedule，不代表今天没有学习记录。
+          </div>
         )}
 
         {activeSession && isFinished && initialCount > 0 && (
