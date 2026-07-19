@@ -19,7 +19,12 @@ export const isStorageBackendConfigured: boolean = process.env.ALC_STORAGE_BACKE
 export const isStorageEnabled: boolean = isProductionMode && isStorageBackendConfigured
 
 /**
- * SQLite 数据库文件路径（相对于项目根目录）。
+ * SQLite 数据库文件路径。
+ * 优先级：ALC_DB_PATH env > 默认 'data/alc.db'。
+ * ALC_DB_PATH 用于测试/验证场景隔离，避免污染真实学习数据。
  * 仅在 isStorageEnabled=true 时使用。
  */
-export const SQLITE_DB_PATH = 'data/alc.db'
+export const SQLITE_DB_PATH: string = process.env.ALC_DB_PATH ?? 'data/alc.db'
+
+/** SQLite 自动备份目录，供隔离验证环境覆盖，默认保持向后兼容。 */
+export const SQLITE_BACKUP_DIR: string = process.env.ALC_BACKUP_DIR ?? 'data/backup'

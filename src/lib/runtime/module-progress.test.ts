@@ -207,4 +207,29 @@ describe('computeModuleProgress', () => {
     expect(result.conceptPercent).toBe(95)
     expect(result.label).toBe('最后阶段')
   })
+
+  it('includes answered quiz count when attempts are provided', () => {
+    const mod = makeModule(2)
+    const result = computeModuleProgress(
+      mod,
+      makeProgress({ kind: 'concept', conceptIndex: 0, quizIndex: 0 }),
+      {
+        'quiz-1-1': [
+          {
+            id: 'attempt-1',
+            quizId: 'quiz-1-1',
+            originalQuizId: 'quiz-1-1',
+            attemptVersion: 0,
+            userAnswer: 'A',
+            score: 100,
+            gaps: [],
+            nextAction: 'advance',
+            timestamp: 1,
+          },
+        ],
+      },
+    )
+    expect(result.answeredQuizCount).toBe(1)
+    expect(result.label).toBe('概念 1/2 · 已答 1 题')
+  })
 })

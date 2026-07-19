@@ -5,7 +5,6 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Showcase Home', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to showcase home
     await page.goto('/')
   })
 
