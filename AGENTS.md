@@ -1,17 +1,17 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-07-18
-**Commit:** (pending — v2.0.0 session)
-**Branch:** feat/v2.0.0
-**Docs version:** v2.0.0 (localhost production reliability + FSRS derived cache + AI expand pipeline + client search) — v0.1.0 archive below `docs/v0.1.0/`, v1.0.0/v1.1.0/v1.2.0 in respective dirs
-**Latest milestone:** V2.0.0 个人记忆闭环与客户端搜索 (2026-07-17) — see `docs/v2.0.0/v2.0.0-Review.md`
+**Generated:** 2026-07-19
+**Commit:** `daa860d` (`v2.1.0`)
+**Branch:** `main`
+**Docs version:** v2.1.0 (发布验证、批量 AI 扩充、学习趋势与搜索规模评估) — v0.1.0–v1.2.0 and v2.0.0 archives remain under their versioned `docs/` directories
+**Latest milestone:** V2.1.0 个人学习闭环强化与批量扩充 (2026-07-19) — see `docs/v2.1.0/v2.1.0-Review.md`
 
 ## OVERVIEW
 
 `ai-learning-compiler` — Next.js 15 + React 19 app that "compiles" raw Markdown into structured interactive learning modules (concepts → laddered quizzes → Feynman teach-back). LLM-driven 8-stage pipeline, Chinese-first. Ships in **two build modes** controlled by `NEXT_PUBLIC_APP_MODE`:
 
 - **`showcase`** (default) — zero-backend demo. LocalStorage-only, mock-compile events, showcase题库 shipped under `public/showcase-modules/`. API routes fall back to server-side env LLM config when no BYOK key is set.
-- **`production`** — SQLite-backed (`ALC_STORAGE_BACKEND=sqlite`). Server-side KV + client write-queue, legacy-LS→SQLite migration flow, real LLM compile. V2.0.0 adds auto-backup + integrity_check + FSRS derived cache + AI expand compile mode + client search.
+- **`production`** — SQLite-backed (`ALC_STORAGE_BACKEND=sqlite`). Server-side KV + client write-queue, legacy-LS→SQLite migration flow, real LLM compile. V2 adds auto-backup + integrity_check + FSRS derived cache + AI expand compile mode + client search; V2.1 adds batch AI expansion with Module checkpoints, pause/resume/cancel/retry, Today/Stats trends, and release-gate isolation.
 
 See `src/lib/compiler/AGENTS.md` for the compiler subsystem.
 
@@ -21,8 +21,8 @@ See `src/lib/compiler/AGENTS.md` for the compiler subsystem.
 .
 ├── src/
 │   ├── app/                       # Next.js App Router: pages + API routes
-│   │   ├── api/                   # 13 routes across 4 namespaces
-│   │   │   ├── compile/             # SSE streaming endpoint (core; V2 adds expand mode)
+│   │   ├── api/                   # 27 route handlers across compile/data/migrate/backup and LLM namespaces
+│   │   │   ├── compile/             # Single/batch SSE compile, session, checkpoint, resume, cancel
 │   │   │   ├── feedback/            # Answer feedback agent (env-fallback aware)
 │   │   │   ├── feynman-eval/        # Feynman step-6 scoring (env-fallback aware)
 │   │   │   ├── regenerate/          # Retry quiz replacement
@@ -30,7 +30,7 @@ See `src/lib/compiler/AGENTS.md` for the compiler subsystem.
 │   │   │   ├── ping/                # Provider health check
 │   │   │   ├── migrate/             # LS→SQLite migration (5 routes: session/staging/commit/cancel/source-snapshot) — production mode only
 │   │   │   └── backup/              # ★ V2.0.0 auto (POST force/24h) + verify (GET PRAGMA integrity_check) — production mode only
-│   │   ├── learn/                 # 12-page learning journey (import→compile→overview→module→done + library + history + topic/[topicId] + review/[moduleId] + review/topic/[topicId] + today + today/review + stats)
+│   │   ├── learn/                 # 14 pages: import→compile→overview→module→done + library/history/topic/review + expand-job + today/today-review/stats
 │   │   ├── studio/                # Showcase-only studio entry (`/studio` + `/studio/settings`)
 │   │   ├── settings/              # Unified settings page (mode-dispatched inside; V2 adds FSRS + 备份验证区)
 │   │   ├── layout.tsx             # Root layout w/ SEO metadata (OG/Twitter/icons/robots)
@@ -58,7 +58,7 @@ See `src/lib/compiler/AGENTS.md` for the compiler subsystem.
 │   │   │   ├── server/            # Server-side SQLite (better-sqlite3): db-singleton, sqlite-repository, schema, events-repo, backup (+ auto-backup, backup-verify), compile-checkpoint, migration-staging, migration-logs, config
 │   │   │   └── client/            # Client-side storage (production mode): client-fetch-storage, write-queue (V2 lastError/failedAt + retryOne), flush-manager, zustand-storage-adapter, storage-initializer, legacy-local-storage-scanner, storage, local-storage, ★ auto-backup-trigger
 │   │   ├── showcase/              # Showcase loader + mock-compile-events (no LLM, plays SSE recording)
-│   │   ├── state/                 # 10 Zustand stores (see CODE MAP)
+│   │   ├── state/                 # 11 Zustand stores (see CODE MAP; includes TodaySession and batch compile job state)
 │   │   └── hooks/                 # useHydrated (SSR guard for Zustand persist)
 │   └── types/
 │       └── domain.ts              # ALL domain models. V2 adds: SchedulingData, StudyStreak, Concept.knowledgePage/sourceAnchorId, ModuleStage 'concept_intro', ReviewFilter 'due'
@@ -67,11 +67,12 @@ See `src/lib/compiler/AGENTS.md` for the compiler subsystem.
 │   ├── v1.0.0/                    # V2.0 PRD + M7.8/M8/M8.1/M8.2/M8.3/V1.0.0 plans+reviews + Deploying.md + Showcase-Guide.md
 │   ├── v1.1.0/                    # v1.0.1/v1.1.0/v1.1.1 plans+reviews
 │   ├── v1.2.0/                    # v1.2.0 plan + review (deployment gate + quiz editing completion) + Showcase.alc-{module,topic}.json
-│   └── v2.0.0/                    # ★ Current: v2.0.0 plan/design/review + Deploying-Localhost.md
+│   ├── v2.0.0/                    # v2.0.0 plan/design/review + Deploying-Localhost.md
+│   └── v2.1.0/                    # ★ Current: v2.1.0 plan/review + release verification notes
 ├── public/
 │   └── showcase-modules/          # Static showcase题库: manifest.json + mao-work-methods.alc-module.json + showcase-das-kapital.alc-topic.json
-├── scripts/                       # Bun CLI: ping.ts, prompt-eval.ts, m3-smoke.ts, render-og.ts
-├── e2e/                           # Playwright tests (workers=1, fullyParallel=false): smoke, library, topic, api-data, storage-layer, showcase/{home,v1-regression}
+├── scripts/                       # Bun CLI: DB status/reset/backup, provider ping, prompt/compile eval, search benchmark, OG/font tools
+├── e2e/                           # Playwright tests (workers=1): smoke, library, topic, Today/Search, release gate, API/storage, showcase regressions
 └── references/                    # Session notes/external references
 ```
 
@@ -80,7 +81,7 @@ See `src/lib/compiler/AGENTS.md` for the compiler subsystem.
 | Task                            | Location                                                                                                                                                         | Notes                                                                                                                                                           |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Understand domain model         | `src/types/domain.ts`                                                                                                                                            | Single source of truth — read first. V2 adds SchedulingData, StudyStreak, Concept.knowledgePage/sourceAnchorId, ModuleStage 'concept_intro', ReviewFilter 'due' |
-| Trace compile flow              | `src/lib/compiler/AGENTS.md` → `pipeline/pipeline.ts:88`                                                                                                         | `compileMarkdown()` async generator. V2 adds `compile-with-expand.ts` (AI 扩充独立 pipeline)                                                                    |
+| Trace compile flow              | `src/lib/compiler/AGENTS.md` → `pipeline/pipeline.ts:88`                                                                                                         | `compileMarkdown()` async generator; `compile-with-expand.ts` and `compile-topic-with-expand.ts` cover single/batch AI 扩充                                     |
 | Add API route                   | `src/app/api/<name>/route.ts`                                                                                                                                    | Stateless proxy to LLM; vercel.json sets `maxDuration`                                                                                                          |
 | Change quiz rendering           | `src/components/quiz/QuizRenderer.tsx`                                                                                                                           | Dispatches by `interactionType`                                                                                                                                 |
 | Modify learning state machine   | `src/lib/state/progress-store.ts` + `domain.ts` `ModuleStage`                                                                                                    | Discriminated union — illegal transitions = compile error. V2 adds `'concept_intro'` stage (AI 扩充知识页)                                                      |
@@ -99,7 +100,9 @@ See `src/lib/compiler/AGENTS.md` for the compiler subsystem.
 | Spaced repetition toggle        | `src/lib/state/settings-store.ts` `confirmReviewEnabled` + `progress-store.ts`                                                                                   | Default `true`; when off, `collectConfirmSlots` is skipped                                                                                                      |
 | **FSRS derived schedule**       | `runtime/fsrs.ts` + `fsrs-replay.ts` + `fsrs-schedule-coordinator.ts` + `fsrs-migrate.ts` + `persistence/schedule-library.ts` + `state/settings-store.ts` `fsrs` | ★ V2: attempts 是真值，schedule 是可重放缓存；`synchronizeScheduleForSlot` 是协调层入口；`rebuildScheduleForSlot` 全量重放；参数变更触发全量回填                |
 | **Today review & stats**        | `app/learn/today/page.tsx` + `app/learn/today/review/page.tsx` + `app/learn/stats/page.tsx` + `runtime/{streak,stats-compute}.ts`                                | ★ V2: 浏览器本地时区判定 due；TodaySession 持久化；`/learn/today` → 按模块分组的 due 列表 + streak                                                              |
+| **批量 AI 扩充**                | `compiler/pipeline/compile-topic-with-expand.ts` + `persistence/expand-job-library.ts` + `state/compile-job-store.ts` + `app/learn/expand-job/page.tsx`          | ★ V2.1: 按 Module checkpoint 串行扩充；支持 pause/resume/cancel/失败项重试；sourceHash 防止恢复旧输入；showcase 任务不落盘                                      |
 | **Client search**               | `runtime/search-client.ts` + `components/search/SearchDialog.tsx` + `components/GlobalNav.tsx` (Cmd/Ctrl+K)                                                      | ★ V2: 打开时从当前 storage 重建索引 (rebuild-on-open)；中文子串 + 纯文本 snippet；不分模式共用                                                                  |
+| **Search benchmark**            | `scripts/search-benchmark.ts` + `runtime/search-client.test.ts`                                                                                                  | ★ V2.1: 以 10/50/100/500 Module 合成数据测量 rebuild/search/RSS；当前规模暂不引入 FTS5                                                                          |
 | **AI 扩充导入 (X1)**            | `compiler/agents/knowledge-expander.ts` + `compiler/pipeline/compile-with-expand.ts` + `components/learn/KnowledgePageView.tsx`                                  | ★ V2: expand → compile → anchor ID 精确回填；未匹配 anchor 保留 warning；`concept_intro` 状态机                                                                 |
 | 蒙对标注 (guessed self-report)  | `src/lib/state/attempts-store.ts` `markGuessed`/`unmarkGuessed` + `components/quiz/FeedbackPanel.tsx`                                                            | Unmark = destructure field removal (not set to false). V2: 蒙对→Hard 影响 FSRS schedule                                                                         |
 | Quiz editing (F40+F42)          | `src/components/quiz/AnswerCorrector.tsx` + `FeedbackPanel.tsx` `onCorrectAnswer`                                                                                | `QuizEditPatch` type = widened `Partial<Pick<Quiz, ...>>`; 3 editors by interactionType; "编辑此题" button. V2: 纠题后 schedule 全量重放 (contentRevision 变更) |
@@ -140,10 +143,11 @@ Core symbols (highest centrality). Full compiler map → `src/lib/compiler/AGENT
 | `computeModuleProgress` | fn    | `runtime/module-progress.ts`    | V2.0.1: Pure concept-level progress (label/percent/started/done); 不计算已答题数               |
 | `enterModule`           | fn    | `runtime/enter-module.ts`       | V2.0.1: 统一入口（setModule + resumeModule/startModule）；返回 boolean；调用方负责 router.push |
 
-### State (10 Zustand stores)
+### State (11 Zustand stores)
 
 | Symbol                 | Type  | Location                       | Role                                                                                                                                      |
 | ---------------------- | ----- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `useTodaySessionStore` | store | `state/today-session-store.ts` | Persisted Today due queue snapshot and review-round result                                                                                |
 | `useProgressStore`     | store | `state/progress-store.ts`      | State machine transitions + Feynman tracking + spaced-repetition gate. V2.0.1: `resumeModule` 三级 fallback (snapshot→global→startModule) |
 | `useModuleStore`       | store | `state/module-store.ts`        | Current Module/Quiz; `replaceCurrentQuiz()` for retry; `correctQuizAnswer()` for F40/F42 edits                                            |
 | `useSettingsStore`     | store | `state/settings-store.ts`      | LLM config + `confirmReviewEnabled` toggle                                                                                                |
@@ -234,11 +238,27 @@ Core symbols (highest centrality). Full compiler map → `src/lib/compiler/AGENT
 | `triggerAutoBackup`  | fn    | `persistence/client/auto-backup-trigger.ts` | Client hook: flushNow() first, then POST `/api/backup/auto`; aborts if failed tasks exist            |
 | `retryOne`           | fn    | `persistence/client/write-queue.ts`         | V2: per-task retry (replaces clearFailed); WriteTask adds `lastError`/`failedAt`                     |
 
+### Batch AI expansion (v2.1.0)
+
+| Symbol                                                       | Type   | Location                                         | Role                                                                                        |
+| ------------------------------------------------------------ | ------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `compileTopicWithExpand`                                     | fn*    | `compiler/pipeline/compile-topic-with-expand.ts` | 串行处理 Topic 的多个 Module；每个 item 独立 checkpoint，支持边界暂停、取消、恢复与失败重试 |
+| `ExpandJob` / `ExpandJobItem`                                | type   | `types/expand-job.ts`                            | 批量任务、子项状态、attempts、error 与 sourceHash 的领域模型                                |
+| `expandJobLibrary`                                           | repo   | `persistence/expand-job-library.ts`              | 持久化 job index、item checkpoint 与清理；showcase 使用 transient job                       |
+| `/api/compile/{expand-job,checkpoint,resume,cancel,session}` | routes | `app/api/compile/`                               | production-only 批量控制 API；恢复前校验 sourceHash，取消采用 item 边界收尾语义             |
+
+### Learning trends (v2.1.0)
+
+| Symbol         | Type       | Location                                           | Role                                                          |
+| -------------- | ---------- | -------------------------------------------------- | ------------------------------------------------------------- |
+| `computeStats` | fn         | `runtime/stats-compute.ts`                         | 纯函数派生 7/30 日趋势、首答/复习分类、due 完成度与学习日统计 |
+| `TodaySession` | type/store | `types/domain.ts` + `state/today-session-store.ts` | 持久化 Today due 队列快照与本轮结果，支持刷新后恢复           |
+
 ## CONVENTIONS
 
 - **Bun toolchain** — `bun run dev/test/build`. Scripts needing env: `bun --env-file=.env.local run scripts/*.ts`
 - **Path alias** `@/*` → `./src/*`
-- **Zustand everywhere** — 10 stores total. 9 persisted (`alc:state:*` / `alc:settings` keys) + 1 volatile (`compile-store`). Stores cross-ref via `.getState()`
+- **Zustand everywhere** — 11 stores total. Persisted stores use `alc:state:*` / `alc:settings` keys; volatile compile SSE state remains separate. Stores cross-ref via `.getState()`
 - **Persist middleware** — `persist(createJSONStorage(() => localStorage))` in showcase mode; `zustand-storage-adapter` → fetch-storage in production mode. Guard SSR with `useHydrated()` hook
 - **Build-time mode split** — `APP_MODE` is a build-time literal (`process.env.NEXT_PUBLIC_APP_MODE`). Default = `showcase`. Same code, two binaries; client/server must agree (so default is showcase on both)
 - **ContentOrigin tagging** — `Module.origin` / `Topic.origin` = `'showcase' | 'user'`. Library pages filter by `APP_MODE`: showcase mode sees only `origin==='showcase'`, production mode sees only `origin!=='showcase'`
@@ -265,6 +285,8 @@ Core symbols (highest centrality). Full compiler map → `src/lib/compiler/AGENT
 - **★ Topic 入口必须用 enterModule (V2.0.1)** — `TopicCard.handleStartTopic` / `TopicTransitionView.handleContinue/handleSkip/handleReenter` / `ShowcaseHome.handleStartTopic` 必须调 `enterModule({ moduleId, allowResume: true })`，**禁止**直接调 `startModule`（显式重做 `handleRestart` 除外）。直接调 `startModule` 会触发 V2.0.0 P0 数据丢失 bug（重置 stage 到 module_intro）。详见 fix-report §2.1
 - **★ per-module progress storage 二分 (V2.0.1)** — `alc:progress:{moduleId}` 通过 `storage`（LS 单例）读写；`alc:state:progress`（全局 Zustand blob）通过 `getStorage()` 读写。production 模式下两者 backend 不同（LS vs SQLite）。`resumeModule` 必须用 `storage` 读 per-module，禁止 `getStorage()`。架构债，V2.0.2 候选：统一到 getStorage()
 - **★ 模块细粒度进度只算 concept 维度 (V2.0.1)** — `computeModuleProgress` 不计算"已答题数"（`quizIndex` 可能落在 reviewSlot 上）。需要展示"已答题数"必须传 `attemptsBySlot`（attempts-store），但会让纯函数依赖外部 state。V2.0.2 候选
+- **★ 批量扩充按 Module checkpoint (V2.1)** — `compileTopicWithExpand` 串行处理 item；先写 Module/source，再写 done checkpoint。pause/cancel 只在 item 边界生效；resume 跳过 done item，失败项保留 error/attempts；恢复必须校验 `sourceHash`，showcase job 不落盘。
+- **★ 统计是纯函数派生 (V2.1)** — `computeStats` 不写趋势快照；7/30 日窗口按浏览器本地时区计算，首答正确率按 slot 最早唯一 attempt 计算，FSRS 关闭时保留基础学习统计但 due 指标不可用。
 
 ## GIT 提交与批次工作流
 
@@ -299,13 +321,18 @@ Core symbols (highest centrality). Full compiler map → `src/lib/compiler/AGENT
 bun run dev              # Next.js dev server
 bun run build            # Production build
 bun run typecheck        # tsc --noEmit
-bun run test             # vitest run (unit, node env) — 749 tests as of V2.0.0
+bun run test             # vitest run (unit, node env) — 803 tests in the v2.1.0 release gate
 bun run e2e              # playwright test (workers=1)
 bun run lint             # eslint .
 bun run format           # prettier --write .
 bun run ping             # LLM provider health check
 bun run eval             # Prompt evaluation framework
 bun run og:render        # Re-render OG image PNG from SVG (uses sharp)
+bun run db:status        # 查看 production SQLite 状态
+bun run db:backup        # 通过应用快照流程备份 production SQLite
+bun run db:reset         # 重置本地 production 数据（仅在确认目标后使用）
+bun run format:check     # 校验 Prettier 格式
+bun run scripts/search-benchmark.ts  # 搜索规模 benchmark（合成数据，不读 storage/provider）
 bun --env-file=.env.local run scripts/m3-smoke.ts  # End-to-end compile smoke
 ```
 
@@ -319,7 +346,7 @@ NEXT_PUBLIC_APP_MODE=showcase bun run build
 NEXT_PUBLIC_APP_MODE=production ALC_STORAGE_BACKEND=sqlite bun run build
 ```
 
-See `docs/v1.0.0/Deploying.md` for full deployment guide. V2.0.0 localhost production 部署见 `docs/v2.0.0/Deploying-Localhost.md`。
+See `docs/v1.0.0/Deploying.md` for the historical deployment guide. Current localhost production deployment is documented in `docs/v2.0.0/Deploying-Localhost.md`; user-facing setup starts at `README.md`.
 
 ### PR workflow
 
@@ -345,7 +372,7 @@ See `.agents/skills/release-workflow/SKILL.md` for the full closeout pipeline (r
 - **3 LLM provider kinds** — DeepSeek (primary, OpenAI-compat), GLM (智谱, coding-plan endpoint), openai-compat (generic, BYO baseURL/apiKey). SenseNova was removed. Each kind has defaults in `providers/<name>.ts`
 - **Quiz failure threshold** — 20% of quiz slots fail → entire compile aborts. Below → degraded silently (failed slots dropped)
 - **`tsconfig.json` excludes** `.omo`, `docs`, `references` — these are documentation/workflow dirs, not compiled
-- **Docs hierarchy** — Product-Specification.md (WHY/philosophy, archived in v0.1.0) → `docs/v1.0.0/PRD.md` (WHAT/scope, V2.0) → `docs/v0.1.0/Technical-Specification.md` (HOW/architecture, pre-SQLite legacy). Milestone plans+reviews in `docs/v1.0.0/M{7.8,8,8.1,8.2,8.3}-{Plan,Review}.md` and `docs/v1.0.0/v1.0.0-{plan,report}.md` + `V1.0.0-Review.md`. V2.0.0 plan/design/review in `docs/v2.0.0/`,localhost 部署见 `docs/v2.0.0/Deploying-Localhost.md`
+- **Docs hierarchy** — Product-Specification.md (WHY/philosophy, archived in v0.1.0) → `docs/v1.0.0/PRD.md` (WHAT/scope) → `docs/v0.1.0/Technical-Specification.md` (HOW/architecture, pre-SQLite legacy). V2.0.0 plan/design/review live in `docs/v2.0.0/`; V2.1.0 batch expansion, trend, benchmark, and release verification live in `docs/v2.1.0/`. Localhost deployment is `docs/v2.0.0/Deploying-Localhost.md`; end-user entry is `README.md`.
 - **Showcase content lives in `public/showcase-modules/`** — `manifest.json` enumerates available `.alc-module.json` / `.alc-topic.json` files. Authoritative copies also kept under `docs/v1.0.0/Showcase.alc-*` for reference; the `public/` copies are what the running app reads
 - **Topic system is M8.1** — a `Topic` is an ordered list of `moduleIds`. Each module may belong to ≤1 topic (UI-enforced). Deleting a topic leaves its modules orphaned (un-grouped), not deleted
 - **Migration is irreversible** — once LS data is committed to SQLite and the client marker is written, re-running `runMigration` skips migrated entries. Backup snapshots are saved server-side as `alc-ls-snapshot-*.json`
