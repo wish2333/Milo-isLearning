@@ -199,10 +199,10 @@ describe('ClientSearchIndex', () => {
     )
     const index = new ClientSearchIndex()
 
-    index.rebuild([...modules, modules[0], modules[25], modules[99]])
+    index.rebuild([...modules, modules[0]!, modules[25]!, modules[99]!])
     const firstSearch = index.search('规模测试')
 
-    index.rebuild([...modules, modules[0], modules[25], modules[99]])
+    index.rebuild([...modules, modules[0]!, modules[25]!, modules[99]!])
     const secondSearch = index.search('规模测试')
 
     expect(firstSearch).toHaveLength(100)

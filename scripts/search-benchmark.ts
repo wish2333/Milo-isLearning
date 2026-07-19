@@ -95,8 +95,10 @@ function createModule(index: number): Module {
   const concepts = Array.from({ length: CONCEPTS_PER_MODULE }, (_, conceptIndex) =>
     createConcept(id, conceptIndex),
   )
+  const firstConcept = concepts[0]
+  if (!firstConcept) throw new Error('benchmark module must contain a concept')
   const challengeQuizzes = Array.from({ length: CHALLENGE_QUIZZES_PER_MODULE }, (_, quizIndex) =>
-    createQuiz(`${id}-challenge-${quizIndex}`, concepts[0].id),
+    createQuiz(`${id}-challenge-${quizIndex}`, firstConcept.id),
   )
 
   return {
