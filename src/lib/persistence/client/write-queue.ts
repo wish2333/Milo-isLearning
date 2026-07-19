@@ -18,6 +18,10 @@ export interface WriteTask {
   value: string | null // null = delete
   attempts: number
   status: 'pending' | 'sending' | 'failed'
+  /** 最近一次最终失败的错误信息，仅 failed 状态存在。 */
+  lastError?: string
+  /** 最近一次最终失败的时间戳（毫秒），仅 failed 状态存在。 */
+  failedAt?: number
 }
 
 interface WriteQueueOptions {
@@ -100,6 +104,18 @@ export class WriteQueue {
     void this.processNext()
   }
 
+  /** 手动重试指定 key 的失败任务。 */
+  retryOne(key: string): void {
+    const task = this.failed.get(key)
+    if (!task) return
+
+    task.status = 'pending'
+    task.attempts = 0
+    this.failed.delete(key)
+    this.pending.set(task.key, task)
+    void this.processNext()
+  }
+
   // ----- 内部 -----
 
   /** 取下一个 pending 任务（按 operationId 升序）。 */
@@ -134,6 +150,9 @@ export class WriteQueue {
         return
       }
       await this.onProcess(task.key, task.value)
+      // 手动重试成功后，清除上次失败留下的诊断信息。
+      delete task.lastError
+      delete task.failedAt
       // done 任务从所有追踪中消失
     } catch (err) {
       task.attempts++
@@ -141,6 +160,8 @@ export class WriteQueue {
       if (task.attempts >= maxAttempts) {
         // 进入 failed 状态
         task.status = 'failed'
+        task.lastError = err instanceof Error ? err.message : String(err)
+        task.failedAt = Date.now()
         this.failed.set(task.key, task)
       } else {
         // 安排重试：等 backoff 后重新入队

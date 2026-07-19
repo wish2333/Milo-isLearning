@@ -18,8 +18,7 @@ import { createModulePackage } from '@/lib/persistence/module-package'
 import { createTopicPackage, downloadTopicPackage } from '@/lib/persistence/topic-package'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
-import { useModuleStore } from '@/lib/state/module-store'
-import { useProgressStore } from '@/lib/state/progress-store'
+import { enterModule } from '@/lib/runtime/enter-module'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { storage } from '@/lib/persistence/client/local-storage'
 
@@ -64,10 +63,8 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
     if (!ok) return
     const firstModuleId = useTopicSessionStore.getState().getCurrentModuleId()
     if (!firstModuleId) return
-    const moduleData = loadStoredModule(storage, firstModuleId)
-    if (!moduleData) return
-    useModuleStore.getState().setModule(moduleData)
-    useProgressStore.getState().startModule(firstModuleId)
+    const entered = enterModule({ moduleId: firstModuleId, allowResume: true })
+    if (!entered) return
     router.push(`/learn/module/${firstModuleId}`)
   }
 
@@ -112,7 +109,7 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
             {topic.description && <p className="alc-label mt-1 text-xs">{topic.description}</p>}
           </div>
           <span className="text-xs text-fg-tertiary shrink-0">
-            {completedCount}/{totalCount} 完成
+            {completedCount === 0 ? '未开始' : `${completedCount}/${totalCount} 已完成`}
           </span>
         </div>
 
@@ -146,6 +143,34 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
                   >
                     {m.title}
                   </span>
+                  {m.progressInfo && (
+                    <>
+                      <span
+                        className={
+                          m.progressInfo.done
+                            ? 'text-xs text-[var(--success)] shrink-0'
+                            : m.progressInfo.started
+                              ? 'text-xs text-[var(--accent-primary)] shrink-0'
+                              : 'text-xs text-[var(--fg-tertiary)] shrink-0'
+                        }
+                      >
+                        {m.progressInfo.label}
+                      </span>
+                      <div className="w-16 h-1 rounded-full bg-[var(--bg-elevated)] shrink-0">
+                        <div
+                          className="h-full rounded-full transition-[width] duration-300 ease-out"
+                          style={{
+                            width: `${m.progressInfo.conceptPercent}%`,
+                            backgroundColor: m.progressInfo.done
+                              ? 'var(--success)'
+                              : m.progressInfo.started
+                                ? 'var(--accent-primary)'
+                                : 'transparent',
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               )
             })}

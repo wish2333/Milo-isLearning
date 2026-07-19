@@ -30,6 +30,12 @@ export interface CompileJob {
   sessionId: string | null
   moduleId?: string
   errorMessage?: string
+  /** 编译模式：'markdown'(默认) 或 'expand'(AI 扩充) */
+  compileMode?: 'markdown' | 'expand'
+  /** expand 模式的主题词 */
+  topic?: string
+  /** expand 模式的可选约束 */
+  constraints?: string
   createdAt: number
   updatedAt: number
 }
@@ -75,6 +81,9 @@ export function createCompileJob(
     sourceContent: string
     configSummary: { provider: string; model: string }
     sessionId?: string | null
+    compileMode?: 'markdown' | 'expand'
+    topic?: string
+    constraints?: string
   },
 ): CompileJob {
   const now = Date.now()
@@ -86,6 +95,9 @@ export function createCompileJob(
     stage: null,
     percent: 0,
     sessionId: args.sessionId ?? null,
+    compileMode: args.compileMode,
+    topic: args.topic,
+    constraints: args.constraints,
     createdAt: now,
     updatedAt: now,
   }

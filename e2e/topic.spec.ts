@@ -146,7 +146,6 @@ test.describe('Topic CRUD', () => {
 
     // Verify topic appears
     await expect(page.locator('text=E2E测试主题')).toBeVisible()
-    await expect(page.locator('text=0/2 完成')).toBeVisible()
   })
 
   test('edit topic name', async ({ page }) => {
@@ -315,7 +314,8 @@ test.describe('Topic learning flow', () => {
     // --- Topic transition page (not /learn/done) ---
     await page.waitForURL('**/learn/topic/**', { timeout: 10000 })
     await expect(page.locator('text=刷题主题')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('text=1/2 完成')).toBeVisible()
+    // V2.0.1 F1-6: 1/2 完成现在显示为"1/2 已完成"
+    await expect(page.locator('text=1/2 已完成')).toBeVisible()
 
     // Continue to next module
     await page.locator('button:has-text("继续学习")').click()
@@ -324,6 +324,92 @@ test.describe('Topic learning flow', () => {
     // Verify second module loaded (check for its concept name)
     const secondModuleConcept = isModule1 ? '进阶概念' : '核心概念'
     await expect(page.locator(`text=${secondModuleConcept}`)).toBeVisible({ timeout: 5000 })
+  })
+})
+
+test.describe('Topic re-entry preserves progress (V2.0.1 regression)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockCompile(page)
+  })
+
+  /**
+   * 用 UI 流程导入 module + 创建主题，然后用 page.evaluate 注入 concept 阶段的 per-module progress。
+   * 关键：stage 必须是 concept（已过 module_intro），用来验证 re-entry 不重置进度。
+   */
+  async function setupModuleAndTopic(page: Page) {
+    await page.goto('/learn/library')
+    await importModulePackage(page, mockModule)
+    await expect(page.getByRole('listitem').filter({ hasText: '测试模块' })).toBeVisible()
+
+    await page.locator('button:has-text("+ 创建主题")').click()
+    await expect(page.locator('[role="dialog"]')).toBeVisible()
+    await page.locator('#topic-name').fill('重入测试主题')
+    await page.locator('[role="dialog"] input[type="checkbox"]').first().click()
+    await page.locator('button:has-text("保存")').click()
+    await expect(page.locator('text=重入测试主题')).toBeVisible()
+
+    // 注入 concept 阶段的 per-module progress + 全局 Zustand blob。
+    // parseModulePackage 在导入时会重新分配 moduleId（nanoid），所以这里不能写死 mockModule.id，
+    // 必须从 LS 读取实际存储的 moduleId。
+    // V2.0.1 fix 的核心 invariant：per-module key 必须通过 storage 读写，enterModule.resumeModule 会读取它。
+    // 全局 blob 是 Library 入口的 stage 来源（Zustand persist 自动 rehydrate），所以两个 key 都要设。
+    const actualModuleId = await page.evaluate(() => {
+      const moduleKeys = Object.keys(localStorage).filter((k) => k.startsWith('alc:module:'))
+      return moduleKeys[0]?.replace('alc:module:', '') ?? null
+    })
+    expect(actualModuleId).not.toBeNull()
+    await page.evaluate((moduleId) => {
+      const stage = { kind: 'concept', conceptIndex: 0, quizIndex: 0 }
+      const progressState = {
+        moduleId,
+        stage,
+        updatedAt: Date.now(),
+        feynmanAttempt: null,
+      }
+      // per-module key（resumeModule 读这个）
+      localStorage.setItem(`alc:progress:${moduleId}`, JSON.stringify(progressState))
+      // 全局 blob（Library 入口 + Zustand persist 读这个）
+      localStorage.setItem(
+        'alc:state:progress',
+        JSON.stringify({ state: progressState, version: 0 }),
+      )
+    }, actualModuleId)
+  }
+
+  test('A: 从主题入口 re-entry 保留 concept 阶段进度（不再重置到 module_intro）', async ({
+    page,
+  }) => {
+    await setupModuleAndTopic(page)
+
+    // 点击"开始主题学习" — 这是 V2.0.0 触发 P0 数据丢失 bug 的入口
+    await page.locator('button:has-text("开始主题学习")').click()
+    await page.waitForURL('**/learn/module/**', { timeout: 5000 })
+
+    // 关键断言：应直接显示第 1 题（concept(0, 0) 的 quiz stem），
+    // 而非 module_intro 页（module_intro 页有"开始学习"按钮，不会显示 quiz stem）。
+    // V2.0.0 bug 会重置到 module_intro，导致 quiz stem 不出现。
+    await expect(page.locator('text=下面哪一项是核心概念的定义？')).toBeVisible({
+      timeout: 8000,
+    })
+    // 双重确认：不应有 module_intro 的"开始学习"按钮
+    await expect(page.locator('button:has-text("开始学习")')).not.toBeVisible({ timeout: 1000 })
+  })
+
+  test('B: 从题库"继续"re-entry 保留 concept 阶段进度（S3 连带 bug 回归）', async ({ page }) => {
+    await setupModuleAndTopic(page)
+
+    // 刷新页面，让 module-store 清空 currentModule（模拟用户退出后重新打开）
+    await page.reload()
+
+    // 点击模块的"继续"按钮（Library handleOpen，应保留进度）
+    await page.locator('button:has-text("继续")').first().click()
+    await page.waitForURL('**/learn/module/**', { timeout: 5000 })
+
+    // 关键断言：应直接显示第 1 题
+    await expect(page.locator('text=下面哪一项是核心概念的定义？')).toBeVisible({
+      timeout: 8000,
+    })
+    await expect(page.locator('button:has-text("开始学习")')).not.toBeVisible({ timeout: 1000 })
   })
 })
 

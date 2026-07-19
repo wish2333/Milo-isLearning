@@ -12,6 +12,8 @@ export const conceptSchema = z
           id: z.string().regex(/^concept-\d+$/, 'id 必须为 concept-N 格式'),
           name: z.string().min(1).max(50, 'name ≤ 50 字'),
           definition: z.string().min(1).max(75, 'definition ≤ 75 字'),
+          // 仅 AI 扩充模式产出；普通 Markdown 编译保持可选以兼容旧输入。
+          sourceAnchorId: z.string().min(1).max(100, 'sourceAnchorId ≤ 100 字').optional(),
           type: z.enum(['fact', 'procedure', 'theory']),
           keyPoints: z.array(z.string().min(1).max(40, 'keyPoint ≤ 40 字')).min(2).max(4),
           parentChunkId: z.string().regex(/^chunk-\d+$/, 'parentChunkId 必须为 chunk-N 格式'),

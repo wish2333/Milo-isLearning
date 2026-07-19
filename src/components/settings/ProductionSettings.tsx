@@ -22,6 +22,13 @@ import { StorageStatsSection } from '@/components/settings/StorageStatsSection'
 import { DataManagement } from '@/components/settings/DataManagement'
 import type { LLMConfig, PingResult, ProviderKind } from '@/lib/providers/types'
 
+interface BackupVerificationResult {
+  valid: boolean
+  backupPath: string | null
+  integrityCheck: string
+  error?: string
+}
+
 /** 各 Provider 的默认配置 */
 const PROVIDER_DEFAULTS: Record<
   ProviderKind,
@@ -57,6 +64,8 @@ export function ProductionSettings() {
   const clearConfig = useSettingsStore((s) => s.clear)
   const confirmReviewEnabled = useSettingsStore((s) => s.confirmReviewEnabled)
   const setConfirmReviewEnabled = useSettingsStore((s) => s.setConfirmReviewEnabled)
+  const fsrs = useSettingsStore((s) => s.fsrs)
+  const updateFsrsConfig = useSettingsStore((s) => s.updateFsrsConfig)
   const resetPreferences = useSettingsStore((s) => s.resetPreferences)
 
   // 表单状态（从已保存配置初始化或用默认值）
@@ -70,6 +79,10 @@ export function ProductionSettings() {
   const [pingResult, setPingResult] = useState<PingResult | null>(null)
   const [saved, setSaved] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [verifyingBackup, setVerifyingBackup] = useState(false)
+  const [backupVerification, setBackupVerification] = useState<BackupVerificationResult | null>(
+    null,
+  )
 
   // 当 config 异步加载完成（如从 .env.local 自动加载）后，同步表单
   useEffect(() => {
@@ -150,6 +163,29 @@ export function ProductionSettings() {
 
   const canSave = apiKey.trim().length > 0 && model.trim().length > 0
   const canPing = canSave && !pinging
+
+  const handleVerifyBackup = useCallback(async () => {
+    setVerifyingBackup(true)
+    setBackupVerification(null)
+
+    try {
+      const response = await fetch('/api/backup/verify')
+      const result = (await response.json()) as BackupVerificationResult & { error?: string }
+      if (!response.ok) {
+        throw new Error(result.error ?? `验证备份 API 失败（${response.status}）`)
+      }
+      setBackupVerification(result)
+    } catch (error) {
+      setBackupVerification({
+        valid: false,
+        backupPath: null,
+        integrityCheck: 'error',
+        error: error instanceof Error ? error.message : '验证备份失败',
+      })
+    } finally {
+      setVerifyingBackup(false)
+    }
+  }, [])
 
   // hydration 前不渲染表单（避免 SSR/localStorage 不匹配）
   if (!hydrated) {
@@ -370,6 +406,70 @@ export function ProductionSettings() {
           </div>
         </div>
 
+        {/* FSRS 设置 */}
+        <section className="space-y-4 pt-4 border-t border-border-subtle">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-fg-primary">FSRS 间隔重复</p>
+              <p className="text-xs text-fg-tertiary">
+                开启后 Today 和到期队列会消费 FSRS 调度；历史调度缓存始终维护。
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={fsrs.enabled}
+              onClick={() => updateFsrsConfig({ enabled: !fsrs.enabled })}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                fsrs.enabled ? 'bg-accent-primary' : 'bg-border-default'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-bg-base transition-transform ${
+                  fsrs.enabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="space-y-2">
+              <span className="alc-label">目标留存率</span>
+              <input
+                type="number"
+                min={0.7}
+                max={0.99}
+                step={0.01}
+                value={fsrs.requestRetention}
+                onChange={(event) => {
+                  const value = Number(event.target.value)
+                  if (Number.isFinite(value)) updateFsrsConfig({ requestRetention: value })
+                }}
+                className="alc-input text-sm font-mono"
+                aria-label="FSRS 目标留存率"
+              />
+              <span className="text-xs text-fg-tertiary">范围 0.70–0.99</span>
+            </label>
+            <label className="space-y-2">
+              <span className="alc-label">最大间隔（天）</span>
+              <input
+                type="number"
+                min={1}
+                max={36500}
+                step={1}
+                value={fsrs.maximumInterval}
+                onChange={(event) => {
+                  const value = Number(event.target.value)
+                  if (Number.isFinite(value)) updateFsrsConfig({ maximumInterval: value })
+                }}
+                className="alc-input text-sm font-mono"
+                aria-label="FSRS 最大间隔"
+              />
+              <span className="text-xs text-fg-tertiary">范围 1–36500 天</span>
+            </label>
+          </div>
+        </section>
+
         {/* 数据统计（production-only，异步拉取） */}
         <section className="pt-4 border-t border-border-subtle">
           <h3 className="text-sm font-medium text-fg-primary mb-3">数据统计</h3>
@@ -378,6 +478,49 @@ export function ProductionSettings() {
 
         {/* 数据管理 */}
         <DataManagement />
+
+        {/* SQLite 自动备份验证（production-only） */}
+        <section className="pt-4 border-t border-border-subtle space-y-3">
+          <div>
+            <h3 className="text-sm font-medium text-fg-primary">自动备份</h3>
+            <p className="text-xs text-fg-tertiary mt-1">
+              对最近一份 SQLite 快照执行 PRAGMA integrity_check，确认备份可读取。
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleVerifyBackup}
+            disabled={verifyingBackup}
+            className="alc-button-secondary text-sm disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {verifyingBackup ? '正在验证...' : '验证最近备份'}
+          </button>
+
+          {backupVerification && (
+            <div
+              className={`rounded-lg border px-4 py-3 text-sm ${
+                backupVerification.valid
+                  ? 'border-success/40 bg-success-soft text-success'
+                  : 'border-danger/40 bg-danger-soft text-danger'
+              }`}
+            >
+              <p className="font-medium">
+                {backupVerification.valid ? '备份完整性验证通过' : '备份完整性验证失败'}
+              </p>
+              <p className="text-xs mt-1 opacity-80">
+                检查结果：{backupVerification.integrityCheck}
+              </p>
+              {backupVerification.backupPath && (
+                <p className="text-xs mt-1 opacity-70 break-all">
+                  快照：{backupVerification.backupPath}
+                </p>
+              )}
+              {backupVerification.error && (
+                <p className="text-xs mt-1 opacity-80">{backupVerification.error}</p>
+              )}
+            </div>
+          )}
+        </section>
 
         {/* Next step hint */}
         {config && (

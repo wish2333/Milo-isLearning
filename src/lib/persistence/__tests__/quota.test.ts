@@ -14,6 +14,7 @@ import type { Module, ProgressState } from '@/types/domain'
 
 import { StorageKeys } from '../shared/keys'
 import type { StorageRepository } from '../shared/repository'
+import { scheduleLibrary } from '../schedule-library'
 import {
   ensureCapacity,
   evictOldestModule,
@@ -237,6 +238,37 @@ describe('removeModule', () => {
       },
       version: 0,
     })
+  })
+
+  it('removes schedules for the deleted module but preserves other modules', () => {
+    const repo = new MockRepo()
+    seedModule(repo, 'm1', 1000)
+    seedModule(repo, 'm2', 2000)
+    const schedule = (slotId: string, moduleId: string) => ({
+      slotId,
+      moduleId,
+      conceptId: 'concept-1',
+      stability: 1,
+      difficulty: 5,
+      elapsed_days: 0,
+      scheduled_days: 1,
+      reps: 1,
+      lapses: 0,
+      state: 'review' as const,
+      due: new Date(1_000).toISOString(),
+      last_review: new Date(1_000).toISOString(),
+      schemaVersion: 1,
+      contentRevision: 'v1',
+      configRevision: 'v1',
+      lastAppliedAttemptId: 'attempt-1',
+    })
+    scheduleLibrary.set('m1:concept-1:slot-1', schedule('m1:concept-1:slot-1', 'm1'), repo)
+    scheduleLibrary.set('m2:concept-1:slot-1', schedule('m2:concept-1:slot-1', 'm2'), repo)
+
+    removeModule(repo, 'm1')
+
+    expect(scheduleLibrary.get('m1:concept-1:slot-1', repo)).toBeNull()
+    expect(scheduleLibrary.get('m2:concept-1:slot-1', repo)).not.toBeNull()
   })
 })
 

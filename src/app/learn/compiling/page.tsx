@@ -199,6 +199,11 @@ function CompilingPageInner() {
       }
     }
 
+    const compileJob = getCompileJob(storage, jobIdRef.current)
+    const isExpandMode = compileJob?.compileMode === 'expand'
+    const expandTopic = compileJob?.topic ?? ''
+    const expandConstraints = compileJob?.constraints
+
     // PB.3: 从 URL 读取 resumeFrom / sessionId（import 页 resume 路径）
     const urlResumeFrom = searchParams.get('resumeFrom')
     const urlSessionId = searchParams.get('sessionId')
@@ -216,10 +221,12 @@ function CompilingPageInner() {
         let activeSessionId = sessionIdRef.current
         if (isProductionMode && !activeSessionId) {
           try {
-            const md = rawMarkdown
-            if (!md) throw new Error('empty source')
+            const hashInput = isExpandMode
+              ? `${expandTopic}\n${expandConstraints ?? ''}`
+              : rawMarkdown
+            if (!hashInput) throw new Error('empty source')
             const encoder = new TextEncoder()
-            const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(md))
+            const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(hashInput))
             const hashArray = Array.from(new Uint8Array(hashBuffer))
             const sourceHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 
@@ -246,7 +253,14 @@ function CompilingPageInner() {
         }
 
         // 构建 SSE 请求 body（含 sessionId + resumeFrom）
-        const sseBody: Record<string, unknown> = { rawMarkdown, config: compileConfig }
+        const sseBody: Record<string, unknown> = isExpandMode
+          ? {
+              compileMode: 'expand',
+              topic: expandTopic,
+              constraints: expandConstraints,
+              config: compileConfig,
+            }
+          : { rawMarkdown, config: compileConfig }
         if (activeSessionId) {
           sseBody.sessionId = activeSessionId
         }
@@ -298,7 +312,7 @@ function CompilingPageInner() {
                 storage.set(StorageKeys.source(compiledModule.sourceId), {
                   id: compiledModule.sourceId,
                   type: 'markdown',
-                  content: rawMarkdown,
+                  content: isExpandMode ? expandTopic : rawMarkdown,
                   createdAt: Date.now(),
                 })
                 // M7.5：持久化 qualityReport
@@ -427,6 +441,9 @@ function CompilingPageInner() {
       const newJob = createCompileJob(storage, {
         sourceContent: recoveryJob.sourceContent,
         configSummary: recoveryJob.configSummary,
+        compileMode: recoveryJob.compileMode,
+        topic: recoveryJob.topic,
+        constraints: recoveryJob.constraints,
       })
       jobIdRef.current = newJob.jobId
       // 替换 URL jobId（不刷新页面）

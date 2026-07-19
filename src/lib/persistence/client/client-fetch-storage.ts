@@ -146,6 +146,11 @@ export class ClientFetchStorageRepository implements StorageRepository {
     this.queue.retryFailed()
   }
 
+  /** 手动重试指定 key 的失败任务（用于逐项恢复未落盘写入）。 */
+  retryOne(key: string): void {
+    this.queue.retryOne(key)
+  }
+
   /** 是否有未落盘的 pending 写入。 */
   hasPending(): boolean {
     return this.queue.hasPending()

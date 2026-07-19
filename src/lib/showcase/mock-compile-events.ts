@@ -40,6 +40,7 @@ const STAGES: CompileStage[] = [
 ]
 
 const STAGE_PERCENTS: Record<CompileStage, number> = {
+  expand: 10,
   import: 25,
   chunk: 40,
   concept: 55,

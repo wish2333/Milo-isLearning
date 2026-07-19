@@ -4,20 +4,39 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { listStoredModules } from '@/lib/persistence/module-library'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
+import { scheduleLibrary } from '@/lib/persistence/schedule-library'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { useSettingsStore } from '@/lib/state/settings-store'
 import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
+
+function getLocalTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+}
 
 /**
  * 首页（实用模式）— 引导用户进入学习流程
  */
 export function ProductionHome() {
   const router = useRouter()
+  const fsrsEnabled = useSettingsStore((state) => state.fsrs.enabled)
   const [buttonLabel, setButtonLabel] = useState('开始学习')
   const [targetHref, setTargetHref] = useState('/learn/import')
 
   useEffect(() => {
-    const modules = listStoredModules(storage)
+    setButtonLabel('开始学习')
+    setTargetHref('/learn/import')
+
+    if (!isShowcaseMode && fsrsEnabled) {
+      const dueCount = scheduleLibrary.listDueBefore(new Date(), getLocalTimezone()).length
+      if (dueCount > 0) {
+        setButtonLabel(`今日复习 (${dueCount})`)
+        setTargetHref('/learn/today')
+        return
+      }
+    }
+
+    const modules = listStoredModules(getStorage())
     if (modules.length === 0) return
     const recent = modules[0]!
     if (!recent.completed) {
@@ -27,7 +46,7 @@ export function ProductionHome() {
       setButtonLabel('前往题库')
       setTargetHref('/learn/library')
     }
-  }, [])
+  }, [fsrsEnabled])
 
   const handleStart = () => router.push(targetHref)
 

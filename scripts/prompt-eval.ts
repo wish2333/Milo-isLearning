@@ -90,6 +90,7 @@ const AGENTS: AgentKind[] = [
   'feynman-eval',
   'quiz-batch',
   'challenge-batch',
+  'knowledge-expander',
 ]
 
 const FIXTURES_DIR = path.resolve(
@@ -482,6 +483,12 @@ async function buildAgentInput(
         moduleContext: CANNED_MODULE,
         total: 3,
         conceptCount: CANNED_MODULE.concepts.length,
+      }
+    }
+    case 'knowledge-expander': {
+      return {
+        topic: '检索增强生成',
+        constraints: '面向有编程基础的学习者',
       }
     }
     case 'quiz': {

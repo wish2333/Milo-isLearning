@@ -26,6 +26,7 @@ import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { getStorage } from '@/lib/persistence/client/storage'
 import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
 import { storage } from '@/lib/persistence/client/local-storage'
+import { triggerAutoBackup } from '@/lib/persistence/client/auto-backup-trigger'
 
 import {
   collectReviewSlots,
@@ -36,6 +37,16 @@ import { useAttemptsStore } from './attempts-store'
 import { useModuleStore } from './module-store'
 import { useSettingsStore } from './settings-store'
 
+/**
+ * Storage Invariant (V2.0.1): per-module progress keys
+ *
+ * `alc:progress:{moduleId}` 在所有运行模式下均通过 `storage`（LocalStorageRepository
+ * 单例）读写。`getStorage()` 仅用于 Zustand persist 的全局 blob `alc:state:progress`。
+ *
+ * （production 的 getStorage() 返回 SQLite Repository，per-module 数据在 LS 不在 SQLite）。
+ *
+ * 详见 docs/v2.0.0/v2.0.1-fix-report.md §3。
+ */
 interface ProgressStoreState {
   /** 当前 Module ID；null = 未开始 */
   moduleId: string | null
@@ -50,6 +61,9 @@ interface ProgressStoreState {
 
   /** 初始化 Module 学习：设置 moduleId + stage = module_intro */
   startModule: (moduleId: string) => void
+
+  /** 恢复模块进度（三级 fallback：snapshot → 全局 blob → startModule）。不重置。 */
+  resumeModule: (moduleId: string) => void
 
   /** 从 module_intro 进入 concept(0, 0) */
   startConcept: () => void
@@ -100,6 +114,57 @@ export const useProgressStore = create<ProgressStoreState>()(
     (set, get) => ({
       ...initialState,
 
+      /**
+       * 恢复模块进度（不重置）。
+       *
+       * 恢复优先级：
+       *   1. 读取 LS 中的 per-module snapshot（storage.get）
+       *   2. 若当前全局 blob 的 moduleId === 目标 moduleId，比较 updatedAt，取更新的快照
+       *   3. 若快照 stage.kind === 'done' → 走 startModule 语义（让用户从头看）
+       *   4. 若无任何有效进度 → 走 startModule 语义
+       *
+       * Storage Invariant: 必须用 `storage`（LS）读 per-module，不能用 getStorage()
+       * 已知限制: feynmanAttempt 在恢复时清空（per-module snapshot 不保存该字段）
+       */
+      resumeModule: (moduleId: string) => {
+        const snapshot = storage.get<ProgressState>(StorageKeys.progress(moduleId))
+
+        const current = get()
+        const globalMatched =
+          current.moduleId === moduleId && current.stage !== null
+            ? { stage: current.stage, updatedAt: current.updatedAt }
+            : null
+
+        let winner: { stage: ModuleStage; updatedAt: number } | null = null
+        if (snapshot && snapshot.stage && snapshot.stage.kind !== 'done') {
+          winner = { stage: snapshot.stage, updatedAt: snapshot.updatedAt }
+        }
+        if (
+          globalMatched &&
+          globalMatched.stage.kind !== 'done' &&
+          (!winner || globalMatched.updatedAt > winner.updatedAt)
+        ) {
+          winner = globalMatched
+        }
+
+        if (winner) {
+          set({
+            moduleId,
+            stage: winner.stage,
+            updatedAt: winner.updatedAt,
+            feynmanAttempt: null,
+          })
+          return
+        }
+
+        set({
+          moduleId,
+          stage: { kind: 'module_intro' },
+          updatedAt: Date.now(),
+          feynmanAttempt: null,
+        })
+      },
+
       startModule: (moduleId) =>
         set({
           moduleId,
@@ -128,9 +193,32 @@ export const useProgressStore = create<ProgressStoreState>()(
 
         switch (stage.kind) {
           case 'module_intro': {
-            // 导言 → 第一道 concept 题
+            // 导言 → 第一个 concept 的知识页（如有）或第一道题
+            const firstConcept = currentModule.concepts[0]
+            if (firstConcept?.knowledgePage) {
+              set({
+                stage: { kind: 'concept_intro', conceptIndex: 0 },
+                updatedAt: Date.now(),
+              })
+            } else {
+              set({
+                stage: { kind: 'concept', conceptIndex: 0, quizIndex: 0 },
+                updatedAt: Date.now(),
+              })
+            }
+            break
+          }
+
+          case 'concept_intro': {
             set({
-              stage: { kind: 'concept', conceptIndex: 0, quizIndex: 0 },
+              stage: {
+                kind: 'concept',
+                conceptIndex: stage.conceptIndex,
+                quizIndex: 0,
+                ...(stage.reviewSlots && stage.reviewSlots.length > 0
+                  ? { reviewSlots: stage.reviewSlots }
+                  : {}),
+              },
               updatedAt: Date.now(),
             })
             break
@@ -173,13 +261,21 @@ export const useProgressStore = create<ProgressStoreState>()(
 
               const nextReviewSlots = [...wrongSlots, ...carriedSlots, ...confirmSlots]
 
+              const nextConceptIdx = conceptIndex + 1
+              const nextConcept = currentModule.concepts[nextConceptIdx]
+              const reviewSlotsPayload =
+                nextReviewSlots.length > 0 ? { reviewSlots: nextReviewSlots } : {}
+              const nextStage: ModuleStage = nextConcept?.knowledgePage
+                ? { kind: 'concept_intro', conceptIndex: nextConceptIdx, ...reviewSlotsPayload }
+                : {
+                    kind: 'concept',
+                    conceptIndex: nextConceptIdx,
+                    quizIndex: 0,
+                    ...reviewSlotsPayload,
+                  }
+
               set({
-                stage: {
-                  kind: 'concept',
-                  conceptIndex: conceptIndex + 1,
-                  quizIndex: 0,
-                  ...(nextReviewSlots.length > 0 ? { reviewSlots: nextReviewSlots } : {}),
-                },
+                stage: nextStage,
                 updatedAt: Date.now(),
               })
               return
@@ -291,7 +387,9 @@ export const useProgressStore = create<ProgressStoreState>()(
           }
         }),
 
-      submitFeynman: (finalOutput, finalScore, finalGaps) =>
+      submitFeynman: (finalOutput, finalScore, finalGaps) => {
+        if (!get().feynmanAttempt) return
+
         set((state) => {
           if (!state.feynmanAttempt) return state
           return {
@@ -305,7 +403,10 @@ export const useProgressStore = create<ProgressStoreState>()(
             },
             updatedAt: Date.now(),
           }
-        }),
+        })
+
+        void triggerAutoBackup(true)
+      },
 
       setStage: (stage) => set({ stage, updatedAt: Date.now() }),
 

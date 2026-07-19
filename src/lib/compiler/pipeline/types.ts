@@ -39,7 +39,15 @@ import type { LLMConfig } from '@/lib/providers'
  *   - feynman: 100%
  */
 export type CompileStage =
-  'import' | 'chunk' | 'concept' | 'module' | 'mission' | 'quiz' | 'challenge' | 'feynman'
+  | 'expand'
+  | 'import'
+  | 'chunk'
+  | 'concept'
+  | 'module'
+  | 'mission'
+  | 'quiz'
+  | 'challenge'
+  | 'feynman'
 
 // =================================================================
 // 编译事件流
@@ -159,6 +167,7 @@ export const QUIZ_FAILURE_THRESHOLD = 0.2
  */
 export const STAGE_PERCENT: Readonly<Record<Exclude<CompileStage, 'quiz'>, number>> = Object.freeze(
   {
+    expand: 10,
     import: 25,
     chunk: 40,
     concept: 55,

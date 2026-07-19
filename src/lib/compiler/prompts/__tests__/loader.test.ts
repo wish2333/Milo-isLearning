@@ -67,7 +67,7 @@ describe('resolveTemplatePath（隐式通过 loadExpandedTemplate）', () => {
     expect(result).toContain('chunk') // chunk 模板内容
   })
 
-  it('所有 11 个 AgentKind 在默认 v1 下均可加载', () => {
+  it('所有 12 个 AgentKind 在默认 v1 下均可加载', () => {
     const kinds = [
       'import',
       'chunk',
@@ -80,6 +80,7 @@ describe('resolveTemplatePath（隐式通过 loadExpandedTemplate）', () => {
       'feynman-eval',
       'quiz-batch',
       'challenge-batch',
+      'knowledge-expander',
     ] as const
 
     for (const kind of kinds) {

@@ -20,8 +20,12 @@ import type { Module, Quiz } from '@/types/domain'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { renameModule, updateQuizInModule } from '@/lib/persistence/module-library'
 import { findQuizInModule } from '@/lib/runtime/adaptive-sequencer'
+import { synchronizeScheduleForSlot } from '@/lib/runtime/fsrs-schedule-coordinator'
 import { getStorage } from '@/lib/persistence/client/storage'
 import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
+import { scheduleLibrary } from '@/lib/persistence/schedule-library'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
+import { useAttemptsStore } from './attempts-store'
 
 interface ModuleStoreState {
   /** 当前学习的 Module；null = 未开始学习 */
@@ -64,6 +68,9 @@ interface ModuleStoreState {
       >
     >,
   ) => void
+
+  /** 更新 Concept 的 knowledgePage 内容（AI 扩充模式编辑） */
+  updateKnowledgePage: (conceptId: string, content: string) => void
 }
 
 export const useModuleStore = create<ModuleStoreState>()(
@@ -94,10 +101,41 @@ export const useModuleStore = create<ModuleStoreState>()(
         if (!current) return
         const updatedModule = updateQuizInModule(getStorage(), current.id, quizId, patch)
         set({ currentModule: updatedModule })
-        if (get().currentQuiz?.id === quizId) {
-          const updatedQuiz = findQuizInModule(updatedModule, quizId)
-          if (updatedQuiz) set({ currentQuiz: updatedQuiz })
+        const updatedQuiz = findQuizInModule(updatedModule, quizId)
+        if (!updatedQuiz) return
+
+        if (get().currentQuiz?.id === quizId) set({ currentQuiz: updatedQuiz })
+
+        // SchedulingData 是 attempts 的派生缓存：忽略题目时删除，恢复时用
+        // 当前 Module/Quiz 与完整 attempts 历史重放。这里不检查 FSRS 开关，
+        // 以确保缓存命名空间始终与题库和作答历史保持一致。
+        if (patch.ignored === true) {
+          scheduleLibrary.remove(quizId)
+        } else if (patch.ignored === false) {
+          synchronizeScheduleForSlot({
+            slotId: quizId,
+            moduleId: updatedModule.id,
+            conceptId: updatedQuiz.conceptId,
+            quiz: updatedQuiz,
+            attempts: useAttemptsStore.getState().getAttempts(quizId),
+          })
         }
+      },
+
+      updateKnowledgePage: (conceptId, content) => {
+        const current = get().currentModule
+        if (!current) return
+        if (current.origin === 'showcase') return
+
+        const targetConcept = current.concepts.find((c) => c.id === conceptId)
+        if (!targetConcept) return
+
+        const updatedConcepts = current.concepts.map((c) =>
+          c.id === conceptId ? { ...c, knowledgePage: content } : c,
+        )
+        const updatedModule: Module = { ...current, concepts: updatedConcepts }
+        getStorage().set(StorageKeys.module(current.id), updatedModule)
+        set({ currentModule: updatedModule })
       },
     }),
     {

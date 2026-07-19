@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAttemptsStore } from '../attempts-store'
-import type { AttemptRecord, Quiz } from '@/types/domain'
+import { scheduleLibrary } from '@/lib/persistence/schedule-library'
+import type { AttemptRecord, Quiz, SchedulingData } from '@/types/domain'
 
 function makeAttempt(
   slotId: string,
@@ -70,6 +71,40 @@ describe('attempts-store markGuessed / unmarkGuessed', () => {
 
     store.markGuessed(slotId)
     expect(store.getAttempts(slotId).at(-1)!.guessed).toBe(true)
+  })
+})
+
+describe('attempts-store schedule cache cleanup', () => {
+  beforeEach(() => {
+    useAttemptsStore.getState().clearAll()
+  })
+
+  it('clearAll 同时清除可由 attempts 重建的调度缓存', () => {
+    const slotId = 'concept-1:slot-cleanup'
+    const schedule: SchedulingData = {
+      slotId,
+      moduleId: 'module-1',
+      conceptId: 'concept-1',
+      stability: 1,
+      difficulty: 5,
+      elapsed_days: 0,
+      scheduled_days: 0,
+      reps: 1,
+      lapses: 0,
+      state: 'learning',
+      due: new Date(0).toISOString(),
+      last_review: null,
+      schemaVersion: 1,
+      contentRevision: 'content',
+      configRevision: 'config',
+      lastAppliedAttemptId: 'attempt-1',
+    }
+    scheduleLibrary.set(slotId, schedule)
+    expect(scheduleLibrary.get(slotId)).not.toBeNull()
+
+    useAttemptsStore.getState().clearAll()
+
+    expect(scheduleLibrary.get(slotId)).toBeNull()
   })
 })
 

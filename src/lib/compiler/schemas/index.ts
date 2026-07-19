@@ -15,6 +15,11 @@ import { challengeBatchSchema, type ChallengeBatchAgentOutput } from './challeng
 import { feynmanSchema, type FeynmanAgentOutput } from './feynman'
 import { feedbackSchema, type FeedbackAgentOutput } from './feedback'
 import { feynmanEvalSchema, type FeynmanEvalOutput } from './feynman-eval'
+import {
+  expandedKnowledgeSchema,
+  type ConceptAnchor,
+  type ExpandedKnowledge,
+} from '@/lib/compiler/agents/knowledge-expander-types'
 
 /**
  * Agent 类型枚举（与 buildPrompt 的 kind 参数对齐）
@@ -31,6 +36,7 @@ export type AgentKind =
   | 'feynman-eval'
   | 'quiz-batch'
   | 'challenge-batch'
+  | 'knowledge-expander'
 
 /**
  * Agent 输出 Schema 注册表
@@ -49,6 +55,7 @@ export const schemasByAgentKind: Readonly<Record<AgentKind, ZodSchema<unknown>>>
   'feynman-eval': feynmanEvalSchema as ZodSchema<unknown>,
   'quiz-batch': quizBatchSchema as ZodSchema<unknown>,
   'challenge-batch': challengeBatchSchema as ZodSchema<unknown>,
+  'knowledge-expander': expandedKnowledgeSchema as ZodSchema<unknown>,
 })
 
 /**
@@ -90,6 +97,8 @@ export type {
   QuizBatchAgentOutput,
   ChallengeBatchAgentOutput,
   QuizItem,
+  ExpandedKnowledge,
+  ConceptAnchor,
 }
 
 export {
@@ -105,6 +114,7 @@ export {
   feynmanSchema,
   feedbackSchema,
   feynmanEvalSchema,
+  expandedKnowledgeSchema,
 }
 
 // 显式标记 z 已使用（避免未使用 import 警告，未来扩展会用到）

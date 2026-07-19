@@ -42,6 +42,7 @@ interface SessionRow {
 // =================================================================
 
 const COMPILE_STAGE_ORDER: readonly CompileStage[] = [
+  'expand',
   'import',
   'chunk',
   'concept',

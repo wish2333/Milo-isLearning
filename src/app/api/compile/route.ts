@@ -20,6 +20,7 @@ import 'server-only'
 import type { NextRequest } from 'next/server'
 import {
   compileMarkdown,
+  compileWithExpand,
   type CompileConfig,
   type CompileErrorPayload,
   type CompileEvent,
@@ -46,28 +47,48 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  if (
-    body === null ||
-    typeof body !== 'object' ||
-    !('rawMarkdown' in body) ||
-    !('config' in body)
-  ) {
-    return Response.json({ error: 'Missing required fields: rawMarkdown, config' }, { status: 400 })
+  if (body === null || typeof body !== 'object' || !('config' in body)) {
+    return Response.json({ error: 'Missing required field: config' }, { status: 400 })
   }
 
-  const { rawMarkdown, config } = body as Record<string, unknown>
+  const parsedBody = body as Record<string, unknown>
 
-  if (typeof rawMarkdown !== 'string') {
-    return Response.json({ error: 'rawMarkdown must be a string' }, { status: 400 })
+  // --- Determine compile mode ---
+  const compileMode =
+    typeof parsedBody.compileMode === 'string' ? parsedBody.compileMode : 'markdown'
+  const isExpandMode = compileMode === 'expand'
+
+  // Mode-specific field validation
+  if (isExpandMode) {
+    if (typeof parsedBody.topic !== 'string' || parsedBody.topic.length === 0) {
+      return Response.json(
+        { error: 'Missing required field: topic (required in expand mode)' },
+        { status: 400 },
+      )
+    }
+  } else {
+    if (typeof parsedBody.rawMarkdown !== 'string') {
+      return Response.json(
+        { error: 'Missing required field: rawMarkdown (required in markdown mode)' },
+        { status: 400 },
+      )
+    }
   }
+
+  const { config } = parsedBody as { config: unknown }
 
   if (config === null || typeof config !== 'object') {
     return Response.json({ error: 'config must be an object' }, { status: 400 })
   }
 
+  // Extract mode-specific variables with type guards
+  const rawMarkdown = typeof parsedBody.rawMarkdown === 'string' ? parsedBody.rawMarkdown : ''
+  const topic = typeof parsedBody.topic === 'string' ? parsedBody.topic : ''
+  const constraints =
+    typeof parsedBody.constraints === 'string' ? parsedBody.constraints : undefined
+
   // --- Build CompileOptions (PB.2 F04) ---
   const compileOptions: CompileOptions = {}
-  const parsedBody = body as Record<string, unknown>
 
   if (typeof parsedBody.sessionId === 'string' && parsedBody.sessionId.length > 0) {
     compileOptions.sessionId = parsedBody.sessionId
@@ -129,10 +150,10 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       console.info('[api/compile] ReadableStream.start() 开始执行')
-      const generator = compileMarkdown(
-        rawMarkdown,
-        config as CompileConfig,
-        compileOptions,
+      const generator: AsyncGenerator<CompileEvent, void, unknown> = (
+        isExpandMode
+          ? compileWithExpand(topic, constraints, config as CompileConfig, compileOptions)
+          : compileMarkdown(rawMarkdown, config as CompileConfig, compileOptions)
       ) as AsyncGenerator<CompileEvent, void, unknown>
       try {
         for await (const event of generator) {

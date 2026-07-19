@@ -1,4 +1,8 @@
 import type { AttemptRecord, Module, Quiz } from '@/types/domain'
+import { scheduleLibrary } from '@/lib/persistence/schedule-library'
+import { isDue } from '@/lib/runtime/fsrs'
+import { useSettingsStore } from '@/lib/state/settings-store'
+import type { StorageRepository } from '@/lib/persistence/shared/repository'
 
 export interface AdaptiveSlot {
   slotId: string
@@ -25,6 +29,28 @@ interface BuildAdaptiveQueueArgs {
 }
 
 export const PASS_THRESHOLD = 80
+
+interface AdaptiveSettings {
+  fsrs?: { enabled?: boolean }
+}
+
+interface SequencerOptions {
+  /** 测试及迁移可显式传入；未传入时兼容旧 settings 数据。 */
+  fsrsEnabled?: boolean
+  timezone?: string
+  repository?: StorageRepository
+  now?: Date
+}
+
+function readFsrsEnabled(explicit: boolean | undefined): boolean {
+  if (explicit !== undefined) return explicit
+  const settings = useSettingsStore.getState() as AdaptiveSettings
+  return settings.fsrs?.enabled === true
+}
+
+function localTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+}
 
 function latestAttemptBySlot(attempts: AttemptRecord[]): Map<string, AttemptRecord> {
   const latest = new Map<string, AttemptRecord>()
@@ -162,9 +188,24 @@ export function collectReviewSlots(
   module: Module,
   conceptIndex: number,
   attemptsBySlot: Record<string, AttemptRecord[]>,
+  options?: SequencerOptions,
 ): string[] {
   const concept = module.concepts[conceptIndex]
   if (!concept) return []
+
+  if (readFsrsEnabled(options?.fsrsEnabled)) {
+    const due = new Set(
+      collectDueSlots(
+        module.id,
+        options?.timezone ?? localTimezone(),
+        options?.now ?? new Date(),
+        options?.repository,
+      ),
+    )
+    return concept.quizSeries.quizzes
+      .filter((quiz) => !quiz.ignored && due.has(quiz.id))
+      .map((quiz) => quiz.id)
+  }
 
   const slots: string[] = []
   for (const quiz of concept.quizSeries.quizzes) {
@@ -189,7 +230,9 @@ export function collectConfirmSlots(
   module: Module,
   conceptIndex: number,
   attemptsBySlot: Record<string, AttemptRecord[]>,
+  options?: SequencerOptions,
 ): string[] {
+  if (readFsrsEnabled(options?.fsrsEnabled)) return []
   if (conceptIndex < 0) return []
   const concept = module.concepts[conceptIndex]
   if (!concept) return []
@@ -206,6 +249,25 @@ export function collectConfirmSlots(
     }
   }
   return slots
+}
+
+/**
+ * 收集模块内截至当前时刻已经到期的槽位。
+ *
+ * Today 消费的是 dueNow（包括此前已过期的卡），而不是把当天晚些时候
+ * 才到期的 learning step 提前拉入队列。timezone 用于校验浏览器调用方，
+ * epoch 比较则保证 DST 回拨时不会重复或漏掉卡片。
+ */
+export function collectDueSlots(
+  moduleId: string,
+  timezone: string,
+  now: Date = new Date(),
+  repository?: StorageRepository,
+): string[] {
+  return scheduleLibrary
+    .listByModule(moduleId, repository)
+    .filter((schedule) => isDue(schedule, now, timezone))
+    .map((schedule) => schedule.slotId)
 }
 
 /**

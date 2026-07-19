@@ -79,7 +79,9 @@ vi.mock('@/lib/persistence/client/zustand-storage-adapter', () => ({
 
 // Import after mocks are set up
 const { useModuleStore } = await import('../module-store')
+const { useAttemptsStore } = await import('../attempts-store')
 const { loadStoredModule } = await import('@/lib/persistence/module-library')
+const { scheduleLibrary } = await import('@/lib/persistence/schedule-library')
 
 // --- Fixtures ---
 
@@ -147,6 +149,7 @@ describe('module-store correctQuizAnswer', () => {
   beforeEach(() => {
     mockRepo.clearAll()
     useModuleStore.getState().clear()
+    useAttemptsStore.setState({ attemptsBySlot: {} })
   })
 
   it('correctQuizAnswer updates currentModule with patched answer', () => {
@@ -224,5 +227,161 @@ describe('module-store correctQuizAnswer', () => {
     expect(reloaded).not.toBeNull()
     const reloadedQuiz = reloaded!.concepts[0]!.quizSeries.quizzes[0]!
     expect(reloadedQuiz.answer).toBe('d')
+  })
+
+  it('ignoring a quiz removes only its schedule cache', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+    scheduleLibrary.set('module-1:concept-1:slot-1', {
+      slotId: 'module-1:concept-1:slot-1',
+      moduleId: 'module-1',
+      conceptId: 'concept-1',
+      state: 'review',
+      due: new Date(1_000).toISOString(),
+      stability: 1,
+      difficulty: 5,
+      reps: 1,
+      lapses: 0,
+      elapsed_days: 0,
+      scheduled_days: 1,
+      last_review: new Date(1_000).toISOString(),
+      schemaVersion: 1,
+      contentRevision: 'v1',
+      configRevision: 'v1',
+      lastAppliedAttemptId: 'attempt-1',
+    })
+    scheduleLibrary.set('module-1:concept-2:slot-1', {
+      slotId: 'module-1:concept-2:slot-1',
+      moduleId: 'module-1',
+      conceptId: 'concept-2',
+      state: 'review',
+      due: new Date(1_000).toISOString(),
+      stability: 1,
+      difficulty: 5,
+      reps: 1,
+      lapses: 0,
+      elapsed_days: 0,
+      scheduled_days: 1,
+      last_review: new Date(1_000).toISOString(),
+      schemaVersion: 1,
+      contentRevision: 'v1',
+      configRevision: 'v1',
+      lastAppliedAttemptId: 'attempt-2',
+    })
+
+    useModuleStore.getState().correctQuizAnswer('module-1:concept-1:slot-1', { ignored: true })
+
+    expect(scheduleLibrary.get('module-1:concept-1:slot-1')).toBeNull()
+    expect(scheduleLibrary.get('module-1:concept-2:slot-1')).not.toBeNull()
+  })
+
+  it('restoring a quiz rebuilds its schedule from attempts history', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+    const slotId = 'module-1:concept-1:slot-1'
+    useAttemptsStore.setState({
+      attemptsBySlot: {
+        [slotId]: [
+          {
+            id: 'attempt-1',
+            quizId: slotId,
+            originalQuizId: slotId,
+            userAnswer: 'a',
+            score: 100,
+            gaps: [],
+            nextAction: 'advance',
+            timestamp: 1_000,
+            attemptVersion: 0,
+          },
+        ],
+      },
+    })
+
+    useModuleStore.getState().correctQuizAnswer(slotId, { ignored: false })
+
+    expect(scheduleLibrary.get(slotId)).toMatchObject({
+      slotId,
+      moduleId: 'module-1',
+      conceptId: 'concept-1',
+      lastAppliedAttemptId: 'attempt-1',
+    })
+  })
+})
+
+describe('module-store updateKnowledgePage', () => {
+  beforeEach(() => {
+    mockRepo.clearAll()
+    useModuleStore.getState().clear()
+  })
+
+  it('updates knowledgePage on the matching concept', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+
+    useModuleStore.getState().updateKnowledgePage('concept-1', 'new knowledge content')
+
+    const current = useModuleStore.getState().currentModule
+    expect(current).not.toBeNull()
+    expect(current!.concepts[0]!.knowledgePage).toBe('new knowledge content')
+    expect(current!.concepts[1]!.knowledgePage).toBeUndefined()
+  })
+
+  it('is a no-op when conceptId does not exist', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+
+    expect(() =>
+      useModuleStore.getState().updateKnowledgePage('nonexistent', 'content'),
+    ).not.toThrow()
+
+    const current = useModuleStore.getState().currentModule
+    expect(current!.concepts[0]!.knowledgePage).toBeUndefined()
+  })
+
+  it('is a no-op for showcase modules', () => {
+    const testModule = makeModule({ origin: 'showcase' })
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+
+    useModuleStore.getState().updateKnowledgePage('concept-1', 'new content')
+
+    const current = useModuleStore.getState().currentModule
+    expect(current!.concepts[0]!.knowledgePage).toBeUndefined()
+  })
+
+  it('is a no-op when currentModule is null', () => {
+    expect(() =>
+      useModuleStore.getState().updateKnowledgePage('concept-1', 'content'),
+    ).not.toThrow()
+    expect(useModuleStore.getState().currentModule).toBeNull()
+  })
+
+  it('returns a new object (immutable update)', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+    const before = useModuleStore.getState().currentModule
+
+    useModuleStore.getState().updateKnowledgePage('concept-1', 'new content')
+
+    const after = useModuleStore.getState().currentModule
+    expect(before).not.toBe(after)
+    expect(before!.concepts[0]).not.toBe(after!.concepts[0])
+  })
+
+  it('persists updated knowledgePage to storage', () => {
+    const testModule = makeModule()
+    mockRepo.set('alc:module:module-1', testModule)
+    useModuleStore.getState().setModule(testModule)
+
+    useModuleStore.getState().updateKnowledgePage('concept-2', 'knowledge for concept 2')
+
+    const reloaded = loadStoredModule(mockRepo, 'module-1')
+    expect(reloaded).not.toBeNull()
+    expect(reloaded!.concepts[1]!.knowledgePage).toBe('knowledge for concept 2')
   })
 })
