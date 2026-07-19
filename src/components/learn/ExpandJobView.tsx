@@ -544,7 +544,7 @@ export function ExpandJobView({ initialRequest = null, jobId = null }: ExpandJob
                   暂停
                 </button>
               )}
-              {(job.status === 'paused' || job.status === 'failed') && (
+              {job.status === 'paused' && (
                 <button
                   type="button"
                   className="alc-button-primary text-xs"
@@ -611,6 +611,20 @@ export function ExpandJobView({ initialRequest = null, jobId = null }: ExpandJob
                       </span>
                     )}
                   </div>
+                  {item.status === 'failed' && item.attempts >= 3 && (
+                    <p
+                      className={`rounded-md p-2 text-xs ${
+                        item.attempts >= 5
+                          ? 'bg-danger/10 text-danger'
+                          : 'bg-warning-soft text-warning border border-warning/40'
+                      }`}
+                      role="note"
+                    >
+                      {item.attempts >= 5
+                        ? `已尝试 ${item.attempts} 次仍失败，强烈建议编辑源 Markdown 后重新提交；或确认 provider 配置正常。`
+                        : `已尝试 ${item.attempts} 次，建议检查源 Markdown 与约束文本。`}
+                    </p>
+                  )}
                   {item.error && (
                     <p className="rounded-md bg-danger/10 p-2 text-xs text-danger" role="alert">
                       [{item.error.code}] {item.error.message}

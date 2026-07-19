@@ -40,7 +40,7 @@ import { ExpandJobView } from '../ExpandJobView'
 
 type FetchImplementation = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
-function makeJob(status: ExpandJob['status'] = 'running'): ExpandJob {
+function makeJob(status: ExpandJob['status'] = 'running', attemptsOverride?: number): ExpandJob {
   return {
     jobId: 'expand-job-1',
     topicId: 'topic-1',
@@ -54,7 +54,7 @@ function makeJob(status: ExpandJob['status'] = 'running'): ExpandJob {
         source: '注意力机制',
         sourceHash: 'hash-1',
         status: status === 'failed' ? 'failed' : 'done',
-        attempts: status === 'failed' ? 2 : 1,
+        attempts: attemptsOverride ?? (status === 'failed' ? 2 : 1),
         ...(status === 'failed'
           ? { error: { code: 'provider_error', message: 'provider 暂时不可用', retryable: true } }
           : { moduleId: 'module-1' }),
@@ -207,5 +207,56 @@ describe('ExpandJobView', () => {
     })
     expect(container.textContent).toBe('')
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('attempts <= 2 时不展示诊断提示', async () => {
+    await renderJob('failed')
+    expect(container.textContent).toContain('尝试 2 次')
+    expect(container.textContent).not.toContain('建议检查源 Markdown')
+    expect(container.textContent).not.toContain('强烈建议')
+  })
+
+  it('attempts 3-4 时展示黄色软提示（与红色互斥）', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/compile/expand-job?'))
+        return jsonResponse({ job: makeJob('failed', 4) })
+      return jsonResponse({ job: makeJob('failed', 4) })
+    })
+    await act(async () => {
+      root.render(<ExpandJobView jobId="expand-job-1" />)
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(container.textContent).toContain('已尝试 4 次，建议检查源 Markdown 与约束文本。')
+    expect(container.textContent).not.toContain('强烈建议编辑源 Markdown')
+  })
+
+  it('attempts >= 5 时展示红色强诊断警告（与黄色互斥）', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/compile/expand-job?'))
+        return jsonResponse({ job: makeJob('failed', 5) })
+      return jsonResponse({ job: makeJob('failed', 5) })
+    })
+    await act(async () => {
+      root.render(<ExpandJobView jobId="expand-job-1" />)
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(container.textContent).toContain('已尝试 5 次仍失败，强烈建议编辑源 Markdown 后重新提交')
+    expect(container.textContent).not.toContain('建议检查源 Markdown 与约束文本')
+  })
+
+  it('job.status="failed" 时不渲染"恢复"按钮', async () => {
+    await renderJob('failed')
+    const resumeButton = [...container.querySelectorAll('button')].find(
+      (b) => b.textContent?.trim() === '恢复',
+    )
+    expect(resumeButton).toBeUndefined()
   })
 })
