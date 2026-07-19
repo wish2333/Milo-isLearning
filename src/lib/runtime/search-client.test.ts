@@ -103,7 +103,10 @@ describe('ClientSearchIndex', () => {
     index.rebuild([moduleData])
 
     expect(findHit(index.search('编译器'), 'module').moduleId).toBe('module-1')
-    expect(findHit(index.search('客户端索引'), 'concept').conceptId).toBe('concept-1')
+    expect(findHit(index.search('客户端索引'), 'concept')).toMatchObject({
+      conceptId: 'concept-1',
+      moduleId: 'module-1',
+    })
     expect(findHit(index.search('中文子串'), 'concept').conceptId).toBe('concept-1')
     expect(findHit(index.search('知识页完整说明'), 'concept').conceptId).toBe('concept-1')
     expect(findHit(index.search('检索增强'), 'quiz').quizId).toBe('quiz-1')
@@ -186,6 +189,25 @@ describe('ClientSearchIndex', () => {
 
     expect(hits).toHaveLength(3)
     expect(hits.map((hit) => hit.type)).toEqual(['module', 'concept', 'quiz'])
+  })
+
+  it('keeps scale results stable for a repeated 100-module snapshot', () => {
+    const modules = Array.from({ length: 100 }, (_, index) =>
+      makeModule(`module-${index + 1}`, {
+        intro: `规模测试内容 ${index + 1}`,
+      }),
+    )
+    const index = new ClientSearchIndex()
+
+    index.rebuild([...modules, modules[0]!, modules[25]!, modules[99]!])
+    const firstSearch = index.search('规模测试')
+
+    index.rebuild([...modules, modules[0]!, modules[25]!, modules[99]!])
+    const secondSearch = index.search('规模测试')
+
+    expect(firstSearch).toHaveLength(100)
+    expect(firstSearch.map((hit) => hit.moduleId)).toEqual(secondSearch.map((hit) => hit.moduleId))
+    expect(new Set(firstSearch.map((hit) => hit.moduleId)).size).toBe(100)
   })
 
   it('supports type and module filters for later SearchDialog integration', () => {

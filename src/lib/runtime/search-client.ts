@@ -98,7 +98,7 @@ export class ClientSearchIndex {
           createIndexedEntry(
             {
               type: 'concept',
-              moduleId: module.id,
+              moduleId: moduleData.id,
               conceptId: concept.id,
               title: concept.name,
               content: joinText([concept.definition, concept.keyPoints, concept.knowledgePage]),

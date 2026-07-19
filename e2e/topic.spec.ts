@@ -206,6 +206,16 @@ test.describe('Topic CRUD', () => {
 
 test.describe('Topic learning flow', () => {
   test.beforeEach(async ({ page }) => {
+    // FeynmanFinalView.handleSubmit guards on config being non-null
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'alc:settings',
+        JSON.stringify({
+          state: { config: { provider: 'deepseek', apiKey: 'test-key', model: 'test-model' } },
+          version: 0,
+        }),
+      )
+    })
     await blockCompile(page)
     await mockFeedbackAPI(page)
     await mockRegenerateAPI(page)

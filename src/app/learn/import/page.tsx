@@ -22,11 +22,14 @@ import { isProductionMode } from '@/lib/runtime/app-mode'
 import { track } from '@/lib/runtime/analytics'
 import { INPUT_MAX_LENGTH, INPUT_MIN_LENGTH } from '@/lib/compiler/pipeline/types'
 import { storage } from '@/lib/persistence/client/local-storage'
+import { createTopic } from '@/lib/persistence/topic-library'
 import { createCompileJob } from '@/lib/state/compile-job-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
 import { CompileResumePrompt } from '@/components/learn/CompileResumePrompt'
+import type { TopicExpandRequest } from '@/components/learn/ExpandJobView'
 
 const STORAGE_KEY = 'alc:compile-source'
+const TOPIC_EXPAND_REQUEST_KEY = 'alc:topic-expand-request'
 
 /** 通过 Web Crypto API 计算 SHA-256 hex digest */
 async function sha256(text: string): Promise<string> {
@@ -46,10 +49,12 @@ export default function ImportPage() {
   const router = useRouter()
   const config = useSettingsStore((s) => s.config)
 
-  const [mode, setMode] = useState<'markdown' | 'expand'>('markdown')
+  const [mode, setMode] = useState<'markdown' | 'expand' | 'topic-expand'>('markdown')
   const [markdown, setMarkdown] = useState('')
   const [topic, setTopic] = useState('')
   const [constraints, setConstraints] = useState('')
+  const [batchTopicName, setBatchTopicName] = useState('')
+  const [batchSources, setBatchSources] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [resumeInfo, setResumeInfo] = useState<ResumeInfo | null>(null)
   const [dismissedResume, setDismissedResume] = useState(false)
@@ -61,6 +66,16 @@ export default function ImportPage() {
 
   const topicLen = topic.trim().length
   const isTopicValid = topicLen >= 5 && topicLen <= 50
+  const batchItems = batchSources
+    .split('\n')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+  const isBatchValid =
+    isProductionMode &&
+    batchTopicName.trim().length >= 1 &&
+    batchTopicName.trim().length <= 50 &&
+    batchItems.length > 0 &&
+    batchItems.every((item) => item.length >= 5 && item.length <= 50)
 
   // PB.3: production 模式下，检测未完成的编译 session
   useEffect(() => {
@@ -205,6 +220,35 @@ export default function ImportPage() {
     router.push(`/learn/compiling?jobId=${job.jobId}`)
   }, [isTopicValid, submitting, config, topic, constraints, router])
 
+  const handleTopicExpandCompile = useCallback(async () => {
+    if (!isBatchValid || submitting || !config) {
+      if (!config && isBatchValid) router.push('/settings')
+      return
+    }
+
+    const name = batchTopicName.trim()
+    const items = batchItems
+    const normalizedConstraints = constraints.trim() || undefined
+    const sourceHash = await sha256(
+      JSON.stringify({ name, items, constraints: normalizedConstraints ?? '' }),
+    )
+    const createdTopic = createTopic(storage, name, normalizedConstraints)
+    const request: TopicExpandRequest = {
+      topicId: createdTopic.id,
+      sourceHash,
+      items,
+      ...(normalizedConstraints !== undefined ? { constraints: normalizedConstraints } : {}),
+    }
+    sessionStorage.setItem(TOPIC_EXPAND_REQUEST_KEY, JSON.stringify(request))
+    setSubmitting(true)
+    track('compile_start', {
+      mode: 'topic-expand',
+      topicLength: items.join('\n').length,
+      provider: config.provider ?? 'unknown',
+    })
+    router.push('/learn/expand-job')
+  }, [batchItems, batchTopicName, config, constraints, isBatchValid, router, submitting])
+
   const showResumePrompt = isProductionMode && resumeInfo && !dismissedResume
 
   return (
@@ -218,12 +262,16 @@ export default function ImportPage() {
             <h2 className="text-2xl font-semibold text-fg-primary">
               {mode === 'markdown'
                 ? '粘贴 Markdown，编译为学习路径'
-                : '输入主题，AI 扩充为学习路径'}
+                : mode === 'expand'
+                  ? '输入主题，AI 扩充为学习路径'
+                  : '批量输入主题，生成一个学习主题'}
             </h2>
             <p className="text-sm text-fg-secondary">
               {mode === 'markdown'
                 ? '支持任意技术文档、教程、笔记。AI 将自动拆分概念、生成练习、设计费曼任务。'
-                : '只需一个短主题词，AI 自动扩充知识材料并编译为完整学习模块。'}
+                : mode === 'expand'
+                  ? '只需一个短主题词，AI 自动扩充知识材料并编译为完整学习模块。'
+                  : '每行一个 5-50 字主题词；任务按顺序串行生成，失败项可单独重试。'}
             </p>
           </div>
 
@@ -261,6 +309,19 @@ export default function ImportPage() {
             >
               ✨ AI 扩充
             </button>
+            {isProductionMode && (
+              <button
+                type="button"
+                onClick={() => setMode('topic-expand')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  mode === 'topic-expand'
+                    ? 'bg-accent-primary text-bg-base'
+                    : 'border border-border-strong text-fg-secondary hover:bg-bg-elevated'
+                }`}
+              >
+                📚 批量主题
+              </button>
+            )}
           </div>
 
           {/* Markdown mode form */}
@@ -351,6 +412,57 @@ export default function ImportPage() {
                 className="alc-button-primary w-full py-3 text-sm"
               >
                 {!config ? '配置 LLM 后开始' : submitting ? '准备中...' : '开始 AI 扩充'}
+              </button>
+            </>
+          )}
+
+          {mode === 'topic-expand' && isProductionMode && (
+            <>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="alc-label uppercase tracking-wider">Topic 名称</label>
+                  <input
+                    type="text"
+                    value={batchTopicName}
+                    onChange={(e) => setBatchTopicName(e.target.value)}
+                    placeholder="例：机器学习基础"
+                    className="alc-textarea py-3 text-sm"
+                    maxLength={50}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="alc-label uppercase tracking-wider">主题词（每行一个）</label>
+                  <textarea
+                    value={batchSources}
+                    onChange={(e) => setBatchSources(e.target.value)}
+                    placeholder={'注意力机制\n梯度下降\nRAG 检索增强生成'}
+                    className="alc-textarea h-40 text-sm"
+                    maxLength={1200}
+                  />
+                  <p className="alc-muted text-xs">
+                    已识别 {batchItems.length} 个主题；每项需 5-50 字。
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="alc-label uppercase tracking-wider">统一约束（可选）</label>
+                  <textarea
+                    value={constraints}
+                    onChange={(e) => setConstraints(e.target.value)}
+                    placeholder="例：面向工程师，侧重实践；或：覆盖原理和常见误区..."
+                    className="alc-textarea h-24 text-sm"
+                    maxLength={200}
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={() => void handleTopicExpandCompile()}
+                disabled={!isBatchValid || submitting}
+                className="alc-button-primary w-full py-3 text-sm"
+              >
+                {!config ? '配置 LLM 后开始' : submitting ? '准备中...' : '开始批量扩充'}
               </button>
             </>
           )}

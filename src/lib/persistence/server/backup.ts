@@ -1,6 +1,7 @@
 import 'server-only'
 
 import type { SqliteDatabase } from './db-singleton'
+import { SQLITE_BACKUP_DIR } from './config'
 import { mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -13,7 +14,7 @@ import { join } from 'node:path'
  * 自动保留最近 10 个备份，超出删最旧。
  */
 
-const BACKUP_DIR = 'data/backup'
+const BACKUP_DIR = SQLITE_BACKUP_DIR
 const MAX_AUTO_BACKUPS = 10
 
 /**

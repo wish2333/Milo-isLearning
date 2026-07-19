@@ -168,4 +168,138 @@ describe('computeStats', () => {
     expect(result.todayCompletedCount).toBe(0)
     expect(result.sevenDayAccuracy).toBe(0)
   })
+
+  it('builds local 7/30-day trends and counts the earliest attempt per slot as first answer', () => {
+    const storedModule = makeModule('module-1')
+    const first = attempt('first', new Date('2026-07-17T06:59:00.000Z').getTime(), 90)
+    const duplicateFirst = { ...first, score: 0 }
+    const retry = attempt('retry', new Date('2026-07-17T07:01:00.000Z').getTime(), 20)
+    const older = attempt('older', new Date('2026-06-18T19:00:00.000Z').getTime(), 50)
+
+    const result = computeStats({
+      modules: [storedModule],
+      schedules: [schedule('module-1', 'module-1-quiz', '2026-07-17T07:00:00.000Z')],
+      // The first record is intentionally duplicated with the same id. The
+      // duplicate must not become another attempt or alter first-answer data.
+      attemptsBySlot: {
+        'module-1-quiz': [first, duplicateFirst, retry, older],
+      },
+      now,
+      timezone: 'America/Los_Angeles',
+    })
+
+    expect(result.sevenDayTrend).toHaveLength(7)
+    expect(result.thirtyDayTrend).toHaveLength(30)
+    expect(result.sevenDayTrend[5]).toMatchObject({
+      date: '2026-07-16',
+      attemptCount: 1,
+      firstAttemptCount: 0,
+      firstCorrectCount: 0,
+      firstCorrectRate: 0,
+      newAttemptCount: 0,
+      reviewAttemptCount: 1,
+      studyDay: true,
+    })
+    expect(result.sevenDayTrend[6]).toMatchObject({
+      date: '2026-07-17',
+      attemptCount: 1,
+      correctCount: 0,
+      firstAttemptCount: 0,
+      reviewAttemptCount: 1,
+      studyDay: true,
+    })
+    expect(result.sevenDayAttempts).toBe(2)
+    expect(result.sevenDayCorrect).toBe(1)
+    expect(result.sevenDayAccuracy).toBe(50)
+    expect(result.sevenDayStudyDays).toBe(2)
+    expect(result.thirtyDayTrend[0]).toMatchObject({
+      date: '2026-06-18',
+      attemptCount: 1,
+      firstAttemptCount: 1,
+      firstCorrectCount: 0,
+      firstCorrectRate: 0,
+      newAttemptCount: 1,
+    })
+    expect(result.thirtyDayStudyDays).toBe(3)
+    expect(result.totalAttempts).toBe(3)
+  })
+
+  it('uses due dates in the requested timezone and keeps overdue completion explicit', () => {
+    const storedModule = makeModule('module-1')
+    const overdueDue = '2026-07-17T06:59:00.000Z' // Jul 16 23:59 in Los Angeles.
+    const completedAfterMidnight = attempt(
+      'after-midnight',
+      new Date('2026-07-17T07:01:00.000Z').getTime(),
+      100,
+    )
+    const result = computeStats({
+      modules: [storedModule],
+      schedules: [schedule('module-1', 'module-1-quiz', overdueDue)],
+      attemptsBySlot: { 'module-1-quiz': [completedAfterMidnight] },
+      now,
+      timezone: 'America/Los_Angeles',
+    })
+
+    expect(result.todayDueCount).toBe(1)
+    expect(result.todayCompletedCount).toBe(1)
+    expect(result.sevenDayTrend[5]).toMatchObject({
+      date: '2026-07-16',
+      dueCount: 1,
+      dueCompletedCount: 0,
+      dueCompletionRate: 0,
+    })
+    expect(result.sevenDayTrend[6]).toMatchObject({
+      date: '2026-07-17',
+      dueCount: 1,
+      dueCompletedCount: 1,
+      dueCompletionRate: 100,
+    })
+  })
+
+  it('returns stable empty windows and falls back to UTC for an invalid timezone', () => {
+    const result = computeStats({
+      modules: [],
+      schedules: [],
+      attemptsBySlot: {},
+      now,
+      timezone: 'Not/A-Timezone',
+    })
+
+    expect(result.sevenDayTrend).toHaveLength(7)
+    expect(result.thirtyDayTrend).toHaveLength(30)
+    expect(result.sevenDayTrend[0]!.date).toBe('2026-07-11')
+    expect(result.sevenDayTrend.at(-1)!.date).toBe('2026-07-17')
+    expect(result.sevenDayStudyDays).toBe(0)
+    expect(result.thirtyDayStudyDays).toBe(0)
+    expect(result.todayDueCount).toBe(0)
+    expect(result.totalAttempts).toBe(0)
+  })
+
+  it('keeps retries from a legacy bucket when only the first quiz id is visible', () => {
+    const storedModule = makeModule('module-1')
+    const first = attempt('legacy-first', now.getTime() - 1_000, 20)
+    const retry = {
+      ...attempt('legacy-retry', now.getTime(), 100),
+      quizId: 'generated-retry-quiz',
+    }
+
+    const result = computeStats({
+      modules: [storedModule],
+      schedules: [],
+      attemptsBySlot: {
+        'legacy-quiz-id': [{ ...first, quizId: 'module-1-quiz' }, retry],
+      },
+      now,
+      timezone: 'UTC',
+    })
+
+    expect(result.totalAttempts).toBe(2)
+    expect(result.sevenDayAttempts).toBe(2)
+    expect(result.sevenDayCorrect).toBe(1)
+    expect(result.sevenDayTrend.at(-1)).toMatchObject({
+      attemptCount: 2,
+      firstAttemptCount: 1,
+      reviewAttemptCount: 1,
+    })
+  })
 })

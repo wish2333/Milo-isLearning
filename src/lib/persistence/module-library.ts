@@ -5,7 +5,7 @@
  * 不包含 UI 状态管理（由 Zustand store 负责）。
  */
 
-import type { Module, ProgressState, Quiz } from '@/types/domain'
+import type { AttemptRecord, Module, ProgressState, Quiz } from '@/types/domain'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
 import { computeModuleProgress, type ModuleProgressInfo } from '@/lib/runtime/module-progress'
@@ -37,6 +37,11 @@ export interface StoredModuleSummary {
  * 无 progress 的 Module 视为 updatedAt=0（最旧）。
  */
 export function listStoredModules(repo: StorageRepository): StoredModuleSummary[] {
+  const persistedAttempts = repo.get<{
+    state?: { attemptsBySlot?: Record<string, AttemptRecord[]> }
+  }>('alc:state:attempts')
+  const attemptsBySlot = persistedAttempts?.state?.attemptsBySlot
+
   return repo
     .keys()
     .filter((key) => key.startsWith('alc:module:'))
@@ -55,7 +60,7 @@ export function listStoredModules(repo: StorageRepository): StoredModuleSummary[
       )
       const challengeCount = module.challengeQuizzes?.length ?? 0
       const feynmanStepCount = module.feynmanTask.steps.length
-      const progressInfo = computeModuleProgress(module, progress ?? null)
+      const progressInfo = computeModuleProgress(module, progress ?? null, attemptsBySlot)
       return {
         id: module.id,
         sourceId: module.sourceId,

@@ -124,7 +124,7 @@ export const useProgressStore = create<ProgressStoreState>()(
        *   4. 若无任何有效进度 → 走 startModule 语义
        *
        * Storage Invariant: 必须用 `storage`（LS）读 per-module，不能用 getStorage()
-       * 已知限制: feynmanAttempt 在恢复时清空（per-module snapshot 不保存该字段）
+       * 旧 snapshot 可能缺少 feynmanAttempt，缺失时按 null 兼容。
        */
       resumeModule: (moduleId: string) => {
         const snapshot = storage.get<ProgressState>(StorageKeys.progress(moduleId))
@@ -132,12 +132,24 @@ export const useProgressStore = create<ProgressStoreState>()(
         const current = get()
         const globalMatched =
           current.moduleId === moduleId && current.stage !== null
-            ? { stage: current.stage, updatedAt: current.updatedAt }
+            ? {
+                stage: current.stage,
+                updatedAt: current.updatedAt,
+                feynmanAttempt: current.feynmanAttempt ?? null,
+              }
             : null
 
-        let winner: { stage: ModuleStage; updatedAt: number } | null = null
+        let winner: {
+          stage: ModuleStage
+          updatedAt: number
+          feynmanAttempt: FeynmanAttempt | null
+        } | null = null
         if (snapshot && snapshot.stage && snapshot.stage.kind !== 'done') {
-          winner = { stage: snapshot.stage, updatedAt: snapshot.updatedAt }
+          winner = {
+            stage: snapshot.stage,
+            updatedAt: snapshot.updatedAt,
+            feynmanAttempt: snapshot.feynmanAttempt ?? null,
+          }
         }
         if (
           globalMatched &&
@@ -152,7 +164,7 @@ export const useProgressStore = create<ProgressStoreState>()(
             moduleId,
             stage: winner.stage,
             updatedAt: winner.updatedAt,
-            feynmanAttempt: null,
+            feynmanAttempt: winner.feynmanAttempt,
           })
           return
         }
@@ -451,6 +463,7 @@ export const useProgressStore = create<ProgressStoreState>()(
             moduleId: state.moduleId,
             stage: state.stage,
             updatedAt: state.updatedAt,
+            feynmanAttempt: state.feynmanAttempt,
           })
         }
       },
@@ -489,6 +502,7 @@ export const _unsubscribeProgressSync = useProgressStore.subscribe((state, prevS
       moduleId: prevState.moduleId,
       stage: prevState.stage,
       updatedAt: prevState.updatedAt,
+      feynmanAttempt: prevState.feynmanAttempt,
     })
   }
 
@@ -497,5 +511,6 @@ export const _unsubscribeProgressSync = useProgressStore.subscribe((state, prevS
     moduleId: state.moduleId,
     stage: state.stage,
     updatedAt: state.updatedAt,
+    feynmanAttempt: state.feynmanAttempt,
   })
 })

@@ -65,6 +65,33 @@ export type CompileEvent =
   | { kind: 'progress'; stage: CompileStage; percent: number; message?: string }
   | { kind: 'complete'; module: Module; qualityReport?: CompileQualityReport }
   | { kind: 'error'; error: CompileErrorPayload }
+  | TopicExpandEvent
+
+/**
+ * Topic 批量扩充事件。
+ *
+ * 这些事件与单 Module 的 stage/progress/complete/error 事件共用同一 SSE
+ * 通道；旧消费者只需忽略未知 kind 即可继续消费单 Module 编译流。
+ */
+export type TopicExpandEvent =
+  | { kind: 'topic_expand_started'; jobId: string; totalItems: number }
+  | { kind: 'item_started'; jobId: string; itemId: string; moduleIndex: number }
+  | { kind: 'item_completed'; jobId: string; itemId: string; moduleId: string }
+  | {
+      kind: 'item_failed'
+      jobId: string
+      itemId: string
+      error: CompileErrorPayload
+      retryable: boolean
+    }
+  | { kind: 'topic_expand_paused'; jobId: string; completedItems: number }
+  | {
+      kind: 'topic_expand_cancelled'
+      jobId: string
+      completedItems: number
+      cancelledItems: number
+    }
+  | { kind: 'topic_expand_completed'; jobId: string; moduleIds: string[] }
 
 // =================================================================
 // 调用方配置

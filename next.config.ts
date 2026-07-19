@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
   // better-sqlite3 是 Node 原生 C++ addon，不应被 webpack/turbopack 打包。
   // 必须保留为外部 require —— 否则 webpack 会尝试把 .node 二进制打进 bundle 并失败。
   // 之前用 bun:sqlite 是错误的（next CLI 永远跑在 Node 上，bun:sqlite 不可用）。
+  // E2E isolation: two `next dev` servers (port 3001 + 3002) share the same
+  // source tree. Without separate cache dirs they corrupt each other's
+  // compiled output, causing intermittent navigation failures in showcase tests.
+  // Only active when E2E_CACHE_DIR is set by playwright.config.ts.
+  ...(process.env.E2E_CACHE_DIR ? { distDir: process.env.E2E_CACHE_DIR } : {}),
   serverExternalPackages: ['better-sqlite3'],
   // Vercel Functions 超时由 vercel.json 中按路由设置（不同路由不同时限）
 

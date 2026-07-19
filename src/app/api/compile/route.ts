@@ -20,6 +20,7 @@ import 'server-only'
 import type { NextRequest } from 'next/server'
 import {
   compileMarkdown,
+  compileTopicWithExpand,
   compileWithExpand,
   type CompileConfig,
   type CompileErrorPayload,
@@ -27,9 +28,11 @@ import {
   type CompileOptions,
   type CompileStage,
 } from '@/lib/compiler/pipeline'
+import { expandJobLibrary } from '@/lib/persistence/expand-job-library'
 import { isStorageEnabled } from '@/lib/persistence/server/config'
 import { APP_MODE } from '@/lib/runtime/app-mode'
 import { getDb } from '@/lib/persistence/server/db-singleton'
+import { ServerSQLiteRepository } from '@/lib/persistence/server/sqlite-repository'
 import { saveCheckpoint, getResumptionData } from '@/lib/persistence/server/compile-checkpoint'
 
 export const runtime = 'nodejs'
@@ -57,9 +60,42 @@ export async function POST(req: NextRequest) {
   const compileMode =
     typeof parsedBody.compileMode === 'string' ? parsedBody.compileMode : 'markdown'
   const isExpandMode = compileMode === 'expand'
+  const isTopicExpandMode = compileMode === 'topic-expand'
 
   // Mode-specific field validation
-  if (isExpandMode) {
+  if (isTopicExpandMode) {
+    if (APP_MODE !== 'production' || !isStorageEnabled) {
+      return Response.json(
+        { error: 'topic-expand is only available in production storage mode' },
+        { status: 404 },
+      )
+    }
+    if (typeof parsedBody.sourceHash !== 'string' || parsedBody.sourceHash.length === 0) {
+      return Response.json(
+        { error: 'Missing required field: sourceHash (required in topic-expand mode)' },
+        { status: 400 },
+      )
+    }
+    if (!Array.isArray(parsedBody.items) || parsedBody.items.length === 0) {
+      return Response.json(
+        { error: 'items must be a non-empty array (required in topic-expand mode)' },
+        { status: 400 },
+      )
+    }
+    for (const [index, item] of parsedBody.items.entries()) {
+      if (
+        item === null ||
+        typeof item !== 'object' ||
+        typeof (item as Record<string, unknown>).source !== 'string' ||
+        typeof (item as Record<string, unknown>).moduleIndex !== 'number'
+      ) {
+        return Response.json(
+          { error: `items[${index}] must contain source and numeric moduleIndex` },
+          { status: 400 },
+        )
+      }
+    }
+  } else if (isExpandMode) {
     if (typeof parsedBody.topic !== 'string' || parsedBody.topic.length === 0) {
       return Response.json(
         { error: 'Missing required field: topic (required in expand mode)' },
@@ -87,6 +123,53 @@ export async function POST(req: NextRequest) {
   const constraints =
     typeof parsedBody.constraints === 'string' ? parsedBody.constraints : undefined
 
+  const topicExpandSourceHash =
+    typeof parsedBody.sourceHash === 'string' ? parsedBody.sourceHash : undefined
+
+  const rawTopicExpandItems = isTopicExpandMode ? (parsedBody.items as unknown[]) : []
+  const topicExpandItems = isTopicExpandMode
+    ? rawTopicExpandItems.map((item, index) => {
+        const parsedItem = item as Record<string, unknown>
+        return {
+          itemId: typeof parsedItem.itemId === 'string' ? parsedItem.itemId : undefined,
+          moduleIndex: typeof parsedItem.moduleIndex === 'number' ? parsedItem.moduleIndex : index,
+          source: parsedItem.source as string,
+        }
+      })
+    : []
+
+  let topicExpandJobId: string | undefined
+  let topicExpandRepository: ServerSQLiteRepository | undefined
+  if (isTopicExpandMode && topicExpandSourceHash) {
+    try {
+      topicExpandRepository = new ServerSQLiteRepository(getDb())
+      const requestedJobId = typeof parsedBody.jobId === 'string' ? parsedBody.jobId : undefined
+      const existingJob = requestedJobId
+        ? expandJobLibrary.get(requestedJobId, topicExpandRepository)
+        : null
+      if (requestedJobId && !existingJob) {
+        return Response.json({ error: 'expand_job_not_found' }, { status: 404 })
+      }
+      if (existingJob && existingJob.sourceHash !== topicExpandSourceHash) {
+        return Response.json({ error: 'source_changed', jobId: existingJob.jobId }, { status: 409 })
+      }
+      const job =
+        existingJob ??
+        expandJobLibrary.create(
+          {
+            sourceHash: topicExpandSourceHash,
+            topicId: typeof parsedBody.topicId === 'string' ? parsedBody.topicId : undefined,
+            constraints,
+            items: topicExpandItems,
+          },
+          topicExpandRepository,
+        )
+      topicExpandJobId = job.jobId
+    } catch {
+      return Response.json({ error: 'expand_job_storage_unavailable' }, { status: 503 })
+    }
+  }
+
   // --- Build CompileOptions (PB.2 F04) ---
   const compileOptions: CompileOptions = {}
 
@@ -95,6 +178,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (
+    !isTopicExpandMode &&
     typeof parsedBody.resumeFrom === 'string' &&
     parsedBody.resumeFrom.length > 0 &&
     APP_MODE === 'production' &&
@@ -118,7 +202,12 @@ export async function POST(req: NextRequest) {
   }
 
   // 注入 checkpoint 写入回调（production + storage 可用时）
-  if (APP_MODE === 'production' && isStorageEnabled && compileOptions.sessionId) {
+  if (
+    !isTopicExpandMode &&
+    APP_MODE === 'production' &&
+    isStorageEnabled &&
+    compileOptions.sessionId
+  ) {
     try {
       const db = getDb()
       const sessionId = compileOptions.sessionId
@@ -151,9 +240,16 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       console.info('[api/compile] ReadableStream.start() 开始执行')
       const generator: AsyncGenerator<CompileEvent, void, unknown> = (
-        isExpandMode
-          ? compileWithExpand(topic, constraints, config as CompileConfig, compileOptions)
-          : compileMarkdown(rawMarkdown, config as CompileConfig, compileOptions)
+        isTopicExpandMode
+          ? compileTopicWithExpand(config as CompileConfig, {
+              jobId: topicExpandJobId!,
+              sourceHash: topicExpandSourceHash!,
+              constraints,
+              repository: topicExpandRepository,
+            })
+          : isExpandMode
+            ? compileWithExpand(topic, constraints, config as CompileConfig, compileOptions)
+            : compileMarkdown(rawMarkdown, config as CompileConfig, compileOptions)
       ) as AsyncGenerator<CompileEvent, void, unknown>
       try {
         for await (const event of generator) {
