@@ -31,6 +31,13 @@ interface AttemptsStoreState {
   /** 以 originalQuizId（槽位 id）为 key 的作答历史 */
   attemptsBySlot: Record<string, AttemptRecord[]>
 
+  /**
+   * Amnesty 机制（V2.1.3）：用户编辑题目后，下次答对则清空历史 attempt。
+   * key = slotId，value = token（仅用于存在性检查，值本身无意义）。
+   * 持久化到 localStorage，跨会话有效。
+   */
+  pendingAmnesty: Record<string, string>
+
   /** 追加一条作答记录到对应槽位 */
   addAttempt: (attempt: AttemptRecord) => void
 
@@ -39,6 +46,18 @@ interface AttemptsStoreState {
 
   /** 获取某槽位当前连续失败次数对应的 attemptVersion（用于新建 AttemptRecord） */
   getNextAttemptVersion: (slotId: string) => number
+
+  /**
+   * 标记某 slot 进入 amnesty 待触发状态（V2.1.3）。
+   * 每次编辑重新生成 token，覆盖之前的（允许用户多次编辑）。
+   * 下次该 slot 的 attempt：若 score>=80 触发清空，若 score<80 消费作废。
+   */
+  markPendingAmnesty: (slotId: string) => void
+
+  hasPendingAmnesty: (slotId: string) => boolean
+
+  /** 清除某 slot 的 pending amnesty（不消费，用于取消编辑场景） */
+  clearPendingAmnesty: (slotId: string) => void
 
   markGuessed: (originalQuizId: string) => void
 
@@ -68,8 +87,28 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
   persist(
     (set, get) => ({
       attemptsBySlot: {},
+      pendingAmnesty: {},
 
       addAttempt: (attempt) => {
+        const slotId = attempt.originalQuizId
+        const existingAmnesty = get().pendingAmnesty[slotId]
+
+        if (existingAmnesty) {
+          get().clearPendingAmnesty(slotId)
+
+          if (attempt.score >= 80) {
+            set((state) => {
+              const next = { ...state.attemptsBySlot }
+              next[slotId] = [attempt]
+              return { attemptsBySlot: next }
+            })
+            scheduleLibrary.remove(slotId)
+            void triggerAutoBackup(false)
+            recordStudyDay()
+            return
+          }
+        }
+
         set((state) => {
           const existing = state.attemptsBySlot[attempt.originalQuizId] ?? []
           return {
@@ -89,6 +128,24 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
         const attempts = get().attemptsBySlot[slotId] ?? []
         return attempts.length
       },
+
+      markPendingAmnesty: (slotId) =>
+        set((state) => ({
+          pendingAmnesty: {
+            ...state.pendingAmnesty,
+            [slotId]: `amnesty-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          },
+        })),
+
+      hasPendingAmnesty: (slotId) => Boolean(get().pendingAmnesty[slotId]),
+
+      clearPendingAmnesty: (slotId) =>
+        set((state) => {
+          if (!state.pendingAmnesty[slotId]) return state
+          const next = { ...state.pendingAmnesty }
+          delete next[slotId]
+          return { pendingAmnesty: next }
+        }),
 
       clearSlot: (slotId) =>
         set((state) => {

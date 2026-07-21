@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAttemptsStore } from '../attempts-store'
 import { scheduleLibrary } from '@/lib/persistence/schedule-library'
 import type { AttemptRecord, Quiz, SchedulingData } from '@/types/domain'
@@ -412,5 +412,199 @@ describe('attempts-store reevaluateLastAttempt', () => {
     expect(last.score).toBe(100)
     expect(last.nextAction).toBe('advance')
     expect(last.gaps).toEqual([])
+  })
+})
+
+function makeBaseAttempt(slotId: string): AttemptRecord {
+  return {
+    id: 'base',
+    quizId: 'q-' + slotId,
+    originalQuizId: slotId,
+    attemptVersion: 0,
+    userAnswer: 'answer',
+    score: 0,
+    gaps: [],
+    nextAction: 'retry',
+    timestamp: Date.now(),
+    moduleId: 'm1',
+    conceptId: 'c1',
+  }
+}
+
+describe('Amnesty (V2.1.3)', () => {
+  beforeEach(() => {
+    useAttemptsStore.setState({ attemptsBySlot: {}, pendingAmnesty: {} })
+  })
+
+  it('markPendingAmnesty sets token', () => {
+    useAttemptsStore.getState().markPendingAmnesty('slot-1')
+    expect(useAttemptsStore.getState().hasPendingAmnesty('slot-1')).toBe(true)
+    expect(useAttemptsStore.getState().hasPendingAmnesty('slot-2')).toBe(false)
+  })
+
+  it('repeated markPendingAmnesty overwrites previous token', () => {
+    useAttemptsStore.getState().markPendingAmnesty('slot-1')
+    const token1 = useAttemptsStore.getState().pendingAmnesty['slot-1']
+    useAttemptsStore.getState().markPendingAmnesty('slot-1')
+    const token2 = useAttemptsStore.getState().pendingAmnesty['slot-1']
+    expect(token1).not.toBe(token2)
+    expect(useAttemptsStore.getState().hasPendingAmnesty('slot-1')).toBe(true)
+  })
+
+  it('amnesty + pass (score=100) clears history, keeps only the new attempt', () => {
+    const oldAttempts: AttemptRecord[] = [
+      { ...makeBaseAttempt('slot-1'), id: 'a1', score: 30, attemptVersion: 0 },
+      { ...makeBaseAttempt('slot-1'), id: 'a2', score: 50, attemptVersion: 1 },
+      { ...makeBaseAttempt('slot-1'), id: 'a3', score: 90, attemptVersion: 2 },
+    ]
+    useAttemptsStore.setState({
+      attemptsBySlot: { 'slot-1': oldAttempts },
+      pendingAmnesty: {},
+    })
+
+    useAttemptsStore.getState().markPendingAmnesty('slot-1')
+
+    const passedAttempt: AttemptRecord = {
+      ...makeBaseAttempt('slot-1'),
+      id: 'a4',
+      score: 100,
+      attemptVersion: 3,
+      userAnswer: 'correct',
+    }
+    useAttemptsStore.getState().addAttempt(passedAttempt)
+
+    const result = useAttemptsStore.getState().getAttempts('slot-1')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.id).toBe('a4')
+    expect(result[0]!.score).toBe(100)
+    expect(useAttemptsStore.getState().hasPendingAmnesty('slot-1')).toBe(false)
+  })
+
+  it('amnesty + fail (score<80) consumes token, preserves all history', () => {
+    const oldAttempts: AttemptRecord[] = [
+      { ...makeBaseAttempt('slot-1'), id: 'a1', score: 30, attemptVersion: 0 },
+    ]
+    useAttemptsStore.setState({
+      attemptsBySlot: { 'slot-1': oldAttempts },
+      pendingAmnesty: {},
+    })
+
+    useAttemptsStore.getState().markPendingAmnesty('slot-1')
+
+    const failedAttempt: AttemptRecord = {
+      ...makeBaseAttempt('slot-1'),
+      id: 'a2',
+      score: 50,
+      attemptVersion: 1,
+    }
+    useAttemptsStore.getState().addAttempt(failedAttempt)
+
+    const result = useAttemptsStore.getState().getAttempts('slot-1')
+    expect(result).toHaveLength(2)
+    expect(useAttemptsStore.getState().hasPendingAmnesty('slot-1')).toBe(false)
+  })
+
+  it('amnesty only affects the target slot', () => {
+    useAttemptsStore.setState({
+      attemptsBySlot: {
+        'slot-1': [{ ...makeBaseAttempt('slot-1'), id: 'a1', score: 30, attemptVersion: 0 }],
+        'slot-2': [{ ...makeBaseAttempt('slot-2'), id: 'b1', score: 50, attemptVersion: 0 }],
+      },
+      pendingAmnesty: {},
+    })
+
+    useAttemptsStore.getState().markPendingAmnesty('slot-1')
+
+    useAttemptsStore.getState().addAttempt({
+      ...makeBaseAttempt('slot-1'),
+      id: 'a2',
+      score: 100,
+      attemptVersion: 1,
+    })
+
+    expect(useAttemptsStore.getState().getAttempts('slot-1')).toHaveLength(1)
+    expect(useAttemptsStore.getState().getAttempts('slot-2')).toHaveLength(1)
+    expect(useAttemptsStore.getState().getAttempts('slot-2')[0]!.id).toBe('b1')
+  })
+
+  it('amnesty triggers scheduleLibrary.remove on pass', () => {
+    const removeSpy = vi.spyOn(scheduleLibrary, 'remove')
+
+    useAttemptsStore.setState({
+      attemptsBySlot: {
+        'slot-1': [{ ...makeBaseAttempt('slot-1'), id: 'a1', score: 0, attemptVersion: 0 }],
+      },
+      pendingAmnesty: {},
+    })
+
+    useAttemptsStore.getState().markPendingAmnesty('slot-1')
+
+    useAttemptsStore.getState().addAttempt({
+      ...makeBaseAttempt('slot-1'),
+      id: 'a2',
+      score: 100,
+      attemptVersion: 1,
+    })
+
+    expect(removeSpy).toHaveBeenCalledWith('slot-1')
+    removeSpy.mockRestore()
+  })
+
+  it('amnesty does NOT call scheduleLibrary.remove on fail', () => {
+    const removeSpy = vi.spyOn(scheduleLibrary, 'remove')
+
+    useAttemptsStore.setState({
+      attemptsBySlot: {
+        'slot-1': [{ ...makeBaseAttempt('slot-1'), id: 'a1', score: 0, attemptVersion: 0 }],
+      },
+      pendingAmnesty: {},
+    })
+
+    useAttemptsStore.getState().markPendingAmnesty('slot-1')
+
+    useAttemptsStore.getState().addAttempt({
+      ...makeBaseAttempt('slot-1'),
+      id: 'a2',
+      score: 50,
+      attemptVersion: 1,
+    })
+
+    expect(removeSpy).not.toHaveBeenCalled()
+    removeSpy.mockRestore()
+  })
+
+  it('clearPendingAmnesty removes token without consuming', () => {
+    useAttemptsStore.getState().markPendingAmnesty('slot-1')
+    expect(useAttemptsStore.getState().hasPendingAmnesty('slot-1')).toBe(true)
+
+    useAttemptsStore.getState().clearPendingAmnesty('slot-1')
+    expect(useAttemptsStore.getState().hasPendingAmnesty('slot-1')).toBe(false)
+  })
+
+  it('clearPendingAmnesty is no-op when no pending amnesty', () => {
+    const stateBefore = useAttemptsStore.getState()
+    useAttemptsStore.getState().clearPendingAmnesty('slot-nonexistent')
+    expect(useAttemptsStore.getState()).toBe(stateBefore)
+  })
+
+  it('no amnesty: addAttempt behaves as before (append)', () => {
+    useAttemptsStore.setState({
+      attemptsBySlot: {
+        'slot-1': [{ ...makeBaseAttempt('slot-1'), id: 'a1', score: 30, attemptVersion: 0 }],
+      },
+      pendingAmnesty: {},
+    })
+
+    useAttemptsStore.getState().addAttempt({
+      ...makeBaseAttempt('slot-1'),
+      id: 'a2',
+      score: 100,
+      attemptVersion: 1,
+    })
+
+    const result = useAttemptsStore.getState().getAttempts('slot-1')
+    expect(result).toHaveLength(2)
+    expect(result[0]!.id).toBe('a1')
+    expect(result[1]!.id).toBe('a2')
   })
 })

@@ -14,9 +14,11 @@
  *   - /learn/history/[id] 页面（题库列表入口）
  */
 
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 
+import { useModuleStore } from '@/lib/state/module-store'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
+import { AnswerCorrector } from '@/components/quiz/AnswerCorrector'
 import type { AttemptRecord, Module, Quiz } from '@/types/domain'
 
 interface AnswerHistoryListProps {
@@ -81,7 +83,10 @@ function collectAnsweredQuizzes(
 
 export function AnswerHistoryList({ module, currentSlotId }: AnswerHistoryListProps) {
   const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
+  const markPendingAmnesty = useAttemptsStore((s) => s.markPendingAmnesty)
+  const correctQuizAnswer = useModuleStore((s) => s.correctQuizAnswer)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null)
 
   const answeredQuizzes = useMemo(
     () => collectAnsweredQuizzes(module, attemptsBySlot),
@@ -205,6 +210,38 @@ export function AnswerHistoryList({ module, currentSlotId }: AnswerHistoryListPr
                     <summary className="cursor-pointer text-fg-secondary">延伸理解</summary>
                     <p className="pt-2 leading-relaxed">{quiz.extendedKnowledge}</p>
                   </details>
+                )}
+
+                {/* 编辑入口（V2.1.3 错题编辑 amnesty）—— showcase origin 不显示 */}
+                {module.origin !== 'showcase' && (
+                  <div className="pt-3 border-t border-border-subtle/50">
+                    {editingSlotId === quiz.id ? (
+                      <div className="space-y-3">
+                        <p className="alc-label">编辑此题</p>
+                        <p className="text-xs text-fg-tertiary">
+                          编辑后下次答对将清空该题历史作答记录，视为&ldquo;从来没有错误过&rdquo;。
+                        </p>
+                        <AnswerCorrector
+                          quiz={quiz}
+                          onSave={(patch) => {
+                            correctQuizAnswer(quiz.id, patch)
+                            markPendingAmnesty(quiz.id)
+                            setEditingSlotId(null)
+                          }}
+                          onCancel={() => setEditingSlotId(null)}
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditingSlotId(quiz.id)}
+                        className="text-xs text-fg-tertiary hover:text-fg-secondary transition-colors"
+                        aria-label={`编辑此题: ${quiz.stem.replace(/"/g, '&quot;')}`}
+                      >
+                        编辑此题
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
