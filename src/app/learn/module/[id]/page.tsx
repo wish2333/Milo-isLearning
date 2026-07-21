@@ -18,7 +18,7 @@ import { useEffect } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
-import { getStorage } from '@/lib/persistence/client/storage'
+import { getStorageValueWithLegacyFallback } from '@/lib/persistence/client/storage'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
@@ -56,7 +56,6 @@ export default function ModulePage() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const hydrated = useHydrated()
-  const storage = getStorage()
   const currentModule = useModuleStore((s) => s.currentModule)
   const setModule = useModuleStore((s) => s.setModule)
   const stage = useProgressStore((s) => s.stage)
@@ -66,14 +65,16 @@ export default function ModulePage() {
     if (!hydrated || !routeModuleId) return
     if (currentModule?.id === routeModuleId) return
 
-    const storedModule = storage.get<Module>(StorageKeys.module(routeModuleId))
+    const storedModule = getStorageValueWithLegacyFallback<Module>(
+      StorageKeys.module(routeModuleId),
+    )
     if (storedModule) {
       setModule(storedModule)
       return
     }
 
     router.replace('/learn/library')
-  }, [hydrated, routeModuleId, currentModule?.id, setModule, router, storage])
+  }, [hydrated, routeModuleId, currentModule?.id, setModule, router])
 
   // 无 Module 数据时回到题库页（等 hydration 和 route 恢复完成后再检查）
   useEffect(() => {
@@ -81,11 +82,11 @@ export default function ModulePage() {
       hydrated &&
       routeModuleId &&
       !currentModule &&
-      !storage.has(StorageKeys.module(routeModuleId))
+      !getStorageValueWithLegacyFallback<Module>(StorageKeys.module(routeModuleId))
     ) {
       router.replace('/learn/library')
     }
-  }, [hydrated, routeModuleId, currentModule, router, storage])
+  }, [hydrated, routeModuleId, currentModule, router])
 
   // done → 重定向（主题会话拦截）
   useEffect(() => {
