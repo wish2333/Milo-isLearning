@@ -18,7 +18,7 @@ import { useEffect } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
@@ -56,6 +56,7 @@ export default function ModulePage() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const hydrated = useHydrated()
+  const storage = getStorage()
   const currentModule = useModuleStore((s) => s.currentModule)
   const setModule = useModuleStore((s) => s.setModule)
   const stage = useProgressStore((s) => s.stage)
@@ -72,7 +73,7 @@ export default function ModulePage() {
     }
 
     router.replace('/learn/library')
-  }, [hydrated, routeModuleId, currentModule?.id, setModule, router])
+  }, [hydrated, routeModuleId, currentModule?.id, setModule, router, storage])
 
   // 无 Module 数据时回到题库页（等 hydration 和 route 恢复完成后再检查）
   useEffect(() => {
@@ -84,7 +85,7 @@ export default function ModulePage() {
     ) {
       router.replace('/learn/library')
     }
-  }, [hydrated, routeModuleId, currentModule, router])
+  }, [hydrated, routeModuleId, currentModule, router, storage])
 
   // done → 重定向（主题会话拦截）
   useEffect(() => {

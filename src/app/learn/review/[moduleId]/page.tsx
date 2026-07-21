@@ -21,7 +21,7 @@ import { useSettingsStore } from '@/lib/state/settings-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { loadStoredModule } from '@/lib/persistence/module-library'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
 import type { ReviewFilter, AttemptRecord, Quiz } from '@/types/domain'
 
@@ -64,6 +64,7 @@ export default function ReviewPage() {
   const params = useParams<{ moduleId: string }>()
   const searchParams = useSearchParams()
   const hydrated = useHydrated()
+  const storage = getStorage()
 
   const currentFilter = (searchParams.get('filter') ?? 'all') as ReviewFilter
 
@@ -83,7 +84,10 @@ export default function ReviewPage() {
   /** 记录当前题目展示时间，用于计算答题耗时 */
   const quizDisplayStart = useRef<number>(Date.now())
 
-  const moduleData = useMemo(() => loadStoredModule(storage, params.moduleId!), [params.moduleId])
+  const moduleData = useMemo(
+    () => loadStoredModule(storage, params.moduleId!),
+    [params.moduleId, storage],
+  )
 
   const counts = useMemo(() => {
     if (!moduleData) return { all: 0, wrong: 0, guessed: 0, due: 0 }
@@ -121,7 +125,7 @@ export default function ReviewPage() {
     if (!started) {
       setEmpty(true)
     }
-  }, [hydrated, params.moduleId, currentFilter, startSession])
+  }, [hydrated, params.moduleId, currentFilter, startSession, storage])
 
   const currentQueueItem = session ? session.queue[session.currentIndex] : null
   const currentQuiz = currentQueueItem?.quiz ?? null

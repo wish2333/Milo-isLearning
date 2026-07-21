@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import { downloadWrongQuestionBook, hasWrongQuestions } from '@/lib/persistence/wrong-question-book'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import type { Module } from '@/types/domain'
@@ -24,6 +24,7 @@ export default function HistoryPage() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const hydrated = useHydrated()
+  const storage = getStorage()
 
   const [moduleData, setModuleData] = useState<Module | null>(null)
   const [notFound, setNotFound] = useState(false)
@@ -38,7 +39,7 @@ export default function HistoryPage() {
     } else {
       setNotFound(true)
     }
-  }, [hydrated, params.id])
+  }, [hydrated, params.id, storage])
 
   const hasWrong = useMemo(
     () => (moduleData ? hasWrongQuestions(moduleData, attemptsBySlot) : false),

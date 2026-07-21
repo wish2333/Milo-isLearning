@@ -21,7 +21,7 @@ import { useSettingsStore } from '@/lib/state/settings-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { loadStoredModule } from '@/lib/persistence/module-library'
 import { getTopic } from '@/lib/persistence/topic-library'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
 import type { ReviewFilter, Module, AttemptRecord, Quiz } from '@/types/domain'
 
@@ -65,6 +65,7 @@ export default function TopicReviewPage() {
   const params = useParams<{ topicId: string }>()
   const searchParams = useSearchParams()
   const hydrated = useHydrated()
+  const storage = getStorage()
 
   const currentFilter = (searchParams.get('filter') as ReviewFilter) ?? 'all'
 
@@ -91,7 +92,7 @@ export default function TopicReviewPage() {
     return topic.moduleIds
       .map((id) => loadStoredModule(storage, id))
       .filter((m): m is Module => m !== null)
-  }, [params.topicId])
+  }, [params.topicId, storage])
 
   const counts = useMemo(
     () => ({

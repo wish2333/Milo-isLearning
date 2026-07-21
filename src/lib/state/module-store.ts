@@ -99,7 +99,17 @@ export const useModuleStore = create<ModuleStoreState>()(
       correctQuizAnswer: (quizId, patch) => {
         const current = get().currentModule
         if (!current) return
-        const updatedModule = updateQuizInModule(getStorage(), current.id, quizId, patch)
+        const repository = getStorage()
+
+        // 兼容 V2.1.3 之前 production 构建产生的数据：部分入口曾把 Module
+        // 写入 browser LocalStorage，但 currentModule 状态已经持久化到 server
+        // storage。编辑时先用当前状态补齐缺失的 Module 记录，避免直接抛出
+        // “Module ... not found”，随后继续走统一的 repository 更新路径。
+        if (!repository.has(StorageKeys.module(current.id))) {
+          repository.set(StorageKeys.module(current.id), current)
+        }
+
+        const updatedModule = updateQuizInModule(repository, current.id, quizId, patch)
         set({ currentModule: updatedModule })
         const updatedQuiz = findQuizInModule(updatedModule, quizId)
         if (!updatedQuiz) return

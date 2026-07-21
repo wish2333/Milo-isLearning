@@ -165,6 +165,19 @@ describe('module-store correctQuizAnswer', () => {
     expect(patchedQuiz.answer).toBe('b')
   })
 
+  it('correctQuizAnswer bootstraps a missing Module record from currentModule', () => {
+    const testModule = makeModule()
+    useModuleStore.getState().setModule(testModule)
+
+    expect(() =>
+      useModuleStore.getState().correctQuizAnswer('module-1:concept-1:slot-1', { answer: 'b' }),
+    ).not.toThrow()
+
+    const persisted = loadStoredModule(mockRepo, 'module-1')
+    expect(persisted).not.toBeNull()
+    expect(persisted!.concepts[0]!.quizSeries.quizzes[0]!.answer).toBe('b')
+  })
+
   it('correctQuizAnswer syncs currentQuiz when quizId matches currentQuiz.id', () => {
     const testModule = makeModule()
     mockRepo.set('alc:module:module-1', testModule)
