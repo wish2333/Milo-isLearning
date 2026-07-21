@@ -16,6 +16,7 @@ import { AnswerHistoryList } from '../AnswerHistoryList'
 const { act } = React
 
 const mockCorrectQuizAnswer = vi.fn()
+const mockSetModule = vi.fn()
 const mockMarkPendingAmnesty = vi.fn()
 
 function makeAttempt(quizId: string): AttemptRecord {
@@ -37,8 +38,12 @@ const fixtureAttempts: Record<string, AttemptRecord[]> = {
 }
 
 vi.mock('@/lib/state/module-store', () => ({
-  useModuleStore: (selector: (s: { correctQuizAnswer: typeof mockCorrectQuizAnswer }) => unknown) =>
-    selector({ correctQuizAnswer: mockCorrectQuizAnswer }),
+  useModuleStore: (
+    selector: (s: {
+      setModule: typeof mockSetModule
+      correctQuizAnswer: typeof mockCorrectQuizAnswer
+    }) => unknown,
+  ) => selector({ setModule: mockSetModule, correctQuizAnswer: mockCorrectQuizAnswer }),
 }))
 
 vi.mock('@/lib/state/attempts-store', () => ({
@@ -139,6 +144,7 @@ describe('AnswerHistoryList — 编辑入口（V2.1.3）', () => {
     container = document.createElement('div')
     document.body.appendChild(container)
     mockCorrectQuizAnswer.mockClear()
+    mockSetModule.mockClear()
     mockMarkPendingAmnesty.mockClear()
   })
 
@@ -219,6 +225,7 @@ describe('AnswerHistoryList — 编辑入口（V2.1.3）', () => {
     act(() => saveBtn!.click())
 
     expect(mockCorrectQuizAnswer).toHaveBeenCalledWith('q-1', expect.any(Object))
+    expect(mockSetModule).toHaveBeenCalledWith(mod)
     expect(mockMarkPendingAmnesty).toHaveBeenCalledWith('q-1')
 
     // After save, the edit button should reappear

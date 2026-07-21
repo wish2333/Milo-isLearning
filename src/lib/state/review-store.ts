@@ -9,12 +9,11 @@
 
 import { create } from 'zustand'
 
-import type { Module, Quiz, ReviewFilter } from '@/types/domain'
+import type { Module, Quiz, ReviewFilter, Topic } from '@/types/domain'
 
 import { collectReviewItemsForModules } from '@/lib/runtime/topic-review'
-import { loadStoredModule } from '@/lib/persistence/module-library'
-import { getTopic } from '@/lib/persistence/topic-library'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorageValueWithLegacyFallback } from '@/lib/persistence/client/storage'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useTodaySessionStore } from '@/lib/state/today-session-store'
 
@@ -67,7 +66,7 @@ export const useReviewStore = create<ReviewStoreState>()((set) => ({
   session: null,
 
   startSession: (moduleId, filter = 'all') => {
-    const moduleData = loadStoredModule(storage, moduleId)
+    const moduleData = getStorageValueWithLegacyFallback<Module>(StorageKeys.module(moduleId))
     if (!moduleData) return false
 
     const attemptsBySlot = useAttemptsStore.getState().attemptsBySlot
@@ -95,10 +94,11 @@ export const useReviewStore = create<ReviewStoreState>()((set) => ({
   },
 
   startTopicSession: (topicId, filter = 'all') => {
-    const topic = getTopic(storage, topicId)
+    const topics = getStorageValueWithLegacyFallback<Topic[]>(StorageKeys.topicIndex)
+    const topic = topics?.find((item) => item.id === topicId) ?? null
     if (!topic) return false
     const modules = topic.moduleIds
-      .map((id) => loadStoredModule(storage, id))
+      .map((id) => getStorageValueWithLegacyFallback<Module>(StorageKeys.module(id)))
       .filter((m): m is Module => m !== null)
     if (modules.length === 0) return false
 

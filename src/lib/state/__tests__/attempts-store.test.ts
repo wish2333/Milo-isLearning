@@ -280,6 +280,35 @@ describe('attempts-store reevaluateLastAttempt', () => {
     expect(store.getAttempts(slotId)).toHaveLength(1)
   })
 
+  it('when correction makes the latest answer correct, removes prior wrong history', async () => {
+    const store = useAttemptsStore.getState()
+    const slotId = 'concept-1:slot-3b'
+    const correctedQuiz: Quiz = {
+      id: slotId,
+      conceptId: 'c1',
+      ladderLevel: 1,
+      expressionLevel: 1,
+      interactionType: 'choice',
+      stem: 'test?',
+      options: ['A', 'B', 'C', 'D'],
+      answer: 'B',
+      explanation: 'e',
+      distractors: ['B', 'C'],
+    }
+
+    store.addAttempt(makeAttempt(slotId, 0, { id: 'old-wrong-1', userAnswer: 'B' }))
+    store.addAttempt(makeAttempt(slotId, 0, { id: 'old-wrong-2', userAnswer: 'B' }))
+
+    await store.reevaluateLastAttempt(slotId, correctedQuiz)
+
+    expect(store.getAttempts(slotId)).toHaveLength(1)
+    expect(store.getAttempts(slotId)[0]).toMatchObject({
+      id: 'old-wrong-2',
+      score: 100,
+      nextAction: 'advance',
+    })
+  })
+
   it('preserves id, originalQuizId, userAnswer, timestamp, guessed', async () => {
     const store = useAttemptsStore.getState()
     const slotId = 'concept-1:slot-4'

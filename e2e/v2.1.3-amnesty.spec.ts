@@ -82,6 +82,13 @@ async function readAttempts(page: Page) {
   })
 }
 
+async function readStoredQuizAnswer(page: Page) {
+  return page.evaluate((moduleId) => {
+    const moduleData = JSON.parse(localStorage.getItem(`alc:module:${moduleId}`) ?? 'null')
+    return moduleData?.concepts?.[0]?.quizSeries?.quizzes?.[0]?.answer as string | undefined
+  }, mockModule.id)
+}
+
 test.describe('V2.1.3 Amnesty', () => {
   test('编辑后首次答对：清空历史，仅保留新的正确 attempt', async ({ page }) => {
     const now = Date.now()
@@ -92,6 +99,7 @@ test.describe('V2.1.3 Amnesty', () => {
     await openHistoryAndEdit(page)
     await page.getByRole('radio', { name: /干扰项A/ }).click()
     await page.getByRole('button', { name: '保存编辑' }).click()
+    expect(await readStoredQuizAnswer(page)).toBe('干扰项A')
     await page.getByRole('button', { name: '收起答题历史' }).click()
 
     await page.getByRole('button', { name: /干扰项A/ }).click()
@@ -139,5 +147,36 @@ test.describe('V2.1.3 Amnesty', () => {
     await page.getByRole('button', { name: /干扰项C/ }).click()
     await page.getByRole('button', { name: '确认选择' }).click()
     await expect(page.getByText('编辑此题', { exact: true })).toBeVisible()
+  })
+
+  test('错题重刷中编辑答案会持久化并移出错题队列', async ({ page }) => {
+    const now = Date.now()
+    await seedLearningState(page, [makeAttempt('old-1', 0, now - 2000)])
+    await page.goto(`/learn/review/${mockModule.id}?filter=wrong`)
+    await expect(page.getByText('下面哪一项是核心概念的定义？')).toBeVisible()
+
+    await page.getByRole('button', { name: /干扰项A/ }).click()
+    await page.getByRole('button', { name: '确认选择' }).click()
+    await expect(page.getByText('编辑此题', { exact: true })).toBeVisible()
+
+    await page.getByText('编辑此题', { exact: true }).click()
+    await page
+      .getByRole('group', { name: '确认编辑此题？' })
+      .getByRole('button', { name: '确认' })
+      .click()
+    await page
+      .getByRole('radiogroup', { name: '选择正确答案' })
+      .getByRole('radio', { name: /干扰项A/ })
+      .click()
+    await page.getByRole('button', { name: '保存编辑' }).click()
+
+    await expect(page.getByText('编辑此题', { exact: true })).toBeVisible()
+    expect(await readStoredQuizAnswer(page)).toBe('干扰项A')
+
+    const state = await readAttempts(page)
+    expect(state.attemptsBySlot[SLOT_ID]).toHaveLength(1)
+    expect(state.attemptsBySlot[SLOT_ID]![0]?.score).toBe(100)
+
+    await expect(page.locator('button:has-text("仅错题(0)")')).toBeVisible()
   })
 })

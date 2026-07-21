@@ -77,6 +77,7 @@ export default function TopicReviewPage() {
   const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
   const config = useSettingsStore((s) => s.config)
   const correctQuizAnswer = useModuleStore((s) => s.correctQuizAnswer)
+  const setModule = useModuleStore((s) => s.setModule)
 
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
@@ -126,6 +127,15 @@ export default function TopicReviewPage() {
   const currentQueueItem = session ? session.queue[session.currentIndex] : null
   const currentQuiz = currentQueueItem?.quiz ?? null
   const isFinished = session !== null && session.currentIndex >= session.queue.length
+
+  // 主题复习跨多个 Module；编辑前必须把当前题所属 Module 注入 module-store，
+  // 否则 correctQuizAnswer 可能更新了错误题库，或因 currentModule 为空直接 no-op。
+  useEffect(() => {
+    if (!currentQueueItem) return
+    const ownerModule = topicModules.find((module) => module.id === currentQueueItem.moduleId)
+    if (ownerModule) setModule(ownerModule)
+  }, [currentQueueItem, topicModules, setModule])
+
   const latestAttempt = currentQueueItem ? getAttempts(currentQueueItem.slotId).at(-1) : undefined
   const submittedAnswer =
     phase !== 'answering' && latestAttempt ? latestAttempt.userAnswer : undefined

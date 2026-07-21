@@ -19,11 +19,10 @@ import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useReviewStore } from '@/lib/state/review-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
 import { useModuleStore } from '@/lib/state/module-store'
-import { loadStoredModule } from '@/lib/persistence/module-library'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
-import { getStorage } from '@/lib/persistence/client/storage'
+import { getStorageValueWithLegacyFallback } from '@/lib/persistence/client/storage'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
-import type { ReviewFilter, AttemptRecord, Quiz } from '@/types/domain'
+import type { ReviewFilter, Module, AttemptRecord, Quiz } from '@/types/domain'
 
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
@@ -64,7 +63,6 @@ export default function ReviewPage() {
   const params = useParams<{ moduleId: string }>()
   const searchParams = useSearchParams()
   const hydrated = useHydrated()
-  const storage = getStorage()
 
   const currentFilter = (searchParams.get('filter') ?? 'all') as ReviewFilter
 
@@ -76,6 +74,7 @@ export default function ReviewPage() {
   const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
   const config = useSettingsStore((s) => s.config)
   const correctQuizAnswer = useModuleStore((s) => s.correctQuizAnswer)
+  const setModule = useModuleStore((s) => s.setModule)
 
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
@@ -85,8 +84,8 @@ export default function ReviewPage() {
   const quizDisplayStart = useRef<number>(Date.now())
 
   const moduleData = useMemo(
-    () => loadStoredModule(storage, params.moduleId!),
-    [params.moduleId, storage],
+    () => getStorageValueWithLegacyFallback<Module>(StorageKeys.module(params.moduleId!)),
+    [params.moduleId],
   )
 
   const counts = useMemo(() => {
@@ -115,17 +114,19 @@ export default function ReviewPage() {
     if (initializedFor.current === `${params.moduleId}:${currentFilter}`) return
     initializedFor.current = `${params.moduleId}:${currentFilter}`
 
-    const moduleData = storage.get(StorageKeys.module(params.moduleId))
     if (!moduleData) {
       setNotFound(true)
       return
     }
 
+    // Review 页的编辑动作复用 module-store；先注入当前题库，确保
+    // correctQuizAnswer 不会因为 currentModule 为空或指向别的题库而 no-op。
+    setModule(moduleData)
     const started = startSession(params.moduleId, currentFilter)
     if (!started) {
       setEmpty(true)
     }
-  }, [hydrated, params.moduleId, currentFilter, startSession, storage])
+  }, [hydrated, params.moduleId, currentFilter, moduleData, setModule, startSession])
 
   const currentQueueItem = session ? session.queue[session.currentIndex] : null
   const currentQuiz = currentQueueItem?.quiz ?? null

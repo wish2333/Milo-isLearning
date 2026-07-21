@@ -27,6 +27,8 @@ import { triggerAutoBackup } from '@/lib/persistence/client/auto-backup-trigger'
 import { scheduleLibrary } from '@/lib/persistence/schedule-library'
 import { localDateString, loadStreak, saveStreak, updateStreak } from '@/lib/runtime/streak'
 
+const PASS_THRESHOLD = 80
+
 interface AttemptsStoreState {
   /** 以 originalQuizId（槽位 id）为 key 的作答历史 */
   attemptsBySlot: Record<string, AttemptRecord[]>
@@ -65,8 +67,9 @@ interface AttemptsStoreState {
   unmarkGuessed: (originalQuizId: string) => void
 
   /**
-   * 用修正后的 quiz 重新评估某 slot 的最后一条作答，原地更新其 score/gaps/nextAction。
-   * 用于 F40 答案修正后纠正历史判定。保留 userAnswer/timestamp/guessed 不变。
+   * 用修正后的 quiz 重新评估某 slot 的最后一条作答，更新其 score/gaps/nextAction。
+   * 用于 F40 答案修正后纠正历史判定。保留 userAnswer/timestamp/guessed 不变；
+   * 如果修正后答对，则把该 slot 的历史收敛为这条已纠正记录，避免旧错题继续进入错题重刷。
    * async（fill_blank 可能触发语义判分 LLM 调用）。
    * @returns re-evaluated FeedbackRuntime for display update.
    */
@@ -202,9 +205,11 @@ export const useAttemptsStore = create<AttemptsStoreState>()(
         set((state) => ({
           attemptsBySlot: {
             ...state.attemptsBySlot,
-            [slotId]: [...attempts.slice(0, -1), updated],
+            [slotId]:
+              result.score >= PASS_THRESHOLD ? [updated] : [...attempts.slice(0, -1), updated],
           },
         }))
+        if (result.score >= PASS_THRESHOLD) scheduleLibrary.remove(slotId)
         return result
       },
 

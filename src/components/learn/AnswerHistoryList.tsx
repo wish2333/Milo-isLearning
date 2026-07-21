@@ -84,6 +84,7 @@ function collectAnsweredQuizzes(
 export function AnswerHistoryList({ module, currentSlotId }: AnswerHistoryListProps) {
   const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
   const markPendingAmnesty = useAttemptsStore((s) => s.markPendingAmnesty)
+  const setModule = useModuleStore((s) => s.setModule)
   const correctQuizAnswer = useModuleStore((s) => s.correctQuizAnswer)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null)
@@ -224,6 +225,9 @@ export function AnswerHistoryList({ module, currentSlotId }: AnswerHistoryListPr
                         <AnswerCorrector
                           quiz={quiz}
                           onSave={(patch) => {
+                            // 该组件也在独立 history 页面使用；确保保存时
+                            // module-store 与当前列表 Module 一致，避免编辑动作 no-op。
+                            setModule(module)
                             correctQuizAnswer(quiz.id, patch)
                             markPendingAmnesty(quiz.id)
                             setEditingSlotId(null)
