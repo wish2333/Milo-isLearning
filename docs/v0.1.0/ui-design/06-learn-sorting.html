@@ -1,13 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="color-scheme" content="dark" />
-  <meta name="theme-color" content="#0E1311" />
-  <title>AI Learning Compiler · 学习页 / 排序题</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0E1311" />
+    <title>AI Learning Compiler · 学习页 / 排序题</title>
 
-  <!--
+    <!--
     Phase 3 · Sorting 题变体 · §5.5.3 + §4.2.2
     ========================================
     与 Choice 题共享同一页面骨架，差别仅在选项区。
@@ -23,299 +23,312 @@
       - 提交后判定顺序，正确选项变绿+细线，错误整体橙色，解释面板展开
   -->
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E"
+    />
 
-  <link rel="stylesheet" href="./styles.css" />
-  <script src="./mock-data.js"></script>
-  <script src="./app.js"></script>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./mock-data.js"></script>
+    <script src="./app.js"></script>
 
-  <style>
-    .learn-page {
-      max-width: 720px;
-      padding-top: var(--space-7);
-    }
-
-    .concept-meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: var(--space-4);
-      margin-bottom: var(--space-1);
-    }
-
-    .concept-meta__step,
-    .concept-meta__lighthouse {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      color: var(--fg-tertiary);
-    }
-
-    .concept-meta__lighthouse strong {
-      color: var(--accent-primary);
-      font-weight: var(--weight-medium);
-    }
-
-    .concept-name {
-      font-family: var(--font-serif);
-      font-size: var(--text-2xl);  /* 36px */
-      font-weight: var(--weight-medium);
-      color: var(--fg-primary);
-      letter-spacing: var(--tracking-tight);
-      margin-top: var(--space-4);
-      margin-bottom: var(--space-5);
-    }
-
-    .quiz-stem {
-      font-family: var(--font-serif);
-      font-size: var(--text-xl);  /* 28px */
-      line-height: var(--leading-normal);
-      color: var(--fg-primary);
-      margin-top: var(--space-5);
-      margin-bottom: var(--space-6);
-    }
-
-    /* ---- Sort options list ---- */
-    .sort-list {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-3);
-    }
-
-    .sort-list .option-sort {
-      transition: border-color var(--duration-instant) var(--ease-standard),
-                  background var(--duration-instant) var(--ease-standard),
-                  opacity var(--duration-base) var(--ease-standard),
-                  transform var(--duration-base) var(--ease-standard);
-    }
-
-    /* Drag state */
-    .sort-list .option-sort.is-dragging {
-      opacity: 0.4;
-    }
-
-    .sort-list .option-sort.is-drag-over {
-      border-color: var(--accent-primary);
-      background: var(--accent-primary-soft);
-    }
-
-    /* Result states */
-    .sort-list .option-sort.is-correct {
-      border-color: var(--success);
-      background: var(--success-soft);
-    }
-
-    .sort-list .option-sort.is-wrong {
-      border-color: var(--warning);
-      background: var(--warning-soft);
-    }
-
-    /* ---- Feedback block (same as choice page) ---- */
-    .feedback-block {
-      margin-top: var(--space-6);
-    }
-
-    .feedback-block .text-feedback {
-      animation: none;
-      opacity: 0;
-      transform: translateY(4px);
-      margin-bottom: var(--space-4);
-    }
-
-    .feedback-block .text-feedback.is-visible {
-      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
-      animation-delay: 80ms;
-    }
-
-    /* ---- Submit area ---- */
-    .submit-area {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: var(--space-8);
-    }
-
-    .submit-area .btn-primary {
-      min-width: 160px;
-    }
-
-    .submit-area .btn-primary .btn-label {
-      display: inline-block;
-      transition: opacity var(--duration-base) var(--ease-standard);
-    }
-
-    .submit-area .btn-primary.is-transitioning .btn-label {
-      opacity: 0;
-    }
-
-    /* ---- Demo panel ---- */
-    .demo-panel {
-      position: fixed;
-      right: var(--space-4);
-      bottom: var(--space-4);
-      z-index: 50;
-      padding: var(--space-3);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-default);
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-md);
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-2);
-      min-width: 180px;
-    }
-
-    .demo-panel__title {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      margin-bottom: var(--space-1);
-    }
-
-    .demo-panel__btn {
-      padding: var(--space-2) var(--space-3);
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-secondary);
-      background: transparent;
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      text-align: left;
-      transition: all var(--duration-instant) var(--ease-standard);
-    }
-
-    .demo-panel__btn:hover {
-      color: var(--fg-primary);
-      border-color: var(--border-strong);
-    }
-
-    .demo-panel__btn.is-active {
-      color: var(--accent-primary);
-      border-color: var(--accent-primary);
-    }
-
-    @media (max-width: 767px) {
-      .learn-page { padding-top: var(--space-5); }
-      .quiz-stem { font-size: var(--text-lg); }
-      .submit-area {
-        position: sticky;
-        bottom: 0;
-        margin: var(--space-7) calc(-1 * var(--space-5)) calc(-1 * var(--space-7));
-        padding: var(--space-4) var(--space-5);
-        background: var(--bg-base);
-        border-top: 1px solid var(--border-default);
-        justify-content: stretch;
+    <style>
+      .learn-page {
+        max-width: 720px;
+        padding-top: var(--space-7);
       }
-      .submit-area .btn-primary { width: 100%; min-width: 0; }
-      .demo-panel { display: none; }
-    }
-  </style>
-</head>
 
-<body>
-  <a href="#main-content" class="skip-link">跳到主要内容</a>
+      .concept-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--space-4);
+        margin-bottom: var(--space-1);
+      }
 
-  <div class="app-shell">
+      .concept-meta__step,
+      .concept-meta__lighthouse {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        color: var(--fg-tertiary);
+      }
 
-    <div id="nav-top-mount"></div>
+      .concept-meta__lighthouse strong {
+        color: var(--accent-primary);
+        font-weight: var(--weight-medium);
+      }
 
-    <main id="main-content" class="page learn-page" role="main">
+      .concept-name {
+        font-family: var(--font-serif);
+        font-size: var(--text-2xl); /* 36px */
+        font-weight: var(--weight-medium);
+        color: var(--fg-primary);
+        letter-spacing: var(--tracking-tight);
+        margin-top: var(--space-4);
+        margin-bottom: var(--space-5);
+      }
 
-      <div id="staircase-mount"></div>
+      .quiz-stem {
+        font-family: var(--font-serif);
+        font-size: var(--text-xl); /* 28px */
+        line-height: var(--leading-normal);
+        color: var(--fg-primary);
+        margin-top: var(--space-5);
+        margin-bottom: var(--space-6);
+      }
 
-      <div class="concept-meta">
-        <span class="concept-meta__step" id="concept-step">Concept C · 第 5 步 / 共 9 步</span>
-        <span class="concept-meta__lighthouse">距离费曼还有 <strong>5 步</strong></span>
-      </div>
+      /* ---- Sort options list ---- */
+      .sort-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
 
-      <div class="progress-thin" role="presentation">
-        <div class="progress-thin__fill" style="width: 55.6%;"></div>  <!-- 5/9 -->
-      </div>
+      .sort-list .option-sort {
+        transition:
+          border-color var(--duration-instant) var(--ease-standard),
+          background var(--duration-instant) var(--ease-standard),
+          opacity var(--duration-base) var(--ease-standard),
+          transform var(--duration-base) var(--ease-standard);
+      }
 
-      <h2 class="concept-name" id="concept-name">RAG 完整流程</h2>
+      /* Drag state */
+      .sort-list .option-sort.is-dragging {
+        opacity: 0.4;
+      }
 
-      <hr class="section-divider" />
+      .sort-list .option-sort.is-drag-over {
+        border-color: var(--accent-primary);
+        background: var(--accent-primary-soft);
+      }
 
-      <p class="quiz-stem" id="quiz-stem">请按 RAG 流程的正确顺序排列以下步骤。</p>
+      /* Result states */
+      .sort-list .option-sort.is-correct {
+        border-color: var(--success);
+        background: var(--success-soft);
+      }
 
-      <!-- Sortable list · generated by JS -->
-      <ul class="sort-list" id="sort-list" role="group" aria-labelledby="quiz-stem"></ul>
+      .sort-list .option-sort.is-wrong {
+        border-color: var(--warning);
+        background: var(--warning-soft);
+      }
 
-      <!-- Feedback block -->
-      <div class="feedback-block" id="feedback-block" aria-live="polite" aria-atomic="true">
-        <p class="text-feedback" id="text-feedback">很好。</p>
-        <div class="panel-explanation-wrapper" id="panel-wrapper">
-          <div class="panel-explanation">
-            <div class="panel-explanation__inner" id="panel-content">
-              RAG 的流程是：先准备向量化的文档库 → 用户提问时检索相关文档 →
-              把文档作为上下文喂给模型 → 模型基于上下文生成答案。
+      /* ---- Feedback block (same as choice page) ---- */
+      .feedback-block {
+        margin-top: var(--space-6);
+      }
+
+      .feedback-block .text-feedback {
+        animation: none;
+        opacity: 0;
+        transform: translateY(4px);
+        margin-bottom: var(--space-4);
+      }
+
+      .feedback-block .text-feedback.is-visible {
+        animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+        animation-delay: 80ms;
+      }
+
+      /* ---- Submit area ---- */
+      .submit-area {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: var(--space-8);
+      }
+
+      .submit-area .btn-primary {
+        min-width: 160px;
+      }
+
+      .submit-area .btn-primary .btn-label {
+        display: inline-block;
+        transition: opacity var(--duration-base) var(--ease-standard);
+      }
+
+      .submit-area .btn-primary.is-transitioning .btn-label {
+        opacity: 0;
+      }
+
+      /* ---- Demo panel ---- */
+      .demo-panel {
+        position: fixed;
+        right: var(--space-4);
+        bottom: var(--space-4);
+        z-index: 50;
+        padding: var(--space-3);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        min-width: 180px;
+      }
+
+      .demo-panel__title {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        margin-bottom: var(--space-1);
+      }
+
+      .demo-panel__btn {
+        padding: var(--space-2) var(--space-3);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-secondary);
+        background: transparent;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        text-align: left;
+        transition: all var(--duration-instant) var(--ease-standard);
+      }
+
+      .demo-panel__btn:hover {
+        color: var(--fg-primary);
+        border-color: var(--border-strong);
+      }
+
+      .demo-panel__btn.is-active {
+        color: var(--accent-primary);
+        border-color: var(--accent-primary);
+      }
+
+      @media (max-width: 767px) {
+        .learn-page {
+          padding-top: var(--space-5);
+        }
+        .quiz-stem {
+          font-size: var(--text-lg);
+        }
+        .submit-area {
+          position: sticky;
+          bottom: 0;
+          margin: var(--space-7) calc(-1 * var(--space-5)) calc(-1 * var(--space-7));
+          padding: var(--space-4) var(--space-5);
+          background: var(--bg-base);
+          border-top: 1px solid var(--border-default);
+          justify-content: stretch;
+        }
+        .submit-area .btn-primary {
+          width: 100%;
+          min-width: 0;
+        }
+        .demo-panel {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <a href="#main-content" class="skip-link">跳到主要内容</a>
+
+    <div class="app-shell">
+      <div id="nav-top-mount"></div>
+
+      <main id="main-content" class="page learn-page" role="main">
+        <div id="staircase-mount"></div>
+
+        <div class="concept-meta">
+          <span class="concept-meta__step" id="concept-step">Concept C · 第 5 步 / 共 9 步</span>
+          <span class="concept-meta__lighthouse">距离费曼还有 <strong>5 步</strong></span>
+        </div>
+
+        <div class="progress-thin" role="presentation">
+          <div class="progress-thin__fill" style="width: 55.6%"></div>
+          <!-- 5/9 -->
+        </div>
+
+        <h2 class="concept-name" id="concept-name">RAG 完整流程</h2>
+
+        <hr class="section-divider" />
+
+        <p class="quiz-stem" id="quiz-stem">请按 RAG 流程的正确顺序排列以下步骤。</p>
+
+        <!-- Sortable list · generated by JS -->
+        <ul class="sort-list" id="sort-list" role="group" aria-labelledby="quiz-stem"></ul>
+
+        <!-- Feedback block -->
+        <div class="feedback-block" id="feedback-block" aria-live="polite" aria-atomic="true">
+          <p class="text-feedback" id="text-feedback">很好。</p>
+          <div class="panel-explanation-wrapper" id="panel-wrapper">
+            <div class="panel-explanation">
+              <div class="panel-explanation__inner" id="panel-content">
+                RAG 的流程是：先准备向量化的文档库 → 用户提问时检索相关文档 →
+                把文档作为上下文喂给模型 → 模型基于上下文生成答案。
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="submit-area">
-        <button type="button" id="submit-btn" class="btn-primary">
-          <span class="btn-label">提交</span>
-        </button>
-      </div>
+        <div class="submit-area">
+          <button type="button" id="submit-btn" class="btn-primary">
+            <span class="btn-label">提交</span>
+          </button>
+        </div>
+      </main>
+    </div>
 
-    </main>
+    <!-- Demo panel -->
+    <aside class="demo-panel" aria-hidden="true">
+      <span class="demo-panel__title">演示状态</span>
+      <button type="button" class="demo-panel__btn is-active" data-state="initial">初始</button>
+      <button type="button" class="demo-panel__btn" data-state="shuffled">打乱顺序</button>
+      <button type="button" class="demo-panel__btn" data-state="correct">全部正确</button>
+      <button type="button" class="demo-panel__btn" data-state="partial">部分正确</button>
+    </aside>
 
-  </div>
+    <script>
+      'use strict'
 
-  <!-- Demo panel -->
-  <aside class="demo-panel" aria-hidden="true">
-    <span class="demo-panel__title">演示状态</span>
-    <button type="button" class="demo-panel__btn is-active" data-state="initial">初始</button>
-    <button type="button" class="demo-panel__btn" data-state="shuffled">打乱顺序</button>
-    <button type="button" class="demo-panel__btn" data-state="correct">全部正确</button>
-    <button type="button" class="demo-panel__btn" data-state="partial">部分正确</button>
-  </aside>
-
-  <script>
-    'use strict';
-
-    /* ==============================================================
+      /* ==============================================================
        Phase 3 · 06-learn-sorting · drag + arrow reorder
        ============================================================== */
 
-    const quiz = window.MOCK.quizzes.sorting;
+      const quiz = window.MOCK.quizzes.sorting
 
-    /** @type {Array<{id:string,text:string}>} current order, top to bottom */
-    let order = quiz.items.map(item => ({ ...item }));
+      /** @type {Array<{id:string,text:string}>} current order, top to bottom */
+      let order = quiz.items.map((item) => ({ ...item }))
 
-    let isAnswered = false;
-    /** @type {'unanswered'|'correct'|'partial'} */
-    let resultState = 'unanswered';
+      let isAnswered = false
+      /** @type {'unanswered'|'correct'|'partial'} */
+      let resultState = 'unanswered'
 
-    const sortList = document.getElementById('sort-list');
-    const submitBtn = document.getElementById('submit-btn');
-    const submitLabel = submitBtn.querySelector('.btn-label');
-    const textFeedback = document.getElementById('text-feedback');
-    const panelWrapper = document.getElementById('panel-wrapper');
-    const panelContent = document.getElementById('panel-content');
+      const sortList = document.getElementById('sort-list')
+      const submitBtn = document.getElementById('submit-btn')
+      const submitLabel = submitBtn.querySelector('.btn-label')
+      const textFeedback = document.getElementById('text-feedback')
+      const panelWrapper = document.getElementById('panel-wrapper')
+      const panelContent = document.getElementById('panel-content')
 
-    /* ---------- Render ---------- */
+      /* ---------- Render ---------- */
 
-    function render() {
-      sortList.innerHTML = order.map((item, idx) => {
-        let stateClass = '';
-        if (isAnswered) {
-          const correctIdx = quiz.correctOrder.indexOf(item.id);
-          if (correctIdx === idx) stateClass = 'is-correct';
-          else stateClass = 'is-wrong';
-        }
-        return `
+      function render() {
+        sortList.innerHTML = order
+          .map((item, idx) => {
+            let stateClass = ''
+            if (isAnswered) {
+              const correctIdx = quiz.correctOrder.indexOf(item.id)
+              if (correctIdx === idx) stateClass = 'is-correct'
+              else stateClass = 'is-wrong'
+            }
+            return `
           <li>
             <div class="option-sort ${stateClass}"
                  draggable="${!isAnswered}"
@@ -330,211 +343,216 @@
               </span>
             </div>
           </li>
-        `;
-      }).join('');
+        `
+          })
+          .join('')
 
-      wireDragHandlers();
-      wireArrowHandlers();
-    }
+        wireDragHandlers()
+        wireArrowHandlers()
+      }
 
-    /* ---------- Drag handlers (HTML5 DnD · desktop primary) ---------- */
+      /* ---------- Drag handlers (HTML5 DnD · desktop primary) ---------- */
 
-    /** @type {string | null} */
-    let draggingId = null;
+      /** @type {string | null} */
+      let draggingId = null
 
-    function wireDragHandlers() {
-      sortList.querySelectorAll('.option-sort').forEach(el => {
-        el.addEventListener('dragstart', (e) => {
-          if (isAnswered) return;
-          draggingId = el.getAttribute('data-id');
-          el.classList.add('is-dragging');
-          if (e.dataTransfer) {
-            e.dataTransfer.effectAllowed = 'move';
-            try { e.dataTransfer.setData('text/plain', draggingId || ''); } catch (_) {}
-          }
-        });
-
-        el.addEventListener('dragend', () => {
-          el.classList.remove('is-dragging');
-          sortList.querySelectorAll('.is-drag-over').forEach(x => x.classList.remove('is-drag-over'));
-          draggingId = null;
-        });
-
-        el.addEventListener('dragover', (e) => {
-          if (isAnswered || !draggingId) return;
-          e.preventDefault();
-          if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-          el.classList.add('is-drag-over');
-        });
-
-        el.addEventListener('dragleave', () => {
-          el.classList.remove('is-drag-over');
-        });
-
-        el.addEventListener('drop', (e) => {
-          if (isAnswered || !draggingId) return;
-          e.preventDefault();
-          el.classList.remove('is-drag-over');
-          const targetId = el.getAttribute('data-id');
-          if (targetId && targetId !== draggingId) {
-            const fromIdx = order.findIndex(x => x.id === draggingId);
-            const toIdx = order.findIndex(x => x.id === targetId);
-            if (fromIdx >= 0 && toIdx >= 0) {
-              const [moved] = order.splice(fromIdx, 1);
-              order.splice(toIdx, 0, moved);
-              render();
+      function wireDragHandlers() {
+        sortList.querySelectorAll('.option-sort').forEach((el) => {
+          el.addEventListener('dragstart', (e) => {
+            if (isAnswered) return
+            draggingId = el.getAttribute('data-id')
+            el.classList.add('is-dragging')
+            if (e.dataTransfer) {
+              e.dataTransfer.effectAllowed = 'move'
+              try {
+                e.dataTransfer.setData('text/plain', draggingId || '')
+              } catch (_) {}
             }
-          }
-        });
-      });
-    }
+          })
 
-    /* ---------- Arrow handlers (mobile / a11y fallback) ---------- */
+          el.addEventListener('dragend', () => {
+            el.classList.remove('is-dragging')
+            sortList
+              .querySelectorAll('.is-drag-over')
+              .forEach((x) => x.classList.remove('is-drag-over'))
+            draggingId = null
+          })
 
-    function wireArrowHandlers() {
-      sortList.querySelectorAll('.option-sort__arrow').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          if (isAnswered) return;
-          e.stopPropagation();
-          const dir = btn.getAttribute('data-dir');
-          const row = btn.closest('.option-sort');
-          const id = row.getAttribute('data-id');
-          const idx = order.findIndex(x => x.id === id);
-          if (idx < 0) return;
-          const target = dir === 'up' ? idx - 1 : idx + 1;
-          if (target < 0 || target >= order.length) return;
-          const [moved] = order.splice(idx, 1);
-          order.splice(target, 0, moved);
-          render();
-        });
-      });
-    }
+          el.addEventListener('dragover', (e) => {
+            if (isAnswered || !draggingId) return
+            e.preventDefault()
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+            el.classList.add('is-drag-over')
+          })
 
-    /* ---------- Submit ---------- */
+          el.addEventListener('dragleave', () => {
+            el.classList.remove('is-drag-over')
+          })
 
-    submitBtn.addEventListener('click', () => {
-      if (isAnswered) {
-        // Reset (for demo)
-        return;
+          el.addEventListener('drop', (e) => {
+            if (isAnswered || !draggingId) return
+            e.preventDefault()
+            el.classList.remove('is-drag-over')
+            const targetId = el.getAttribute('data-id')
+            if (targetId && targetId !== draggingId) {
+              const fromIdx = order.findIndex((x) => x.id === draggingId)
+              const toIdx = order.findIndex((x) => x.id === targetId)
+              if (fromIdx >= 0 && toIdx >= 0) {
+                const [moved] = order.splice(fromIdx, 1)
+                order.splice(toIdx, 0, moved)
+                render()
+              }
+            }
+          })
+        })
       }
-      isAnswered = true;
 
-      // Check correctness
-      const allCorrect = order.every((item, idx) => quiz.correctOrder[idx] === item.id);
-      resultState = allCorrect ? 'correct' : 'partial';
+      /* ---------- Arrow handlers (mobile / a11y fallback) ---------- */
 
-      // 200ms Feedback Agent delay
-      window.setTimeout(() => {
-        render();  // re-render with state classes
-
-        // 280ms feedback phrase
-        window.setTimeout(() => {
-          textFeedback.textContent = allCorrect
-            ? window.MOCKPickFeedback('correct')
-            : '差一点。看看正确顺序。';
-          textFeedback.classList.add('is-visible');
-        }, 80);
-
-        // 440ms panel expand
-        window.setTimeout(() => {
-          panelContent.textContent = quiz.explanation +
-            (allCorrect ? '' : ' 检查标橙的项——它的位置不对。');
-          panelWrapper.classList.add('panel-explanation-wrapper--open');
-        }, 240);
-
-        // 840ms button text change
-        window.setTimeout(() => {
-          setSubmitLabel(allCorrect ? '下一题' : '再看一次');
-        }, 640);
-      }, 200);
-    });
-
-    function setSubmitLabel(label) {
-      submitBtn.classList.add('is-transitioning');
-      window.setTimeout(() => {
-        submitLabel.textContent = label;
-        submitBtn.classList.remove('is-transitioning');
-      }, 240);
-    }
-
-    /* ---------- Demo state switcher ---------- */
-
-    document.querySelectorAll('.demo-panel__btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.demo-panel__btn').forEach(b => b.classList.remove('is-active'));
-        btn.classList.add('is-active');
-        const state = btn.getAttribute('data-state');
-        resetToState(state);
-      });
-    });
-
-    function resetToState(state) {
-      isAnswered = false;
-      textFeedback.classList.remove('is-visible');
-      panelWrapper.classList.remove('panel-explanation-wrapper--open');
-
-      switch (state) {
-        case 'initial':
-          order = quiz.items.map(item => ({ ...item }));
-          setSubmitLabelInstant('提交');
-          break;
-        case 'shuffled':
-          // Reverse order to demonstrate
-          order = [...quiz.items].reverse().map(item => ({ ...item }));
-          setSubmitLabelInstant('提交');
-          break;
-        case 'correct':
-          order = quiz.correctOrder.map(id => {
-            const item = quiz.items.find(i => i.id === id);
-            return item ? { ...item } : { id, text: '' };
-          });
-          isAnswered = true;
-          textFeedback.textContent = window.MOCKPickFeedback('correct');
-          textFeedback.classList.add('is-visible');
-          panelWrapper.classList.add('panel-explanation-wrapper--open');
-          setSubmitLabelInstant('下一题');
-          break;
-        case 'partial':
-          // Swap items 1 and 2 (s2 ↔ s3) to demonstrate "wrong position"
-          order = quiz.items.map(item => ({ ...item }));
-          [order[1], order[2]] = [order[2], order[1]];
-          isAnswered = true;
-          textFeedback.textContent = '差一点。看看正确顺序。';
-          textFeedback.classList.add('is-visible');
-          panelContent.textContent = quiz.explanation + ' 检查标橙的项——它的位置不对。';
-          panelWrapper.classList.add('panel-explanation-wrapper--open');
-          setSubmitLabelInstant('再看一次');
-          break;
+      function wireArrowHandlers() {
+        sortList.querySelectorAll('.option-sort__arrow').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            if (isAnswered) return
+            e.stopPropagation()
+            const dir = btn.getAttribute('data-dir')
+            const row = btn.closest('.option-sort')
+            const id = row.getAttribute('data-id')
+            const idx = order.findIndex((x) => x.id === id)
+            if (idx < 0) return
+            const target = dir === 'up' ? idx - 1 : idx + 1
+            if (target < 0 || target >= order.length) return
+            const [moved] = order.splice(idx, 1)
+            order.splice(target, 0, moved)
+            render()
+          })
+        })
       }
-      render();
-    }
 
-    function setSubmitLabelInstant(label) {
-      submitLabel.textContent = label;
-    }
+      /* ---------- Submit ---------- */
 
-    /* ---------- Keyboard: Enter to submit ---------- */
+      submitBtn.addEventListener('click', () => {
+        if (isAnswered) {
+          // Reset (for demo)
+          return
+        }
+        isAnswered = true
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !isAnswered) {
-        submitBtn.click();
+        // Check correctness
+        const allCorrect = order.every((item, idx) => quiz.correctOrder[idx] === item.id)
+        resultState = allCorrect ? 'correct' : 'partial'
+
+        // 200ms Feedback Agent delay
+        window.setTimeout(() => {
+          render() // re-render with state classes
+
+          // 280ms feedback phrase
+          window.setTimeout(() => {
+            textFeedback.textContent = allCorrect
+              ? window.MOCKPickFeedback('correct')
+              : '差一点。看看正确顺序。'
+            textFeedback.classList.add('is-visible')
+          }, 80)
+
+          // 440ms panel expand
+          window.setTimeout(() => {
+            panelContent.textContent =
+              quiz.explanation + (allCorrect ? '' : ' 检查标橙的项——它的位置不对。')
+            panelWrapper.classList.add('panel-explanation-wrapper--open')
+          }, 240)
+
+          // 840ms button text change
+          window.setTimeout(() => {
+            setSubmitLabel(allCorrect ? '下一题' : '再看一次')
+          }, 640)
+        }, 200)
+      })
+
+      function setSubmitLabel(label) {
+        submitBtn.classList.add('is-transitioning')
+        window.setTimeout(() => {
+          submitLabel.textContent = label
+          submitBtn.classList.remove('is-transitioning')
+        }, 240)
       }
-    });
 
-    /* ---------- Initial render ---------- */
+      /* ---------- Demo state switcher ---------- */
 
-    window.ALC.renderNavTop({
-      back: '概览',
-      backTarget: '03-overview.html',
-      stage: 'concept',
-    });
+      document.querySelectorAll('.demo-panel__btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document
+            .querySelectorAll('.demo-panel__btn')
+            .forEach((b) => b.classList.remove('is-active'))
+          btn.classList.add('is-active')
+          const state = btn.getAttribute('data-state')
+          resetToState(state)
+        })
+      })
 
-    window.ALC.renderStaircase({ activeStage: 'concept', activeConceptIndex: 2 });
-    document.getElementById('concept-step').textContent =
-      `Concept C · 第 5 步 / 共 9 步`;
+      function resetToState(state) {
+        isAnswered = false
+        textFeedback.classList.remove('is-visible')
+        panelWrapper.classList.remove('panel-explanation-wrapper--open')
 
-    render();
-  </script>
+        switch (state) {
+          case 'initial':
+            order = quiz.items.map((item) => ({ ...item }))
+            setSubmitLabelInstant('提交')
+            break
+          case 'shuffled':
+            // Reverse order to demonstrate
+            order = [...quiz.items].reverse().map((item) => ({ ...item }))
+            setSubmitLabelInstant('提交')
+            break
+          case 'correct':
+            order = quiz.correctOrder.map((id) => {
+              const item = quiz.items.find((i) => i.id === id)
+              return item ? { ...item } : { id, text: '' }
+            })
+            isAnswered = true
+            textFeedback.textContent = window.MOCKPickFeedback('correct')
+            textFeedback.classList.add('is-visible')
+            panelWrapper.classList.add('panel-explanation-wrapper--open')
+            setSubmitLabelInstant('下一题')
+            break
+          case 'partial':
+            // Swap items 1 and 2 (s2 ↔ s3) to demonstrate "wrong position"
+            order = quiz.items.map((item) => ({ ...item }))
+            ;[order[1], order[2]] = [order[2], order[1]]
+            isAnswered = true
+            textFeedback.textContent = '差一点。看看正确顺序。'
+            textFeedback.classList.add('is-visible')
+            panelContent.textContent = quiz.explanation + ' 检查标橙的项——它的位置不对。'
+            panelWrapper.classList.add('panel-explanation-wrapper--open')
+            setSubmitLabelInstant('再看一次')
+            break
+        }
+        render()
+      }
 
-</body>
+      function setSubmitLabelInstant(label) {
+        submitLabel.textContent = label
+      }
+
+      /* ---------- Keyboard: Enter to submit ---------- */
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !isAnswered) {
+          submitBtn.click()
+        }
+      })
+
+      /* ---------- Initial render ---------- */
+
+      window.ALC.renderNavTop({
+        back: '概览',
+        backTarget: '03-overview.html',
+        stage: 'concept',
+      })
+
+      window.ALC.renderStaircase({ activeStage: 'concept', activeConceptIndex: 2 })
+      document.getElementById('concept-step').textContent = `Concept C · 第 5 步 / 共 9 步`
+
+      render()
+    </script>
+  </body>
 </html>

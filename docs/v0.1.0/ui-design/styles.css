@@ -42,126 +42,127 @@
   /* ---- §1.1 Color tokens (Dark theme — default) ----------------------- */
 
   /* Background layers (deep → shallow) */
-  --bg-base:        #0E1311;
-  --bg-surface:     #161C19;
-  --bg-elevated:    #1E2622;
-  --bg-overlay:     #2A332E;
+  --bg-base: #0e1311;
+  --bg-surface: #161c19;
+  --bg-elevated: #1e2622;
+  --bg-overlay: #2a332e;
 
   /* Foreground layers (≥ WCAG AA) */
-  --fg-primary:     #ECE6D4;
-  --fg-secondary:   #B5AE9C;
-  --fg-tertiary:    #7A7466;
-  --fg-quaternary:  #4A463C;
+  --fg-primary: #ece6d4;
+  --fg-secondary: #b5ae9c;
+  --fg-tertiary: #7a7466;
+  --fg-quaternary: #4a463c;
 
   /* Borders */
-  --border-subtle:  rgba(236, 230, 212, 0.06);
+  --border-subtle: rgba(236, 230, 212, 0.06);
   --border-default: rgba(236, 230, 212, 0.12);
-  --border-strong:  rgba(236, 230, 212, 0.22);
+  --border-strong: rgba(236, 230, 212, 0.22);
 
   /* Primary accent — warm golden brown */
-  --accent-primary:        #D4A574;
-  --accent-primary-hover:  #C9985F;
-  --accent-primary-soft:   rgba(212, 165, 116, 0.12);
+  --accent-primary: #d4a574;
+  --accent-primary-hover: #c9985f;
+  --accent-primary-soft: rgba(212, 165, 116, 0.12);
 
   /* Success — soft sage green */
-  --success:        #7FA88C;
-  --success-soft:   rgba(127, 168, 140, 0.14);
+  --success: #7fa88c;
+  --success-soft: rgba(127, 168, 140, 0.14);
 
   /* Warning — soft terracotta (NEVER red) */
-  --warning:        #C99A6E;
-  --warning-soft:   rgba(201, 154, 110, 0.14);
+  --warning: #c99a6e;
+  --warning-soft: rgba(201, 154, 110, 0.14);
 
   /* Stage semantic colors (for staircase) */
-  --stage-concept:    #D4A574;
-  --stage-challenge:  #B8895C;
-  --stage-feynman:    #E8C894;
+  --stage-concept: #d4a574;
+  --stage-challenge: #b8895c;
+  --stage-feynman: #e8c894;
 
   /* State semantic colors */
-  --state-completed:  #7FA88C;
-  --state-active:     #D4A574;
-  --state-locked:     #4A463C;
+  --state-completed: #7fa88c;
+  --state-active: #d4a574;
+  --state-locked: #4a463c;
 
   /* ---- §1.2 Typography tokens ----------------------------------------- */
 
-  --font-serif:  "Fraunces", "Source Han Serif SC", "Noto Serif SC",
-                 "Songti SC", "SimSun", "LXGW WenKai", Georgia, serif;
-  --font-mono:   "JetBrains Mono", "IBM Plex Mono", "Source Han Mono SC",
-                 "Cascadia Mono", Consolas, monospace;
-  --font-display: "Fraunces", "Source Han Serif SC", serif;
+  --font-serif:
+    'Fraunces', 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', 'SimSun', 'LXGW WenKai',
+    Georgia, serif;
+  --font-mono:
+    'JetBrains Mono', 'IBM Plex Mono', 'Source Han Mono SC', 'Cascadia Mono', Consolas, monospace;
+  --font-display: 'Fraunces', 'Source Han Serif SC', serif;
 
   /* Type scale (1.250 major third, desktop baseline) */
-  --text-xs:    12px;
-  --text-sm:    14px;
-  --text-base:  16px;
-  --text-md:    18px;
-  --text-lg:    22px;
-  --text-xl:    28px;
-  --text-2xl:   36px;
-  --text-3xl:   48px;
-  --text-4xl:   64px;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-md: 18px;
+  --text-lg: 22px;
+  --text-xl: 28px;
+  --text-2xl: 36px;
+  --text-3xl: 48px;
+  --text-4xl: 64px;
 
   /* Font weights */
-  --weight-regular:  400;
-  --weight-medium:   500;
+  --weight-regular: 400;
+  --weight-medium: 500;
   --weight-semibold: 600;
-  --weight-bold:     700;
+  --weight-bold: 700;
 
   /* Line heights */
-  --leading-tight:   1.15;
-  --leading-snug:    1.30;
-  --leading-normal:  1.55;
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.55;
   --leading-relaxed: 1.75;
 
   /* Letter spacing */
-  --tracking-tight:  -0.02em;
-  --tracking-normal:  0;
-  --tracking-wide:    0.02em;
-  --tracking-mono:    0.04em;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.02em;
+  --tracking-mono: 0.04em;
 
   /* ---- §1.3 Spacing tokens (8px baseline) ----------------------------- */
 
-  --space-0:  0;
-  --space-1:  4px;
-  --space-2:  8px;
-  --space-3:  12px;
-  --space-4:  16px;
-  --space-5:  24px;
-  --space-6:  32px;
-  --space-7:  48px;
-  --space-8:  64px;
-  --space-9:  96px;
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
   --space-10: 128px;
 
   /* ---- §1.4 Radius tokens -------------------------------------------- */
 
-  --radius-none:  0;
-  --radius-sm:    4px;
-  --radius-md:    8px;
-  --radius-lg:    12px;
-  --radius-xl:    16px;
-  --radius-full:  999px;
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 999px;
 
   /* ---- §1.5 Shadow tokens (very restrained) -------------------------- */
 
-  --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg:  0 12px 32px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
   --shadow-inset-stair: inset 0 1px 0 rgba(236, 230, 212, 0.06);
 
   /* ---- §1.6 Motion tokens -------------------------------------------- */
 
-  --duration-instant:  80ms;
-  --duration-fast:     160ms;
-  --duration-base:     240ms;
-  --duration-slow:     400ms;
+  --duration-instant: 80ms;
+  --duration-fast: 160ms;
+  --duration-base: 240ms;
+  --duration-slow: 400ms;
   --duration-ceremony: 800ms;
-  --duration-epic:     1200ms;
+  --duration-epic: 1200ms;
 
-  --ease-standard:   cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-ceremony:   cubic-bezier(0.7, 0, 0.3, 1);
-  --ease-out:        cubic-bezier(0.0, 0.0, 0.2, 1);
-  --ease-in:         cubic-bezier(0.4, 0.0, 1, 1);
+  --ease-ceremony: cubic-bezier(0.7, 0, 0.3, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
 
   /* ---- §1.7 Viewport height token (mobile keyboard adaptation) ------- */
 
@@ -178,7 +179,9 @@
    §2. Global reset & typography base
    ========================================================================= */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -189,8 +192,8 @@
 
 html {
   font-size: 16px;
-  color-scheme: dark;  /* V1.1.1 §audit-5 — forces Windows scrollbar dark adaptation */
-  text-spacing-trim: space-all;  /* V1.1 §2.2.5 — CJK/Latin auto-spacing */
+  color-scheme: dark; /* V1.1.1 §audit-5 — forces Windows scrollbar dark adaptation */
+  text-spacing-trim: space-all; /* V1.1 §2.2.5 — CJK/Latin auto-spacing */
   scroll-behavior: smooth;
 }
 
@@ -214,7 +217,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: var(--weight-semibold);
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
@@ -239,13 +247,15 @@ button {
   cursor: pointer;
 }
 
-input, textarea {
+input,
+textarea {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
 }
 
@@ -283,8 +293,12 @@ ul, ol {
 }
 
 @keyframes page-enter {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .section-divider {
@@ -304,7 +318,8 @@ ul, ol {
    §4. Typography utilities
    ========================================================================= */
 
-.h-display {  /* 64px, completion page main title */
+.h-display {
+  /* 64px, completion page main title */
   font-family: var(--font-display);
   font-size: var(--text-4xl);
   font-weight: var(--weight-semibold);
@@ -312,35 +327,40 @@ ul, ol {
   letter-spacing: var(--tracking-tight);
 }
 
-.h1 {  /* 48px */
+.h1 {
+  /* 48px */
   font-size: var(--text-3xl);
   font-weight: var(--weight-semibold);
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
 }
 
-.h2 {  /* 36px */
+.h2 {
+  /* 36px */
   font-size: var(--text-2xl);
   font-weight: var(--weight-medium);
   line-height: var(--leading-snug);
   letter-spacing: var(--tracking-tight);
 }
 
-.h3 {  /* 28px, quiz stem default */
+.h3 {
+  /* 28px, quiz stem default */
   font-size: var(--text-xl);
   font-weight: var(--weight-regular);
   line-height: var(--leading-normal);
   color: var(--fg-primary);
 }
 
-.lead {  /* 22px, module intro */
+.lead {
+  /* 22px, module intro */
   font-size: var(--text-lg);
   font-weight: var(--weight-regular);
   line-height: var(--leading-normal);
   color: var(--fg-primary);
 }
 
-.body {  /* 16px default */
+.body {
+  /* 16px default */
   font-size: var(--text-base);
   line-height: var(--leading-normal);
 }
@@ -351,7 +371,8 @@ ul, ol {
   color: var(--fg-secondary);
 }
 
-.label-mono {  /* small caps mono — stage labels */
+.label-mono {
+  /* small caps mono — stage labels */
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
@@ -360,7 +381,8 @@ ul, ol {
   color: var(--fg-tertiary);
 }
 
-.meta-mono {  /* plain mono — counters, metadata */
+.meta-mono {
+  /* plain mono — counters, metadata */
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   letter-spacing: var(--tracking-mono);
@@ -380,7 +402,7 @@ ul, ol {
   font-family: var(--font-serif);
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
-  line-height: 1.30;
+  line-height: 1.3;
 
   padding: var(--space-4) var(--space-6);
   background: var(--accent-primary);
@@ -389,8 +411,9 @@ ul, ol {
   border-radius: var(--radius-md);
 
   cursor: pointer;
-  transition: background var(--duration-instant) var(--ease-standard),
-              transform var(--duration-fast) var(--ease-standard);
+  transition:
+    background var(--duration-instant) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
 }
 
 .btn-primary:hover {
@@ -405,7 +428,7 @@ ul, ol {
 }
 
 .btn-primary:disabled,
-.btn-primary[aria-disabled="true"] {
+.btn-primary[aria-disabled='true'] {
   background: var(--fg-quaternary);
   color: var(--fg-tertiary);
   cursor: not-allowed;
@@ -429,8 +452,9 @@ ul, ol {
   border-radius: var(--radius-md);
 
   cursor: pointer;
-  transition: border-color var(--duration-instant) var(--ease-standard),
-              background var(--duration-instant) var(--ease-standard);
+  transition:
+    border-color var(--duration-instant) var(--ease-standard),
+    background var(--duration-instant) var(--ease-standard);
 }
 
 .btn-secondary:hover {
@@ -467,7 +491,7 @@ ul, ol {
 }
 
 .btn-primary--loading::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 50%;
   left: 50%;
@@ -483,7 +507,9 @@ ul, ol {
 }
 
 @keyframes btn-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* =========================================================================
@@ -513,8 +539,9 @@ ul, ol {
   text-align: left;
 
   position: relative;
-  transition: border-color var(--duration-instant) var(--ease-standard),
-              background var(--duration-instant) var(--ease-standard);
+  transition:
+    border-color var(--duration-instant) var(--ease-standard),
+    background var(--duration-instant) var(--ease-standard);
 }
 
 .option-choice:hover {
@@ -547,7 +574,7 @@ ul, ol {
 
 /* V1.1 §6.1.1 — 1px line drawn with ::after + transform: scaleX() */
 .option-choice--correct::after {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   right: 0;
@@ -569,12 +596,13 @@ ul, ol {
   background: var(--warning-soft);
 }
 
-.option-choice--wrong::after {  /* No ✗ symbol, no line — M3 error is learning */
+.option-choice--wrong::after {
+  /* No ✗ symbol, no line — M3 error is learning */
   content: none;
 }
 
 .option-choice:disabled,
-.option-choice[aria-disabled="true"] {
+.option-choice[aria-disabled='true'] {
   cursor: default;
 }
 
@@ -604,9 +632,10 @@ ul, ol {
   border-radius: var(--radius-md);
   cursor: grab;
 
-  transition: border-color var(--duration-instant) var(--ease-standard),
-              background var(--duration-instant) var(--ease-standard),
-              opacity var(--duration-base) var(--ease-standard);
+  transition:
+    border-color var(--duration-instant) var(--ease-standard),
+    background var(--duration-instant) var(--ease-standard),
+    opacity var(--duration-base) var(--ease-standard);
 }
 
 .option-sort:hover {
@@ -665,8 +694,9 @@ ul, ol {
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 14px;
-  transition: border-color var(--duration-instant) var(--ease-standard),
-              background var(--duration-instant) var(--ease-standard);
+  transition:
+    border-color var(--duration-instant) var(--ease-standard),
+    background var(--duration-instant) var(--ease-standard);
 }
 
 .option-sort__arrow:hover:not(:disabled) {
@@ -681,8 +711,12 @@ ul, ol {
 
 /* Mobile: hide drag handle, show arrows (V1.1 §4.2.2) */
 @media (max-width: 1023px) {
-  .option-sort__handle { display: none; }
-  .option-sort__arrows { display: flex; }
+  .option-sort__handle {
+    display: none;
+  }
+  .option-sort__arrows {
+    display: flex;
+  }
 }
 
 /* ---- §6.3 Fill blank inline input (V1.1 §4.2.3 — field-sizing) ------ */
@@ -704,8 +738,9 @@ ul, ol {
   min-width: 2ch;
   max-width: 320px;
 
-  transition: border-color var(--duration-base) var(--ease-standard),
-              width var(--duration-fast) var(--ease-standard);
+  transition:
+    border-color var(--duration-base) var(--ease-standard),
+    width var(--duration-fast) var(--ease-standard);
 }
 
 /* Modern browsers — native field-sizing */
@@ -776,7 +811,7 @@ ul, ol {
 }
 
 .card-concept__key-point::before {
-  content: "•";
+  content: '•';
   position: absolute;
   left: 0;
   color: var(--fg-tertiary);
@@ -834,9 +869,15 @@ ul, ol {
   text-align: center;
 }
 
-.card-rubric__marker--hit      { color: var(--success); }
-.card-rubric__marker--partial  { color: var(--warning); }
-.card-rubric__marker--miss     { color: var(--fg-quaternary); }
+.card-rubric__marker--hit {
+  color: var(--success);
+}
+.card-rubric__marker--partial {
+  color: var(--warning);
+}
+.card-rubric__marker--miss {
+  color: var(--fg-quaternary);
+}
 
 .card-rubric__criterion {
   font-family: var(--font-serif);
@@ -892,7 +933,7 @@ ul, ol {
 }
 
 .card-gaps__item::before {
-  content: "•";
+  content: '•';
   position: absolute;
   left: 0;
   color: var(--fg-tertiary);
@@ -1005,13 +1046,18 @@ ul, ol {
   background: transparent;
   position: relative;
 
-  transition: background var(--duration-base) var(--ease-standard),
-              border-color var(--duration-base) var(--ease-standard),
-              transform var(--duration-base) var(--ease-standard);
+  transition:
+    background var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-standard);
 }
 
-.staircase--challenge .stair { height: 32px; }
-.staircase--feynman .stair   { height: 40px; }
+.staircase--challenge .stair {
+  height: 32px;
+}
+.staircase--feynman .stair {
+  height: 40px;
+}
 
 .stair--completed {
   background: var(--success-soft);
@@ -1019,7 +1065,7 @@ ul, ol {
 }
 
 .stair--completed::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 50%;
   left: 50%;
@@ -1041,7 +1087,8 @@ ul, ol {
   border-color: var(--border-default);
 }
 
-.stair--skipped {  /* failed-then-forced-advance — V1.1 §3.3 */
+.stair--skipped {
+  /* failed-then-forced-advance — V1.1 §3.3 */
   background: var(--warning-soft);
   border-color: var(--fg-tertiary);
 }
@@ -1118,9 +1165,10 @@ ul, ol {
   border: 1px solid var(--border-default);
   background: transparent;
   flex-shrink: 0;
-  transition: background var(--duration-base) var(--ease-standard),
-              border-color var(--duration-base) var(--ease-standard),
-              box-shadow var(--duration-base) var(--ease-standard);
+  transition:
+    background var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard);
 }
 
 .stepper-feynman__step--completed {
@@ -1269,9 +1317,7 @@ ul, ol {
 
 .stage-banner {
   padding: var(--space-4) var(--space-6);
-  background: linear-gradient(90deg,
-    rgba(184, 137, 92, 0.10),
-    rgba(184, 137, 92, 0.04));
+  background: linear-gradient(90deg, rgba(184, 137, 92, 0.1), rgba(184, 137, 92, 0.04));
   border-top: 1px solid var(--stage-challenge);
   border-bottom: 1px solid var(--stage-challenge);
   border-radius: var(--radius-md);
@@ -1286,9 +1332,7 @@ ul, ol {
 }
 
 .stage-banner--feynman {
-  background: linear-gradient(90deg,
-    rgba(232, 200, 148, 0.12),
-    rgba(232, 200, 148, 0.05));
+  background: linear-gradient(90deg, rgba(232, 200, 148, 0.12), rgba(232, 200, 148, 0.05));
   border-top-color: var(--stage-feynman);
   border-bottom-color: var(--stage-feynman);
 }
@@ -1347,10 +1391,18 @@ ul, ol {
     padding: var(--space-7) var(--space-6) var(--space-9);
   }
 
-  .h-display { font-size: 48px; }
-  .h1        { font-size: 36px; }
-  .h2        { font-size: 28px; }
-  .h3        { font-size: 24px; }
+  .h-display {
+    font-size: 48px;
+  }
+  .h1 {
+    font-size: 36px;
+  }
+  .h2 {
+    font-size: 28px;
+  }
+  .h3 {
+    font-size: 24px;
+  }
 
   .nav-top {
     padding: var(--space-3) var(--space-6);
@@ -1364,11 +1416,21 @@ ul, ol {
     padding: var(--space-7) var(--space-5) calc(var(--space-10) + env(safe-area-inset-bottom, 0px));
   }
 
-  .h-display { font-size: 36px; }
-  .h1        { font-size: 28px; }
-  .h2        { font-size: 24px; }
-  .h3        { font-size: 22px; }
-  .lead      { font-size: var(--text-md); }
+  .h-display {
+    font-size: 36px;
+  }
+  .h1 {
+    font-size: 28px;
+  }
+  .h2 {
+    font-size: 24px;
+  }
+  .h3 {
+    font-size: 22px;
+  }
+  .lead {
+    font-size: var(--text-md);
+  }
 
   .option-choice {
     font-size: var(--text-md);
@@ -1439,7 +1501,9 @@ ul, ol {
    ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

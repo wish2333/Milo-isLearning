@@ -73,6 +73,7 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
   const [isGuessed, setIsGuessed] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [submittedAnswer, setSubmittedAnswer] = useState<string | null>(null)
 
   // 获取当前应该显示的 quiz
   const concept = currentModule?.concepts[conceptIndex]
@@ -95,6 +96,7 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
     setIsGuessed(false)
     setError(null)
     setHistoryOpen(false)
+    setSubmittedAnswer(null)
     // 如果 currentQuiz 与当前 slot 不匹配，重置为 slot quiz
     if (isReviewQuiz && reviewQuiz) {
       if (!currentQuiz || currentQuiz.id !== reviewQuiz.id) {
@@ -131,6 +133,7 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
 
       setPhase('evaluating')
       setError(null)
+      setSubmittedAnswer(userAnswer)
 
       // 一次性快照 attemptVersion，避免记录作答时出现竞态
       const attemptVersion = getNextAttemptVersion(slotId)
@@ -320,7 +323,12 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
         <div className="pt-2 space-y-4">
           {isReviewQuiz && <ReviewSlotBadge />}
           <BackgroundPanel background={quiz.background} />
-          <QuizRenderer quiz={quiz} disabled={phase !== 'answering'} onAnswer={handleAnswer} />
+          <QuizRenderer
+            quiz={quiz}
+            disabled={phase !== 'answering'}
+            onAnswer={handleAnswer}
+            submittedAnswer={phase !== 'answering' ? (submittedAnswer ?? undefined) : undefined}
+          />
         </div>
 
         {/* Evaluating */}

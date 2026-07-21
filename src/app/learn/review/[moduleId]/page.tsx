@@ -70,6 +70,7 @@ export default function ReviewPage() {
   const { session, startSession, recordResult, nextQuestion, endSession } = useReviewStore()
   const addAttempt = useAttemptsStore((s) => s.addAttempt)
   const getNextAttemptVersion = useAttemptsStore((s) => s.getNextAttemptVersion)
+  const getAttempts = useAttemptsStore((s) => s.getAttempts)
   const reevaluateLastAttempt = useAttemptsStore((s) => s.reevaluateLastAttempt)
   const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
   const config = useSettingsStore((s) => s.config)
@@ -125,6 +126,9 @@ export default function ReviewPage() {
   const currentQueueItem = session ? session.queue[session.currentIndex] : null
   const currentQuiz = currentQueueItem?.quiz ?? null
   const isFinished = session !== null && session.currentIndex >= session.queue.length
+  const latestAttempt = currentQueueItem ? getAttempts(currentQueueItem.slotId).at(-1) : undefined
+  const submittedAnswer =
+    phase !== 'answering' && latestAttempt ? latestAttempt.userAnswer : undefined
 
   // 当题目切换时记录展示时间
   useEffect(() => {
@@ -400,6 +404,7 @@ export default function ReviewPage() {
             quiz={currentQuiz}
             disabled={phase !== 'answering'}
             onAnswer={handleAnswer}
+            submittedAnswer={submittedAnswer}
           />
         </div>
 

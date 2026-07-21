@@ -91,18 +91,6 @@ export function FeedbackPanel({
         {feedback.feedbackText}
       </p>
 
-      {/* Gaps */}
-      {feedback.gaps.length > 0 && (
-        <ul className="space-y-1">
-          {feedback.gaps.map((gap) => (
-            <li key={gap} className="text-xs text-fg-tertiary flex items-start gap-2">
-              <span className="text-fg-tertiary mt-0.5">-</span>
-              <span>{gap}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
       {/* Explanation */}
       {explanation && (
         <div

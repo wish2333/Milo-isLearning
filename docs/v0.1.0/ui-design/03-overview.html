@@ -1,13 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="color-scheme" content="dark" />
-  <meta name="theme-color" content="#0E1311" />
-  <title>AI Learning Compiler · 课程概览</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0E1311" />
+    <title>AI Learning Compiler · 课程概览</title>
 
-  <!--
+    <!--
     Phase 3 · 课程概览页 · §5.3
     ==========================
     让用户判断是否值得开始，并点击「开始学习」。
@@ -25,335 +25,348 @@
     演示控件：右下角面板切换三态。
   -->
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E"
+    />
 
-  <link rel="stylesheet" href="./styles.css" />
-  <script src="./mock-data.js"></script>
-  <script src="./app.js"></script>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./mock-data.js"></script>
+    <script src="./app.js"></script>
 
-  <style>
-    .overview-page {
-      max-width: 640px;
-      padding-top: var(--space-9);
-    }
+    <style>
+      .overview-page {
+        max-width: 640px;
+        padding-top: var(--space-9);
+      }
 
-    .overview-eyebrow {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      margin-bottom: var(--space-2);
-    }
+      .overview-eyebrow {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        margin-bottom: var(--space-2);
+      }
 
-    .overview-title {
-      font-family: var(--font-serif);
-      font-size: var(--text-3xl);  /* 48px */
-      font-weight: var(--weight-semibold);
-      line-height: var(--leading-tight);
-      letter-spacing: var(--tracking-tight);
-      color: var(--fg-primary);
-      margin-bottom: var(--space-4);
-    }
+      .overview-title {
+        font-family: var(--font-serif);
+        font-size: var(--text-3xl); /* 48px */
+        font-weight: var(--weight-semibold);
+        line-height: var(--leading-tight);
+        letter-spacing: var(--tracking-tight);
+        color: var(--fg-primary);
+        margin-bottom: var(--space-4);
+      }
 
-    .overview-intro {
-      font-family: var(--font-serif);
-      font-size: var(--text-lg);  /* 22px */
-      line-height: var(--leading-normal);
-      color: var(--fg-secondary);
-      margin-bottom: var(--space-4);
-    }
+      .overview-intro {
+        font-family: var(--font-serif);
+        font-size: var(--text-lg); /* 22px */
+        line-height: var(--leading-normal);
+        color: var(--fg-secondary);
+        margin-bottom: var(--space-4);
+      }
 
-    .overview-meta {
-      font-family: var(--font-mono);
-      font-size: var(--text-sm);
-      letter-spacing: var(--tracking-mono);
-      color: var(--fg-tertiary);
-      margin-bottom: var(--space-6);
-    }
+      .overview-meta {
+        font-family: var(--font-mono);
+        font-size: var(--text-sm);
+        letter-spacing: var(--tracking-mono);
+        color: var(--fg-tertiary);
+        margin-bottom: var(--space-6);
+      }
 
-    .overview-section-label {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      margin-top: var(--space-6);
-      margin-bottom: var(--space-4);
-    }
+      .overview-section-label {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        margin-top: var(--space-6);
+        margin-bottom: var(--space-4);
+      }
 
-    .concept-list {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-4);
-      margin-bottom: var(--space-8);
-    }
+      .concept-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        margin-bottom: var(--space-8);
+      }
 
-    .concept-card {
-      padding: var(--space-5) var(--space-6);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-default);
-      border-radius: var(--radius-lg);
-      position: relative;
-    }
+      .concept-card {
+        padding: var(--space-5) var(--space-6);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        position: relative;
+      }
 
-    .concept-card__id {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      margin-bottom: var(--space-1);
-    }
+      .concept-card__id {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        margin-bottom: var(--space-1);
+      }
 
-    .concept-card__name {
-      font-family: var(--font-serif);
-      font-size: var(--text-xl);  /* 28px */
-      color: var(--fg-primary);
-      margin-bottom: var(--space-3);
-    }
+      .concept-card__name {
+        font-family: var(--font-serif);
+        font-size: var(--text-xl); /* 28px */
+        color: var(--fg-primary);
+        margin-bottom: var(--space-3);
+      }
 
-    .concept-card__keypoints {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-1);
-    }
+      .concept-card__keypoints {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
 
-    .concept-card__keypoint {
-      font-family: var(--font-serif);
-      font-size: var(--text-sm);
-      color: var(--fg-secondary);
-      padding-left: var(--space-3);
-      position: relative;
-    }
+      .concept-card__keypoint {
+        font-family: var(--font-serif);
+        font-size: var(--text-sm);
+        color: var(--fg-secondary);
+        padding-left: var(--space-3);
+        position: relative;
+      }
 
-    .concept-card__keypoint::before {
-      content: "•";
-      position: absolute;
-      left: 0;
-      color: var(--fg-tertiary);
-    }
+      .concept-card__keypoint::before {
+        content: '•';
+        position: absolute;
+        left: 0;
+        color: var(--fg-tertiary);
+      }
 
-    .concept-card__status {
-      position: absolute;
-      top: var(--space-5);
-      right: var(--space-6);
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: transparent;
-      border: 1px solid var(--border-default);
-    }
+      .concept-card__status {
+        position: absolute;
+        top: var(--space-5);
+        right: var(--space-6);
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: transparent;
+        border: 1px solid var(--border-default);
+      }
 
-    .concept-card__status.is-completed {
-      background: var(--success);
-      border-color: var(--success);
-    }
+      .concept-card__status.is-completed {
+        background: var(--success);
+        border-color: var(--success);
+      }
 
-    .concept-card__status.is-active {
-      background: var(--accent-primary);
-      border-color: var(--accent-primary);
-      box-shadow: 0 0 0 4px var(--accent-primary-soft);
-    }
+      .concept-card__status.is-active {
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 4px var(--accent-primary-soft);
+      }
 
-    .overview-action {
-      display: flex;
-      justify-content: center;
-      margin-top: var(--space-7);
-    }
+      .overview-action {
+        display: flex;
+        justify-content: center;
+        margin-top: var(--space-7);
+      }
 
-    .overview-action .btn-primary {
-      min-width: 220px;
-    }
+      .overview-action .btn-primary {
+        min-width: 220px;
+      }
 
-    .demo-panel {
-      position: fixed;
-      right: var(--space-4);
-      bottom: var(--space-4);
-      z-index: 50;
-      padding: var(--space-3);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-default);
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-md);
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-2);
-      min-width: 180px;
-    }
+      .demo-panel {
+        position: fixed;
+        right: var(--space-4);
+        bottom: var(--space-4);
+        z-index: 50;
+        padding: var(--space-3);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        min-width: 180px;
+      }
 
-    .demo-panel__title {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      margin-bottom: var(--space-1);
-    }
+      .demo-panel__title {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        margin-bottom: var(--space-1);
+      }
 
-    .demo-panel__btn {
-      padding: var(--space-2) var(--space-3);
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-secondary);
-      background: transparent;
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      text-align: left;
-      transition: all var(--duration-instant) var(--ease-standard);
-    }
+      .demo-panel__btn {
+        padding: var(--space-2) var(--space-3);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-secondary);
+        background: transparent;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        text-align: left;
+        transition: all var(--duration-instant) var(--ease-standard);
+      }
 
-    .demo-panel__btn:hover {
-      color: var(--fg-primary);
-      border-color: var(--border-strong);
-    }
+      .demo-panel__btn:hover {
+        color: var(--fg-primary);
+        border-color: var(--border-strong);
+      }
 
-    .demo-panel__btn.is-active {
-      color: var(--accent-primary);
-      border-color: var(--accent-primary);
-    }
+      .demo-panel__btn.is-active {
+        color: var(--accent-primary);
+        border-color: var(--accent-primary);
+      }
 
-    @media (max-width: 767px) {
-      .overview-page { padding-top: var(--space-7); }
-      .overview-title { font-size: var(--text-2xl); }
-      .overview-action .btn-primary { width: 100%; min-width: 0; }
-      .demo-panel { display: none; }
-    }
-  </style>
-</head>
-
-<body>
-  <a href="#main-content" class="skip-link">跳到主要内容</a>
-
-  <div class="app-shell">
-
-    <div id="nav-top-mount"></div>
-
-    <main id="main-content" class="page overview-page" role="main">
-
-      <p class="overview-eyebrow">Module 1</p>
-      <h1 class="overview-title" id="overview-title">理解 RAG</h1>
-
-      <p class="overview-intro" id="overview-intro">
-        完成本模块后，你能向一个高中生解释 RAG 是什么、为什么需要它。
-      </p>
-
-      <p class="overview-meta">
-        <span id="concept-count">3</span> 个概念
-        <span style="margin: 0 var(--space-2); color: var(--fg-quaternary);">·</span>
-        5 分钟前编译
-        <span style="margin: 0 var(--space-2); color: var(--fg-quaternary);">·</span>
-        约 <span id="est-minutes">18</span> 分钟
-      </p>
-
-      <hr class="section-divider" />
-
-      <p class="overview-section-label">概念</p>
-
-      <ul class="concept-list" id="concept-list">
-        <!-- Generated by JS -->
-      </ul>
-
-      <div class="overview-action">
-        <button type="button" class="btn-primary" id="start-btn">开始学习</button>
-      </div>
-
-    </main>
-
-  </div>
-
-  <!-- Demo panel -->
-  <aside class="demo-panel" aria-hidden="true">
-    <span class="demo-panel__title">演示状态</span>
-    <button type="button" class="demo-panel__btn is-active" data-state="first">首次进入</button>
-    <button type="button" class="demo-panel__btn" data-state="resume">重新进入（部分完成）</button>
-    <button type="button" class="demo-panel__btn" data-state="done">已完成</button>
-  </aside>
-
-  <script>
-    'use strict';
-
-    const moduleData = window.MOCK.module;
-    const conceptListEl = document.getElementById('concept-list');
-    const startBtn = document.getElementById('start-btn');
-
-    /**
-     * @typedef {'first'|'resume'|'done'} OverviewState
-     * @param {OverviewState} state
-     */
-    function renderOverview(state) {
-      // Title + intro + meta
-      document.getElementById('overview-title').textContent = moduleData.title;
-      document.getElementById('overview-intro').textContent = moduleData.goal;
-
-      // Concept list
-      conceptListEl.innerHTML = moduleData.concepts.map((c, i) => {
-        let statusClass = '';
-        if (state === 'done') {
-          statusClass = 'is-completed';
-        } else if (state === 'resume') {
-          if (i === 0) statusClass = 'is-completed';
-          else if (i === 1) statusClass = 'is-active';
+      @media (max-width: 767px) {
+        .overview-page {
+          padding-top: var(--space-7);
         }
-        return `
+        .overview-title {
+          font-size: var(--text-2xl);
+        }
+        .overview-action .btn-primary {
+          width: 100%;
+          min-width: 0;
+        }
+        .demo-panel {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <a href="#main-content" class="skip-link">跳到主要内容</a>
+
+    <div class="app-shell">
+      <div id="nav-top-mount"></div>
+
+      <main id="main-content" class="page overview-page" role="main">
+        <p class="overview-eyebrow">Module 1</p>
+        <h1 class="overview-title" id="overview-title">理解 RAG</h1>
+
+        <p class="overview-intro" id="overview-intro">
+          完成本模块后，你能向一个高中生解释 RAG 是什么、为什么需要它。
+        </p>
+
+        <p class="overview-meta">
+          <span id="concept-count">3</span> 个概念
+          <span style="margin: 0 var(--space-2); color: var(--fg-quaternary)">·</span>
+          5 分钟前编译
+          <span style="margin: 0 var(--space-2); color: var(--fg-quaternary)">·</span>
+          约 <span id="est-minutes">18</span> 分钟
+        </p>
+
+        <hr class="section-divider" />
+
+        <p class="overview-section-label">概念</p>
+
+        <ul class="concept-list" id="concept-list">
+          <!-- Generated by JS -->
+        </ul>
+
+        <div class="overview-action">
+          <button type="button" class="btn-primary" id="start-btn">开始学习</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Demo panel -->
+    <aside class="demo-panel" aria-hidden="true">
+      <span class="demo-panel__title">演示状态</span>
+      <button type="button" class="demo-panel__btn is-active" data-state="first">首次进入</button>
+      <button type="button" class="demo-panel__btn" data-state="resume">
+        重新进入（部分完成）
+      </button>
+      <button type="button" class="demo-panel__btn" data-state="done">已完成</button>
+    </aside>
+
+    <script>
+      'use strict'
+
+      const moduleData = window.MOCK.module
+      const conceptListEl = document.getElementById('concept-list')
+      const startBtn = document.getElementById('start-btn')
+
+      /**
+       * @typedef {'first'|'resume'|'done'} OverviewState
+       * @param {OverviewState} state
+       */
+      function renderOverview(state) {
+        // Title + intro + meta
+        document.getElementById('overview-title').textContent = moduleData.title
+        document.getElementById('overview-intro').textContent = moduleData.goal
+
+        // Concept list
+        conceptListEl.innerHTML = moduleData.concepts
+          .map((c, i) => {
+            let statusClass = ''
+            if (state === 'done') {
+              statusClass = 'is-completed'
+            } else if (state === 'resume') {
+              if (i === 0) statusClass = 'is-completed'
+              else if (i === 1) statusClass = 'is-active'
+            }
+            return `
           <li class="concept-card" aria-label="${c.id} ${c.name}">
             <p class="concept-card__id">${c.id}</p>
             <h2 class="concept-card__name">${c.name}</h2>
             <ul class="concept-card__keypoints">
-              ${c.keyPoints.map(kp => `<li class="concept-card__keypoint">${kp}</li>`).join('')}
+              ${c.keyPoints.map((kp) => `<li class="concept-card__keypoint">${kp}</li>`).join('')}
             </ul>
             <span class="concept-card__status ${statusClass}" aria-hidden="true"></span>
           </li>
-        `;
-      }).join('');
+        `
+          })
+          .join('')
 
-      // Button label
-      if (state === 'first') {
-        startBtn.textContent = '开始学习';
-      } else if (state === 'resume') {
-        startBtn.textContent = '继续学习';
-      } else {
-        startBtn.textContent = '重新学习';
+        // Button label
+        if (state === 'first') {
+          startBtn.textContent = '开始学习'
+        } else if (state === 'resume') {
+          startBtn.textContent = '继续学习'
+        } else {
+          startBtn.textContent = '重新学习'
+        }
       }
-    }
 
-    /* ---------- Demo state switcher ---------- */
+      /* ---------- Demo state switcher ---------- */
 
-    document.querySelectorAll('.demo-panel__btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.demo-panel__btn').forEach(b => b.classList.remove('is-active'));
-        btn.classList.add('is-active');
-        const state = /** @type {OverviewState} */ (btn.getAttribute('data-state'));
-        renderOverview(state);
-      });
-    });
+      document.querySelectorAll('.demo-panel__btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document
+            .querySelectorAll('.demo-panel__btn')
+            .forEach((b) => b.classList.remove('is-active'))
+          btn.classList.add('is-active')
+          const state = /** @type {OverviewState} */ (btn.getAttribute('data-state'))
+          renderOverview(state)
+        })
+      })
 
-    /* ---------- Wire start button ---------- */
+      /* ---------- Wire start button ---------- */
 
-    startBtn.addEventListener('click', () => {
-      window.ALC.navigate('04-intro.html');
-    });
+      startBtn.addEventListener('click', () => {
+        window.ALC.navigate('04-intro.html')
+      })
 
-    /* ---------- Initial render ---------- */
+      /* ---------- Initial render ---------- */
 
-    window.ALC.renderNavTop({
-      back: '重新编译',
-      backTarget: '01-home.html',
-      actions: [
-        { label: '清空', onClick: () => window.ALC.clearState() },
-      ],
-    });
+      window.ALC.renderNavTop({
+        back: '重新编译',
+        backTarget: '01-home.html',
+        actions: [{ label: '清空', onClick: () => window.ALC.clearState() }],
+      })
 
-    renderOverview('first');
-  </script>
-
-</body>
+      renderOverview('first')
+    </script>
+  </body>
 </html>

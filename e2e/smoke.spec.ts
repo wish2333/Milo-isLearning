@@ -160,3 +160,88 @@ test.describe('Learning flow smoke test', () => {
     await expect(page.locator('text=模块完成度')).toBeVisible()
   })
 })
+
+test.describe('ChoiceQuiz three-state visual feedback (V2.1.2)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript((moduleData) => {
+      localStorage.setItem(
+        'alc:settings',
+        JSON.stringify({
+          state: { config: { provider: 'deepseek', apiKey: 'test-key', model: 'test-model' } },
+          version: 0,
+        }),
+      )
+      localStorage.setItem(
+        'alc:state:module',
+        JSON.stringify({
+          state: { currentModule: moduleData, currentQuiz: null },
+          version: 0,
+        }),
+      )
+      localStorage.setItem(
+        'alc:state:progress',
+        JSON.stringify({
+          state: {
+            moduleId: moduleData.id,
+            stage: { kind: 'concept', conceptIndex: 0, quizIndex: 0 },
+            updatedAt: Date.now(),
+            feynmanAttempt: null,
+          },
+          version: 0,
+        }),
+      )
+      localStorage.setItem(
+        'alc:state:attempts',
+        JSON.stringify({ state: { attemptsBySlot: {} }, version: 0 }),
+      )
+      localStorage.setItem(`alc:module:${moduleData.id}`, JSON.stringify(moduleData))
+    }, mockModule)
+
+    await mockFeedbackAPI(page)
+    await mockRegenerateAPI(page)
+    await mockFeynmanEvalAPI(page)
+  })
+
+  test('wrong answer shows correct-option ✓ and wrong-option ✗ markers', async ({ page }) => {
+    // Navigate directly to the quiz (stage is concept(0,0))
+    await page.goto(`/learn/module/${mockModule.id}`)
+    await expect(page.locator('text=下面哪一项是核心概念的定义？')).toBeVisible({ timeout: 5000 })
+
+    // Pick wrong answer
+    await page.locator('button:has-text("干扰项C")').click()
+    await page.locator('button:has-text("确认选择")').click()
+
+    // Feedback panel should appear with retry text
+    await expect(page.locator('text=再试一题')).toBeVisible({ timeout: 5000 })
+
+    // Correct answer button should have ✓ marker (aria-label)
+    const correctBtn = page.locator('button:has-text("正确答案")')
+    await expect(correctBtn.locator('[aria-label="正确答案"]')).toBeVisible()
+
+    // Wrongly selected button should have ✗ marker (aria-label)
+    const wrongBtn = page.locator('button:has-text("干扰项C")')
+    await expect(wrongBtn.locator('[aria-label="你的选择"]')).toBeVisible()
+
+    // Correct answer button should have success border class
+    await expect(correctBtn).toHaveClass(/border-success/)
+    // Wrongly selected button should have warning border class
+    await expect(wrongBtn).toHaveClass(/border-warning/)
+  })
+
+  test('correct answer shows ✓ marker on selected option', async ({ page }) => {
+    await page.goto(`/learn/module/${mockModule.id}`)
+    await expect(page.locator('text=下面哪一项是核心概念的定义？')).toBeVisible({ timeout: 5000 })
+
+    // Pick correct answer
+    await page.locator('button:has-text("正确答案")').click()
+    await page.locator('button:has-text("确认选择")').click()
+
+    // Feedback panel should show pass text
+    await expect(page.locator('text=答对！')).toBeVisible({ timeout: 5000 })
+
+    // Correct answer button should have ✓ marker
+    const correctBtn = page.locator('button:has-text("正确答案")')
+    await expect(correctBtn.locator('[aria-label="正确答案"]')).toBeVisible()
+    await expect(correctBtn).toHaveClass(/border-success/)
+  })
+})

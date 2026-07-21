@@ -33,6 +33,7 @@ export function TodayReviewView() {
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
   const [isGuessed, setIsGuessed] = useState(false)
+  const [submittedAnswer, setSubmittedAnswer] = useState<string | null>(null)
   const quizDisplayStart = useRef(Date.now())
 
   useEffect(() => {
@@ -50,12 +51,14 @@ export function TodayReviewView() {
     setIsGuessed(latest?.guessed === true)
     setPhase('answering')
     setFeedback(null)
+    setSubmittedAnswer(null)
   }, [currentQueueItem, getAttempts])
 
   const handleAnswer = useCallback(
     async (userAnswer: string) => {
       if (!currentQueueItem || !currentQuiz || !session || phase !== 'answering') return
       setPhase('evaluating')
+      setSubmittedAnswer(userAnswer)
 
       try {
         const provider =
@@ -197,7 +200,12 @@ export function TodayReviewView() {
           </div>
         </header>
 
-        <QuizRenderer quiz={currentQuiz} disabled={phase !== 'answering'} onAnswer={handleAnswer} />
+        <QuizRenderer
+          quiz={currentQuiz}
+          disabled={phase !== 'answering'}
+          onAnswer={handleAnswer}
+          submittedAnswer={phase !== 'answering' ? (submittedAnswer ?? undefined) : undefined}
+        />
 
         {phase === 'evaluating' && (
           <p className="text-sm text-fg-tertiary animate-pulse">正在评估...</p>
