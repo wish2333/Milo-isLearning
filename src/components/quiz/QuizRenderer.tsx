@@ -16,12 +16,20 @@ interface QuizRendererProps {
   quiz: Quiz
   disabled: boolean
   onAnswer: (userAnswer: string) => void
+  submittedAnswer?: string
 }
 
-export function QuizRenderer({ quiz, disabled, onAnswer }: QuizRendererProps) {
+export function QuizRenderer({ quiz, disabled, onAnswer, submittedAnswer }: QuizRendererProps) {
   switch (quiz.interactionType) {
     case 'choice':
-      return <ChoiceQuiz quiz={quiz} disabled={disabled} onAnswer={onAnswer} />
+      return (
+        <ChoiceQuiz
+          quiz={quiz}
+          disabled={disabled}
+          onAnswer={onAnswer}
+          submittedAnswer={submittedAnswer}
+        />
+      )
     case 'sorting':
       return <SortingQuiz quiz={quiz} disabled={disabled} onAnswer={onAnswer} />
     case 'fill_blank':

@@ -1,13 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="color-scheme" content="dark" />
-  <meta name="theme-color" content="#0E1311" />
-  <title>AI Learning Compiler · Module Challenge</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0E1311" />
+    <title>AI Learning Compiler · Module Challenge</title>
 
-  <!--
+    <!--
     Phase 3 · Module Challenge 页 · §5.7
     ================================
     让用户感受概念关联，产生 Aha Moment。
@@ -24,373 +24,403 @@
       - Challenge 格高亮：用 --stage-challenge（加深金棕）
   -->
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E"
+    />
 
-  <link rel="stylesheet" href="./styles.css" />
-  <script src="./mock-data.js"></script>
-  <script src="./app.js"></script>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./mock-data.js"></script>
+    <script src="./app.js"></script>
 
-  <style>
-    /* §5.7.3 Background tint: bg-base + 金棕 overlay 0.02 */
-    .challenge-bg {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: -1;
-      background:
-        radial-gradient(ellipse at 50% 0%,
-          rgba(184, 137, 92, 0.025),
-          transparent 60%);
-    }
-
-    .learn-page {
-      max-width: 720px;
-      padding-top: var(--space-7);
-      position: relative;
-    }
-
-    .staircase-wrap {
-      padding: var(--space-5) var(--space-6);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      margin-bottom: var(--space-7);
-    }
-
-    .staircase-legend {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: var(--space-4);
-      padding-top: var(--space-3);
-      border-top: 1px solid var(--border-subtle);
-
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      color: var(--fg-tertiary);
-    }
-
-    .staircase-legend__current {
-      color: var(--stage-challenge);
-    }
-
-    /* §5.7.3 Challenge 格加深金棕（高亮） */
-    .staircase-wrap .staircase--challenge.stair {
-      background: var(--accent-primary-soft);
-      border-color: var(--stage-challenge);
-      border-style: solid;
-    }
-
-    .staircase-wrap .staircase--challenge.stair--active {
-      background: rgba(184, 137, 92, 0.18);
-      border-color: var(--stage-challenge);
-      box-shadow: inset 0 0 0 1px var(--stage-challenge);
-    }
-
-    /* ---- Stage banner · §4.7.2 ---- */
-    /* Uses .stage-banner from styles.css; we override with explicit fade-out */
-    .stage-banner-ephemeral {
-      animation: stage-banner-ephemeral 2800ms var(--ease-standard) forwards;
-    }
-
-    @keyframes stage-banner-ephemeral {
-      0%   { opacity: 0; transform: translateY(-12px); }
-      15%  { opacity: 1; transform: translateY(0); }
-      75%  { opacity: 1; transform: translateY(0); }
-      100% { opacity: 0; transform: translateY(-4px); }
-    }
-
-    .stage-banner-placeholder {
-      min-height: 56px;
-      margin-bottom: var(--space-5);
-    }
-
-    /* ---- Challenge meta + stem ---- */
-    .challenge-meta {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      color: var(--fg-tertiary);
-      margin-bottom: var(--space-5);
-    }
-
-    .quiz-stem {
-      font-family: var(--font-serif);
-      font-size: var(--text-xl);  /* 28px */
-      line-height: var(--leading-normal);
-      color: var(--fg-primary);
-      margin-top: var(--space-5);
-      margin-bottom: var(--space-6);
-    }
-
-    .option-list {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-3);
-    }
-
-    .feedback-block {
-      margin-top: var(--space-6);
-    }
-
-    .feedback-block .text-feedback {
-      animation: none;
-      opacity: 0;
-      transform: translateY(4px);
-      margin-bottom: var(--space-4);
-    }
-
-    .feedback-block .text-feedback.is-visible {
-      animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
-      animation-delay: 80ms;
-    }
-
-    .submit-area {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: var(--space-8);
-    }
-
-    .submit-area .btn-primary {
-      min-width: 160px;
-    }
-
-    .submit-area .btn-primary .btn-label {
-      display: inline-block;
-      transition: opacity var(--duration-base) var(--ease-standard);
-    }
-
-    .submit-area .btn-primary.is-transitioning .btn-label {
-      opacity: 0;
-    }
-
-    @media (max-width: 767px) {
-      .learn-page { padding-top: var(--space-5); }
-      .quiz-stem { font-size: var(--text-lg); }
-      .submit-area {
-        position: sticky;
-        bottom: 0;
-        margin: var(--space-7) calc(-1 * var(--space-5)) calc(-1 * var(--space-7));
-        padding: var(--space-4) var(--space-5);
-        background: var(--bg-base);
-        border-top: 1px solid var(--border-default);
-        justify-content: stretch;
+    <style>
+      /* §5.7.3 Background tint: bg-base + 金棕 overlay 0.02 */
+      .challenge-bg {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: -1;
+        background: radial-gradient(ellipse at 50% 0%, rgba(184, 137, 92, 0.025), transparent 60%);
       }
-      .submit-area .btn-primary { width: 100%; min-width: 0; }
-    }
-  </style>
-</head>
 
-<body>
-  <a href="#main-content" class="skip-link">跳到主要内容</a>
+      .learn-page {
+        max-width: 720px;
+        padding-top: var(--space-7);
+        position: relative;
+      }
 
-  <div class="challenge-bg" aria-hidden="true"></div>
+      .staircase-wrap {
+        padding: var(--space-5) var(--space-6);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--space-7);
+      }
 
-  <div class="app-shell">
+      .staircase-legend {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: var(--space-4);
+        padding-top: var(--space-3);
+        border-top: 1px solid var(--border-subtle);
 
-    <div id="nav-top-mount"></div>
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        color: var(--fg-tertiary);
+      }
 
-    <main id="main-content" class="page learn-page" role="main">
+      .staircase-legend__current {
+        color: var(--stage-challenge);
+      }
 
-      <!-- §4.7.2 stage-banner · 顶部滑入"综合挑战 · 3 道跨概念题" -->
-      <div class="stage-banner-placeholder">
-        <div class="stage-banner stage-banner-ephemeral" id="stage-banner">
-          综合挑战 · 3 道跨概念题
+      /* §5.7.3 Challenge 格加深金棕（高亮） */
+      .staircase-wrap .staircase--challenge.stair {
+        background: var(--accent-primary-soft);
+        border-color: var(--stage-challenge);
+        border-style: solid;
+      }
+
+      .staircase-wrap .staircase--challenge.stair--active {
+        background: rgba(184, 137, 92, 0.18);
+        border-color: var(--stage-challenge);
+        box-shadow: inset 0 0 0 1px var(--stage-challenge);
+      }
+
+      /* ---- Stage banner · §4.7.2 ---- */
+      /* Uses .stage-banner from styles.css; we override with explicit fade-out */
+      .stage-banner-ephemeral {
+        animation: stage-banner-ephemeral 2800ms var(--ease-standard) forwards;
+      }
+
+      @keyframes stage-banner-ephemeral {
+        0% {
+          opacity: 0;
+          transform: translateY(-12px);
+        }
+        15% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        75% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+      }
+
+      .stage-banner-placeholder {
+        min-height: 56px;
+        margin-bottom: var(--space-5);
+      }
+
+      /* ---- Challenge meta + stem ---- */
+      .challenge-meta {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        color: var(--fg-tertiary);
+        margin-bottom: var(--space-5);
+      }
+
+      .quiz-stem {
+        font-family: var(--font-serif);
+        font-size: var(--text-xl); /* 28px */
+        line-height: var(--leading-normal);
+        color: var(--fg-primary);
+        margin-top: var(--space-5);
+        margin-bottom: var(--space-6);
+      }
+
+      .option-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+
+      .feedback-block {
+        margin-top: var(--space-6);
+      }
+
+      .feedback-block .text-feedback {
+        animation: none;
+        opacity: 0;
+        transform: translateY(4px);
+        margin-bottom: var(--space-4);
+      }
+
+      .feedback-block .text-feedback.is-visible {
+        animation: feedback-enter var(--duration-slow) var(--ease-standard) forwards;
+        animation-delay: 80ms;
+      }
+
+      .submit-area {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: var(--space-8);
+      }
+
+      .submit-area .btn-primary {
+        min-width: 160px;
+      }
+
+      .submit-area .btn-primary .btn-label {
+        display: inline-block;
+        transition: opacity var(--duration-base) var(--ease-standard);
+      }
+
+      .submit-area .btn-primary.is-transitioning .btn-label {
+        opacity: 0;
+      }
+
+      @media (max-width: 767px) {
+        .learn-page {
+          padding-top: var(--space-5);
+        }
+        .quiz-stem {
+          font-size: var(--text-lg);
+        }
+        .submit-area {
+          position: sticky;
+          bottom: 0;
+          margin: var(--space-7) calc(-1 * var(--space-5)) calc(-1 * var(--space-7));
+          padding: var(--space-4) var(--space-5);
+          background: var(--bg-base);
+          border-top: 1px solid var(--border-default);
+          justify-content: stretch;
+        }
+        .submit-area .btn-primary {
+          width: 100%;
+          min-width: 0;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <a href="#main-content" class="skip-link">跳到主要内容</a>
+
+    <div class="challenge-bg" aria-hidden="true"></div>
+
+    <div class="app-shell">
+      <div id="nav-top-mount"></div>
+
+      <main id="main-content" class="page learn-page" role="main">
+        <!-- §4.7.2 stage-banner · 顶部滑入"综合挑战 · 3 道跨概念题" -->
+        <div class="stage-banner-placeholder">
+          <div class="stage-banner stage-banner-ephemeral" id="stage-banner">
+            综合挑战 · 3 道跨概念题
+          </div>
         </div>
-      </div>
 
-      <!-- Staircase · Challenge 格高亮 -->
-      <section class="staircase-wrap" aria-label="Module 学习路径">
-        <ol class="staircase"
+        <!-- Staircase · Challenge 格高亮 -->
+        <section class="staircase-wrap" aria-label="Module 学习路径">
+          <ol
+            class="staircase"
             role="progressbar"
-            aria-valuenow="68" aria-valuemin="0" aria-valuemax="100"
-            aria-label="Module 学习进度 · Challenge 进行中">
+            aria-valuenow="68"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-label="Module 学习进度 · Challenge 进行中"
+          >
+            <li class="stair stair--completed"><span class="stair__label">C1</span></li>
+            <li class="stair stair--completed"><span class="stair__label">C1</span></li>
+            <li class="stair stair--completed"><span class="stair__label">C2</span></li>
+            <li class="stair stair--completed"><span class="stair__label">C2</span></li>
+            <li class="stair stair--completed"><span class="stair__label">C3</span></li>
+            <li class="stair stair--completed"><span class="stair__label">C3</span></li>
+            <li class="stair stair--active staircase--challenge">
+              <span class="stair__label">Chl</span>
+            </li>
+            <li class="stair stair--locked staircase--challenge">
+              <span class="stair__label">Chl</span>
+            </li>
+            <li class="stair stair--locked staircase--feynman">
+              <span class="stair__label">Fey</span>
+            </li>
+            <li class="stair stair--locked staircase--feynman">
+              <span class="stair__label">Fey</span>
+            </li>
+          </ol>
 
-          <li class="stair stair--completed"><span class="stair__label">C1</span></li>
-          <li class="stair stair--completed"><span class="stair__label">C1</span></li>
-          <li class="stair stair--completed"><span class="stair__label">C2</span></li>
-          <li class="stair stair--completed"><span class="stair__label">C2</span></li>
-          <li class="stair stair--completed"><span class="stair__label">C3</span></li>
-          <li class="stair stair--completed"><span class="stair__label">C3</span></li>
-          <li class="stair stair--active staircase--challenge"><span class="stair__label">Chl</span></li>
-          <li class="stair stair--locked staircase--challenge"><span class="stair__label">Chl</span></li>
-          <li class="stair stair--locked staircase--feynman"><span class="stair__label">Fey</span></li>
-          <li class="stair stair--locked staircase--feynman"><span class="stair__label">Fey</span></li>
-        </ol>
+          <div class="staircase-legend">
+            <span>Concept A · B · C 已完成</span>
+            <span class="staircase-legend__current">你在 Challenge · 1/3</span>
+          </div>
+        </section>
 
-        <div class="staircase-legend">
-          <span>Concept A · B · C 已完成</span>
-          <span class="staircase-legend__current">你在 Challenge · 1/3</span>
-        </div>
-      </section>
+        <p class="challenge-meta">Challenge · 第 1 题 / 共 3 题</p>
 
-      <p class="challenge-meta">Challenge · 第 1 题 / 共 3 题</p>
+        <hr class="section-divider" />
 
-      <hr class="section-divider" />
+        <p class="quiz-stem" id="quiz-stem">Embedding 与检索的关系是？</p>
 
-      <p class="quiz-stem" id="quiz-stem">Embedding 与检索的关系是？</p>
+        <ul class="option-list" role="group" aria-labelledby="quiz-stem">
+          <li>
+            <button type="button" class="option-choice" data-option="A" data-correct="true">
+              <span class="option-choice__letter">A</span>
+              <span class="option-choice__text"
+                >Embedding 是检索的前置步骤——把文档变成向量后才能做语义检索。</span
+              >
+            </button>
+          </li>
+          <li>
+            <button type="button" class="option-choice" data-option="B" data-correct="false">
+              <span class="option-choice__letter">B</span>
+              <span class="option-choice__text">检索是 Embedding 的前置步骤。</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="option-choice" data-option="C" data-correct="false">
+              <span class="option-choice__letter">C</span>
+              <span class="option-choice__text">两者毫无关系。</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="option-choice" data-option="D" data-correct="false">
+              <span class="option-choice__letter">D</span>
+              <span class="option-choice__text">Embedding 取代了检索。</span>
+            </button>
+          </li>
+        </ul>
 
-      <ul class="option-list" role="group" aria-labelledby="quiz-stem">
-        <li>
-          <button type="button" class="option-choice" data-option="A" data-correct="true">
-            <span class="option-choice__letter">A</span>
-            <span class="option-choice__text">Embedding 是检索的前置步骤——把文档变成向量后才能做语义检索。</span>
-          </button>
-        </li>
-        <li>
-          <button type="button" class="option-choice" data-option="B" data-correct="false">
-            <span class="option-choice__letter">B</span>
-            <span class="option-choice__text">检索是 Embedding 的前置步骤。</span>
-          </button>
-        </li>
-        <li>
-          <button type="button" class="option-choice" data-option="C" data-correct="false">
-            <span class="option-choice__letter">C</span>
-            <span class="option-choice__text">两者毫无关系。</span>
-          </button>
-        </li>
-        <li>
-          <button type="button" class="option-choice" data-option="D" data-correct="false">
-            <span class="option-choice__letter">D</span>
-            <span class="option-choice__text">Embedding 取代了检索。</span>
-          </button>
-        </li>
-      </ul>
-
-      <!-- Feedback block -->
-      <div class="feedback-block" aria-live="polite" aria-atomic="true">
-        <p class="text-feedback" id="text-feedback">很好。</p>
-        <div class="panel-explanation-wrapper" id="panel-wrapper">
-          <div class="panel-explanation">
-            <div class="panel-explanation__inner" id="panel-content">
-              在 RAG 中，文档首先被 Embedding 成向量存入向量库；
-              用户提问时，问题也被 Embedding，然后通过向量相似度检索相关文档。
-              所以 Embedding 是语义检索的基础。
+        <!-- Feedback block -->
+        <div class="feedback-block" aria-live="polite" aria-atomic="true">
+          <p class="text-feedback" id="text-feedback">很好。</p>
+          <div class="panel-explanation-wrapper" id="panel-wrapper">
+            <div class="panel-explanation">
+              <div class="panel-explanation__inner" id="panel-content">
+                在 RAG 中，文档首先被 Embedding 成向量存入向量库； 用户提问时，问题也被
+                Embedding，然后通过向量相似度检索相关文档。 所以 Embedding 是语义检索的基础。
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="submit-area">
-        <button type="button" id="submit-btn" class="btn-primary" disabled aria-disabled="true">
-          <span class="btn-label">提交</span>
-        </button>
-      </div>
+        <div class="submit-area">
+          <button type="button" id="submit-btn" class="btn-primary" disabled aria-disabled="true">
+            <span class="btn-label">提交</span>
+          </button>
+        </div>
+      </main>
+    </div>
 
-    </main>
+    <script>
+      'use strict'
 
-  </div>
+      const quiz = window.MOCK.quizzes.challenge
+      const options = document.querySelectorAll('.option-choice')
+      const submitBtn = document.getElementById('submit-btn')
+      const submitLabel = submitBtn.querySelector('.btn-label')
+      const textFeedback = document.getElementById('text-feedback')
+      const panelWrapper = document.getElementById('panel-wrapper')
+      const panelContent = document.getElementById('panel-content')
 
-  <script>
-    'use strict';
+      /** @type {string | null} */
+      let selectedOption = null
+      let isAnswered = false
 
-    const quiz = window.MOCK.quizzes.challenge;
-    const options = document.querySelectorAll('.option-choice');
-    const submitBtn = document.getElementById('submit-btn');
-    const submitLabel = submitBtn.querySelector('.btn-label');
-    const textFeedback = document.getElementById('text-feedback');
-    const panelWrapper = document.getElementById('panel-wrapper');
-    const panelContent = document.getElementById('panel-content');
+      options.forEach((opt) => {
+        opt.addEventListener('click', () => {
+          if (isAnswered) return
+          const id = opt.getAttribute('data-option')
+          selectedOption = id
+          options.forEach((o) => {
+            o.classList.toggle('option-choice--selected', o.getAttribute('data-option') === id)
+          })
+          submitBtn.disabled = false
+          submitBtn.setAttribute('aria-disabled', 'false')
+        })
+      })
 
-    /** @type {string | null} */
-    let selectedOption = null;
-    let isAnswered = false;
+      submitBtn.addEventListener('click', () => {
+        if (isAnswered || !selectedOption) return
+        isAnswered = true
+        options.forEach((o) => {
+          o.disabled = true
+          o.setAttribute('aria-disabled', 'true')
+        })
 
-    options.forEach(opt => {
-      opt.addEventListener('click', () => {
-        if (isAnswered) return;
-        const id = opt.getAttribute('data-option');
-        selectedOption = id;
-        options.forEach(o => {
-          o.classList.toggle('option-choice--selected',
-            o.getAttribute('data-option') === id);
-        });
-        submitBtn.disabled = false;
-        submitBtn.setAttribute('aria-disabled', 'false');
-      });
-    });
+        const selectedEl = document.querySelector(`.option-choice[data-option="${selectedOption}"]`)
+        const isCorrect = selectedEl.getAttribute('data-correct') === 'true'
 
-    submitBtn.addEventListener('click', () => {
-      if (isAnswered || !selectedOption) return;
-      isAnswered = true;
-      options.forEach(o => { o.disabled = true; o.setAttribute('aria-disabled', 'true'); });
-
-      const selectedEl = document.querySelector(`.option-choice[data-option="${selectedOption}"]`);
-      const isCorrect = selectedEl.getAttribute('data-correct') === 'true';
-
-      window.setTimeout(() => {
-        if (isCorrect) {
-          selectedEl.classList.add('option-choice--correct');
-          window.requestAnimationFrame(() => {
-            selectedEl.classList.add('is-line-drawn');
-          });
+        window.setTimeout(() => {
+          if (isCorrect) {
+            selectedEl.classList.add('option-choice--correct')
+            window.requestAnimationFrame(() => {
+              selectedEl.classList.add('is-line-drawn')
+            })
+            window.setTimeout(() => {
+              textFeedback.textContent = window.MOCKPickFeedback('correct')
+              textFeedback.classList.add('is-visible')
+            }, 80)
+          } else {
+            const correctEl = document.querySelector('.option-choice[data-correct="true"]')
+            selectedEl.classList.add('option-choice--wrong')
+            correctEl.classList.add('option-choice--correct')
+            window.requestAnimationFrame(() => {
+              correctEl.classList.add('is-line-drawn')
+            })
+            window.setTimeout(() => {
+              textFeedback.textContent = window.MOCKPickFeedback('wrong')
+              textFeedback.classList.add('is-visible')
+            }, 80)
+          }
           window.setTimeout(() => {
-            textFeedback.textContent = window.MOCKPickFeedback('correct');
-            textFeedback.classList.add('is-visible');
-          }, 80);
-        } else {
-          const correctEl = document.querySelector('.option-choice[data-correct="true"]');
-          selectedEl.classList.add('option-choice--wrong');
-          correctEl.classList.add('option-choice--correct');
-          window.requestAnimationFrame(() => {
-            correctEl.classList.add('is-line-drawn');
-          });
+            panelContent.textContent = quiz.explanation
+            panelWrapper.classList.add('panel-explanation-wrapper--open')
+          }, 240)
           window.setTimeout(() => {
-            textFeedback.textContent = window.MOCKPickFeedback('wrong');
-            textFeedback.classList.add('is-visible');
-          }, 80);
+            setSubmitLabel(isCorrect ? '下一题' : '再看一题')
+          }, 640)
+        }, 200)
+      })
+
+      function setSubmitLabel(label) {
+        submitBtn.classList.add('is-transitioning')
+        window.setTimeout(() => {
+          submitLabel.textContent = label
+          submitBtn.classList.remove('is-transitioning')
+        }, 240)
+      }
+
+      /* Keyboard: 1-4 select, Enter submit */
+      document.addEventListener('keydown', (e) => {
+        if (isAnswered) return
+        if (['1', '2', '3', '4'].includes(e.key)) {
+          const idx = parseInt(e.key, 10) - 1
+          const opt = options[idx]
+          if (opt && !opt.disabled) opt.click()
         }
-        window.setTimeout(() => {
-          panelContent.textContent = quiz.explanation;
-          panelWrapper.classList.add('panel-explanation-wrapper--open');
-        }, 240);
-        window.setTimeout(() => {
-          setSubmitLabel(isCorrect ? '下一题' : '再看一题');
-        }, 640);
-      }, 200);
-    });
+        if (e.key === 'Enter' && selectedOption && !submitBtn.disabled) {
+          submitBtn.click()
+        }
+      })
 
-    function setSubmitLabel(label) {
-      submitBtn.classList.add('is-transitioning');
+      /* ---------- Initial render ---------- */
+
+      window.ALC.renderNavTop({
+        back: '概览',
+        backTarget: '03-overview.html',
+        stage: 'challenge',
+      })
+
+      // Auto-remove stage-banner placeholder after animation
       window.setTimeout(() => {
-        submitLabel.textContent = label;
-        submitBtn.classList.remove('is-transitioning');
-      }, 240);
-    }
-
-    /* Keyboard: 1-4 select, Enter submit */
-    document.addEventListener('keydown', (e) => {
-      if (isAnswered) return;
-      if (['1', '2', '3', '4'].includes(e.key)) {
-        const idx = parseInt(e.key, 10) - 1;
-        const opt = options[idx];
-        if (opt && !opt.disabled) opt.click();
-      }
-      if (e.key === 'Enter' && selectedOption && !submitBtn.disabled) {
-        submitBtn.click();
-      }
-    });
-
-    /* ---------- Initial render ---------- */
-
-    window.ALC.renderNavTop({
-      back: '概览',
-      backTarget: '03-overview.html',
-      stage: 'challenge',
-    });
-
-    // Auto-remove stage-banner placeholder after animation
-    window.setTimeout(() => {
-      const banner = document.getElementById('stage-banner');
-      if (banner) banner.style.visibility = 'hidden';
-    }, 2900);
-  </script>
-
-</body>
+        const banner = document.getElementById('stage-banner')
+        if (banner) banner.style.visibility = 'hidden'
+      }, 2900)
+    </script>
+  </body>
 </html>

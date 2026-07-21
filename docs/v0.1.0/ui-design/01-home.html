@@ -1,13 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="color-scheme" content="dark" />
-  <meta name="theme-color" content="#0E1311" />
-  <title>AI Learning Compiler · 首页 / 导入</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0E1311" />
+    <title>AI Learning Compiler · 首页 / 导入</title>
 
-  <!--
+    <!--
     Phase 2 · P0 原型 · 首页 / 导入页
     ================================
     对应 DESIGN-SPEC.md §5.1
@@ -31,373 +31,396 @@
       - 反馈延迟：编译按钮按下后 1.6 秒模拟跳转到下一页
   -->
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E"
+    />
 
-  <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css" />
 
-  <style>
-    /* ===========================================================
+    <style>
+      /* ===========================================================
        Page-specific styles (not part of design system)
        =========================================================== */
 
-    .home-hero {
-      text-align: center;
-      padding: var(--space-10) 0 var(--space-8);  /* 128px 上方仪式留白 */
-    }
+      .home-hero {
+        text-align: center;
+        padding: var(--space-10) 0 var(--space-8); /* 128px 上方仪式留白 */
+      }
 
-    .home-hero__title {
-      font-family: var(--font-display);
-      font-size: var(--text-3xl);  /* 48px · 桌面 */
-      font-weight: var(--weight-semibold);
-      line-height: var(--leading-tight);
-      letter-spacing: var(--tracking-tight);
-      color: var(--fg-primary);
-    }
+      .home-hero__title {
+        font-family: var(--font-display);
+        font-size: var(--text-3xl); /* 48px · 桌面 */
+        font-weight: var(--weight-semibold);
+        line-height: var(--leading-tight);
+        letter-spacing: var(--tracking-tight);
+        color: var(--fg-primary);
+      }
 
-    .home-hero__divider {
-      width: 48px;
-      height: 1px;
-      background: var(--accent-primary);
-      border: none;
-      margin: var(--space-6) auto;
-    }
+      .home-hero__divider {
+        width: 48px;
+        height: 1px;
+        background: var(--accent-primary);
+        border: none;
+        margin: var(--space-6) auto;
+      }
 
-    .home-hero__subtitle {
-      font-family: var(--font-serif);
-      font-size: var(--text-lg);  /* 22px */
-      line-height: var(--leading-normal);
-      color: var(--fg-secondary);
-      max-width: 36ch;
-      margin: 0 auto;
-    }
+      .home-hero__subtitle {
+        font-family: var(--font-serif);
+        font-size: var(--text-lg); /* 22px */
+        line-height: var(--leading-normal);
+        color: var(--fg-secondary);
+        max-width: 36ch;
+        margin: 0 auto;
+      }
 
-    /* Import card — houses tabs + textarea + button */
-    .import-card {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: var(--space-6);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-default);
-      border-radius: var(--radius-lg);
-    }
+      /* Import card — houses tabs + textarea + button */
+      .import-card {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: var(--space-6);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+      }
 
-    .import-tabs {
-      display: flex;
-      gap: var(--space-1);
-      padding: var(--space-1);
-      background: var(--bg-elevated);
-      border-radius: var(--radius-md);
-      margin-bottom: var(--space-5);
-    }
+      .import-tabs {
+        display: flex;
+        gap: var(--space-1);
+        padding: var(--space-1);
+        background: var(--bg-elevated);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--space-5);
+      }
 
-    .import-tab {
-      flex: 1;
-      padding: var(--space-3) var(--space-4);
+      .import-tab {
+        flex: 1;
+        padding: var(--space-3) var(--space-4);
 
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      font-weight: var(--weight-medium);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        font-weight: var(--weight-medium);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
 
-      background: transparent;
-      border: none;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: color var(--duration-instant) var(--ease-standard),
-                  background var(--duration-instant) var(--ease-standard);
-    }
+        background: transparent;
+        border: none;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition:
+          color var(--duration-instant) var(--ease-standard),
+          background var(--duration-instant) var(--ease-standard);
+      }
 
-    .import-tab:hover {
-      color: var(--fg-secondary);
-    }
+      .import-tab:hover {
+        color: var(--fg-secondary);
+      }
 
-    .import-tab.is-active {
-      background: var(--bg-surface);
-      color: var(--fg-primary);
-      box-shadow: var(--shadow-sm);
-    }
+      .import-tab.is-active {
+        background: var(--bg-surface);
+        color: var(--fg-primary);
+        box-shadow: var(--shadow-sm);
+      }
 
-    .import-tab-panel {
-      display: none;
-      animation: import-panel-enter var(--duration-slow) var(--ease-standard);
-    }
+      .import-tab-panel {
+        display: none;
+        animation: import-panel-enter var(--duration-slow) var(--ease-standard);
+      }
 
-    .import-tab-panel.is-active {
-      display: block;
-    }
+      .import-tab-panel.is-active {
+        display: block;
+      }
 
-    @keyframes import-panel-enter {
-      from { opacity: 0; transform: translateY(4px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+      @keyframes import-panel-enter {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
 
-    /* Wraps textarea + counter for relative positioning */
-    .import-input-wrapper {
-      position: relative;
-      margin-bottom: var(--space-4);
-    }
+      /* Wraps textarea + counter for relative positioning */
+      .import-input-wrapper {
+        position: relative;
+        margin-bottom: var(--space-4);
+      }
 
-    .import-input-wrapper .textarea-counter {
-      bottom: var(--space-3);
-      right: var(--space-4);
-    }
+      .import-input-wrapper .textarea-counter {
+        bottom: var(--space-3);
+        right: var(--space-4);
+      }
 
-    .import-actions {
-      display: flex;
-      justify-content: flex-end;
-    }
+      .import-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
 
-    /* Upload dropzone */
-    .import-dropzone {
-      min-height: 240px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: var(--space-4);
+      /* Upload dropzone */
+      .import-dropzone {
+        min-height: 240px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-4);
 
-      padding: var(--space-6);
-      background: var(--bg-base);
-      border: 1px dashed var(--border-default);
-      border-radius: var(--radius-lg);
+        padding: var(--space-6);
+        background: var(--bg-base);
+        border: 1px dashed var(--border-default);
+        border-radius: var(--radius-lg);
 
-      transition: border-color var(--duration-base) var(--ease-standard),
-                  background var(--duration-base) var(--ease-standard);
-    }
+        transition:
+          border-color var(--duration-base) var(--ease-standard),
+          background var(--duration-base) var(--ease-standard);
+      }
 
-    .import-dropzone.is-dragover {
-      border-color: var(--accent-primary);
-      background: var(--accent-primary-soft);
-    }
+      .import-dropzone.is-dragover {
+        border-color: var(--accent-primary);
+        background: var(--accent-primary-soft);
+      }
 
-    .import-dropzone__icon {
-      font-family: var(--font-mono);
-      font-size: 28px;
-      color: var(--fg-tertiary);
-      line-height: 1;
-    }
+      .import-dropzone__icon {
+        font-family: var(--font-mono);
+        font-size: 28px;
+        color: var(--fg-tertiary);
+        line-height: 1;
+      }
 
-    .import-dropzone__text {
-      font-family: var(--font-serif);
-      font-size: var(--text-base);
-      color: var(--fg-secondary);
-      text-align: center;
-      max-width: 32ch;
-    }
+      .import-dropzone__text {
+        font-family: var(--font-serif);
+        font-size: var(--text-base);
+        color: var(--fg-secondary);
+        text-align: center;
+        max-width: 32ch;
+      }
 
-    .import-dropzone__hint {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-    }
+      .import-dropzone__hint {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+      }
 
-    .import-footer {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: var(--space-3) var(--space-5);
-      margin-top: var(--space-7);
-    }
+      .import-footer {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: var(--space-3) var(--space-5);
+        margin-top: var(--space-7);
+      }
 
-    .import-footer .btn-text {
-      font-size: var(--text-sm);
-    }
+      .import-footer .btn-text {
+        font-size: var(--text-sm);
+      }
 
-    /* nav-top page-specific actions */
-    .nav-top__action-text {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      transition: color var(--duration-instant) var(--ease-standard);
-    }
+      /* nav-top page-specific actions */
+      .nav-top__action-text {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: color var(--duration-instant) var(--ease-standard);
+      }
 
-    .nav-top__action-text:hover {
-      color: var(--accent-primary);
-    }
+      .nav-top__action-text:hover {
+        color: var(--accent-primary);
+      }
 
-    /* Tablet / mobile adjustments */
-    @media (max-width: 1023px) {
-      .home-hero__title { font-size: var(--text-2xl); }  /* 36px */
-    }
+      /* Tablet / mobile adjustments */
+      @media (max-width: 1023px) {
+        .home-hero__title {
+          font-size: var(--text-2xl);
+        } /* 36px */
+      }
 
-    @media (max-width: 767px) {
-      .home-hero { padding: var(--space-8) 0 var(--space-7); }
-      .home-hero__title { font-size: var(--text-xl); }  /* 28px */
-      .home-hero__subtitle { font-size: var(--text-md); }
-      .import-card { padding: var(--space-5); }
-      .import-actions .btn-primary { width: 100%; }
-    }
-  </style>
-</head>
+      @media (max-width: 767px) {
+        .home-hero {
+          padding: var(--space-8) 0 var(--space-7);
+        }
+        .home-hero__title {
+          font-size: var(--text-xl);
+        } /* 28px */
+        .home-hero__subtitle {
+          font-size: var(--text-md);
+        }
+        .import-card {
+          padding: var(--space-5);
+        }
+        .import-actions .btn-primary {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
 
-<body>
-  <a href="#main-content" class="skip-link">跳到主要内容</a>
+  <body>
+    <a href="#main-content" class="skip-link">跳到主要内容</a>
 
-  <div class="app-shell">
-
-    <!-- ============================================================
+    <div class="app-shell">
+      <!-- ============================================================
          §4.7.1 nav-top · page-specific actions: 示例 / 设置
          ============================================================ -->
-    <header class="nav-top" role="banner">
-      <span class="nav-top__brand">AI Learning Compiler</span>
-      <div class="nav-top__actions">
-        <button type="button" class="nav-top__action-text" data-action="sample">示例</button>
-        <button type="button" class="nav-top__action-text" data-action="settings">设置</button>
-      </div>
-    </header>
+      <header class="nav-top" role="banner">
+        <span class="nav-top__brand">AI Learning Compiler</span>
+        <div class="nav-top__actions">
+          <button type="button" class="nav-top__action-text" data-action="sample">示例</button>
+          <button type="button" class="nav-top__action-text" data-action="settings">设置</button>
+        </div>
+      </header>
 
-    <main id="main-content" class="page" role="main">
-
-      <!-- ========================================================
+      <main id="main-content" class="page" role="main">
+        <!-- ========================================================
            Hero · §5.1.2 居中标语
            ======================================================== -->
-      <section class="home-hero">
-        <h1 class="home-hero__title">
-          将任何知识<br />
-          编译为<br />
-          一条可走完的学习路径。
-        </h1>
-        <hr class="home-hero__divider" />
-        <p class="home-hero__subtitle">
-          不是 Quiz 工具，是知识编译器。
-        </p>
-      </section>
+        <section class="home-hero">
+          <h1 class="home-hero__title">
+            将任何知识<br />
+            编译为<br />
+            一条可走完的学习路径。
+          </h1>
+          <hr class="home-hero__divider" />
+          <p class="home-hero__subtitle">不是 Quiz 工具，是知识编译器。</p>
+        </section>
 
-      <!-- ========================================================
+        <!-- ========================================================
            Import card · §5.1.2 二选一 + textarea + 按钮
            ======================================================== -->
-      <section class="import-card" aria-label="知识导入">
-
-        <!-- Tabs -->
-        <div class="import-tabs" role="tablist" aria-label="导入方式">
-          <button type="button"
-                  class="import-tab is-active"
-                  role="tab"
-                  id="tab-paste"
-                  aria-selected="true"
-                  aria-controls="panel-paste">
-            粘贴 Markdown
-          </button>
-          <button type="button"
-                  class="import-tab"
-                  role="tab"
-                  id="tab-upload"
-                  aria-selected="false"
-                  aria-controls="panel-upload">
-            上传 .md 文件
-          </button>
-        </div>
-
-        <!-- Panel: Paste -->
-        <div class="import-tab-panel is-active"
-             id="panel-paste"
-             role="tabpanel"
-             aria-labelledby="tab-paste">
-
-          <div class="import-input-wrapper textarea-wrapper">
-            <label for="markdown-input" class="sr-only">粘贴你的 Markdown</label>
-            <textarea id="markdown-input"
-                      class="textarea-import"
-                      placeholder="在此粘贴你的 Markdown..."
-                      aria-describedby="markdown-counter"></textarea>
-            <span id="markdown-counter"
-                  class="textarea-counter"
-                  aria-live="polite">0 / 200-20000</span>
-          </div>
-
-          <div class="import-actions">
-            <button type="button"
-                    id="compile-btn"
-                    class="btn-primary"
-                    disabled
-                    aria-disabled="true">
-              开始编译
+        <section class="import-card" aria-label="知识导入">
+          <!-- Tabs -->
+          <div class="import-tabs" role="tablist" aria-label="导入方式">
+            <button
+              type="button"
+              class="import-tab is-active"
+              role="tab"
+              id="tab-paste"
+              aria-selected="true"
+              aria-controls="panel-paste"
+            >
+              粘贴 Markdown
+            </button>
+            <button
+              type="button"
+              class="import-tab"
+              role="tab"
+              id="tab-upload"
+              aria-selected="false"
+              aria-controls="panel-upload"
+            >
+              上传 .md 文件
             </button>
           </div>
-        </div>
 
-        <!-- Panel: Upload -->
-        <div class="import-tab-panel"
-             id="panel-upload"
-             role="tabpanel"
-             aria-labelledby="tab-upload">
+          <!-- Panel: Paste -->
+          <div
+            class="import-tab-panel is-active"
+            id="panel-paste"
+            role="tabpanel"
+            aria-labelledby="tab-paste"
+          >
+            <div class="import-input-wrapper textarea-wrapper">
+              <label for="markdown-input" class="sr-only">粘贴你的 Markdown</label>
+              <textarea
+                id="markdown-input"
+                class="textarea-import"
+                placeholder="在此粘贴你的 Markdown..."
+                aria-describedby="markdown-counter"
+              ></textarea>
+              <span id="markdown-counter" class="textarea-counter" aria-live="polite"
+                >0 / 200-20000</span
+              >
+            </div>
 
-          <label class="import-dropzone" id="dropzone" for="file-input">
-            <span class="import-dropzone__icon" aria-hidden="true">[ + ]</span>
-            <span class="import-dropzone__text">
-              拖拽 .md 文件到此处，或点击选择文件
-            </span>
-            <span class="import-dropzone__hint">支持 .md / .markdown · 最大 1 MB</span>
-            <input type="file"
-                   id="file-input"
-                   accept=".md,.markdown,text/markdown,text/plain"
-                   hidden />
-          </label>
-
-          <div class="import-actions" style="margin-top: var(--space-5);">
-            <button type="button"
-                    id="compile-btn-upload"
-                    class="btn-primary"
-                    disabled
-                    aria-disabled="true">
-              开始编译
-            </button>
+            <div class="import-actions">
+              <button
+                type="button"
+                id="compile-btn"
+                class="btn-primary"
+                disabled
+                aria-disabled="true"
+              >
+                开始编译
+              </button>
+            </div>
           </div>
-        </div>
 
-      </section>
+          <!-- Panel: Upload -->
+          <div
+            class="import-tab-panel"
+            id="panel-upload"
+            role="tabpanel"
+            aria-labelledby="tab-upload"
+          >
+            <label class="import-dropzone" id="dropzone" for="file-input">
+              <span class="import-dropzone__icon" aria-hidden="true">[ + ]</span>
+              <span class="import-dropzone__text"> 拖拽 .md 文件到此处，或点击选择文件 </span>
+              <span class="import-dropzone__hint">支持 .md / .markdown · 最大 1 MB</span>
+              <input
+                type="file"
+                id="file-input"
+                accept=".md,.markdown,text/markdown,text/plain"
+                hidden
+              />
+            </label>
 
-      <!-- ========================================================
+            <div class="import-actions" style="margin-top: var(--space-5)">
+              <button
+                type="button"
+                id="compile-btn-upload"
+                class="btn-primary"
+                disabled
+                aria-disabled="true"
+              >
+                开始编译
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================================
            Footer · btn-text 链接 · 极弱
            ======================================================== -->
-      <nav class="import-footer" aria-label="了解更多">
-        <button type="button" class="btn-text" data-action="what-is-markdown">
-          什么是 Markdown？
-        </button>
-        <button type="button" class="btn-text" data-action="sample-rag">
-          示例：RAG
-        </button>
-        <button type="button" class="btn-text" data-action="sample-attention">
-          Attention
-        </button>
-        <button type="button" class="btn-text" data-action="sample-fiber">
-          React Fiber
-        </button>
-      </nav>
+        <nav class="import-footer" aria-label="了解更多">
+          <button type="button" class="btn-text" data-action="what-is-markdown">
+            什么是 Markdown？
+          </button>
+          <button type="button" class="btn-text" data-action="sample-rag">示例：RAG</button>
+          <button type="button" class="btn-text" data-action="sample-attention">Attention</button>
+          <button type="button" class="btn-text" data-action="sample-fiber">React Fiber</button>
+        </nav>
+      </main>
+    </div>
 
-    </main>
+    <script>
+      'use strict'
 
-  </div>
-
-  <script>
-    'use strict';
-
-    /* ==============================================================
+      /* ==============================================================
        Phase 2 · 01-home · interaction logic
        ============================================================== */
 
-    /** @typedef {'paste'|'upload'} ImportMode */
+      /** @typedef {'paste'|'upload'} ImportMode */
 
-    const MIN_CHARS = 200;
-    const MAX_CHARS = 20000;
+      const MIN_CHARS = 200
+      const MAX_CHARS = 20000
 
-    /* ---------- Sample markdown for "示例" shortcut ---------- */
+      /* ---------- Sample markdown for "示例" shortcut ---------- */
 
-    const SAMPLE_RAG_MD = `# 检索增强生成（RAG）
+      const SAMPLE_RAG_MD = `# 检索增强生成（RAG）
 
 ## 什么是 RAG
 RAG（Retrieval-Augmented Generation）是一种结合外部知识检索与生成模型的技术。
@@ -419,9 +442,9 @@ RAG（Retrieval-Augmented Generation）是一种结合外部知识检索与生�
 ## RAG 与微调的区别
 微调更新模型参数，适合调整模型风格和能力；
 RAG 不改模型，只在推理时提供外部上下文，适合频繁更新的知识。
-`;
+`
 
-    const SAMPLE_ATTENTION_MD = `# Attention 机制
+      const SAMPLE_ATTENTION_MD = `# Attention 机制
 
 ## 背景
 在 Transformer 出现之前，序列建模主要依赖 RNN / LSTM。
@@ -440,9 +463,9 @@ Q (Query)、K (Key)、V (Value) 三者通过点积相似度计算注意力权重
 ## Multi-Head Attention
 将 Q、K、V 投影到多个子空间分别做 Attention，再拼接。
 不同 head 可以关注不同维度的信息。
-`;
+`
 
-    const SAMPLE_FIBER_MD = `# React Fiber
+      const SAMPLE_FIBER_MD = `# React Fiber
 
 ## 问题背景
 React 15 的协调（reconciliation）过程是同步递归的，
@@ -461,215 +484,213 @@ Fiber 利用 requestIdleCallback 类似的机制（实际是自实现的 Schedul
 Fiber 维护两棵树：current 和 workInProgress。
 更新在 workInProgress 上进行，完成后替换 current，
 类似显卡的双缓冲机制。
-`;
+`
 
-    const SAMPLE_MAP = {
-      'sample-rag': SAMPLE_RAG_MD,
-      'sample-attention': SAMPLE_ATTENTION_MD,
-      'sample-fiber': SAMPLE_FIBER_MD,
-    };
-
-    /* ---------- Element refs ---------- */
-
-    const textarea = document.getElementById('markdown-input');
-    const counter = document.getElementById('markdown-counter');
-    const compileBtn = document.getElementById('compile-btn');
-    const compileBtnUpload = document.getElementById('compile-btn-upload');
-    const fileInput = document.getElementById('file-input');
-    const dropzone = document.getElementById('dropzone');
-
-    const tabs = document.querySelectorAll('.import-tab');
-    const panels = document.querySelectorAll('.import-tab-panel');
-
-    /* ---------- Counter logic · §4.4.2 progressive four-state ---------- */
-
-    /**
-     * Update the char counter class based on length.
-     * V1.1 §4.4.2 progressive scheme adapted to 200-20000 range:
-     *   - < 80% min (160): default --fg-tertiary
-     *   - 80-100% min (160-200): --accent-primary (approaching-min)
-     *   - min to 90% max (200-18000): default --fg-tertiary (in range)
-     *   - >= 90% max (>= 18000): --warning (approaching-max)
-     *   - > max (> 20000): --warning + disable button
-     */
-    function updateCounter() {
-      const len = textarea.value.length;
-      counter.textContent = `${formatNumber(len)} / ${MIN_CHARS}-${MAX_CHARS}`;
-
-      counter.classList.remove(
-        'textarea-counter--approaching-min',
-        'textarea-counter--approaching-max'
-      );
-
-      const inRange = len >= MIN_CHARS && len <= MAX_CHARS;
-      const overMax = len > MAX_CHARS;
-
-      if (len >= MAX_CHARS * 0.9) {
-        counter.classList.add('textarea-counter--approaching-max');
-      } else if (len >= MIN_CHARS * 0.8 && len < MIN_CHARS) {
-        counter.classList.add('textarea-counter--approaching-min');
+      const SAMPLE_MAP = {
+        'sample-rag': SAMPLE_RAG_MD,
+        'sample-attention': SAMPLE_ATTENTION_MD,
+        'sample-fiber': SAMPLE_FIBER_MD,
       }
 
-      // Button enable only when strictly in range
-      compileBtn.disabled = !inRange;
-      compileBtn.setAttribute('aria-disabled', String(!inRange));
-    }
+      /* ---------- Element refs ---------- */
 
-    function formatNumber(n) {
-      return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }
+      const textarea = document.getElementById('markdown-input')
+      const counter = document.getElementById('markdown-counter')
+      const compileBtn = document.getElementById('compile-btn')
+      const compileBtnUpload = document.getElementById('compile-btn-upload')
+      const fileInput = document.getElementById('file-input')
+      const dropzone = document.getElementById('dropzone')
 
-    textarea.addEventListener('input', updateCounter);
+      const tabs = document.querySelectorAll('.import-tab')
+      const panels = document.querySelectorAll('.import-tab-panel')
 
-    /* ---------- Tab switching ---------- */
+      /* ---------- Counter logic · §4.4.2 progressive four-state ---------- */
 
-    /**
-     * @param {ImportMode} mode
-     */
-    function switchTab(mode) {
-      tabs.forEach(tab => {
-        const isActive = tab.id === `tab-${mode}`;
-        tab.classList.toggle('is-active', isActive);
-        tab.setAttribute('aria-selected', String(isActive));
-      });
-      panels.forEach(panel => {
-        panel.classList.toggle('is-active', panel.id === `panel-${mode}`);
-      });
-    }
+      /**
+       * Update the char counter class based on length.
+       * V1.1 §4.4.2 progressive scheme adapted to 200-20000 range:
+       *   - < 80% min (160): default --fg-tertiary
+       *   - 80-100% min (160-200): --accent-primary (approaching-min)
+       *   - min to 90% max (200-18000): default --fg-tertiary (in range)
+       *   - >= 90% max (>= 18000): --warning (approaching-max)
+       *   - > max (> 20000): --warning + disable button
+       */
+      function updateCounter() {
+        const len = textarea.value.length
+        counter.textContent = `${formatNumber(len)} / ${MIN_CHARS}-${MAX_CHARS}`
 
-    document.getElementById('tab-paste').addEventListener('click', () => switchTab('paste'));
-    document.getElementById('tab-upload').addEventListener('click', () => switchTab('upload'));
+        counter.classList.remove(
+          'textarea-counter--approaching-min',
+          'textarea-counter--approaching-max',
+        )
 
-    /* ---------- Sample markdown shortcut ---------- */
+        const inRange = len >= MIN_CHARS && len <= MAX_CHARS
+        const overMax = len > MAX_CHARS
 
-    /**
-     * @param {string} sampleText
-     */
-    function loadSample(sampleText) {
-      switchTab('paste');
-      textarea.value = sampleText;
-      updateCounter();
-      textarea.focus();
-      // Place cursor at end
-      textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
-    }
+        if (len >= MAX_CHARS * 0.9) {
+          counter.classList.add('textarea-counter--approaching-max')
+        } else if (len >= MIN_CHARS * 0.8 && len < MIN_CHARS) {
+          counter.classList.add('textarea-counter--approaching-min')
+        }
 
-    document.querySelectorAll('[data-action]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        const action = e.currentTarget.getAttribute('data-action');
-        if (action === 'sample' || action === 'sample-rag') {
-          loadSample(SAMPLE_RAG_MD);
-        } else if (action === 'sample-attention') {
-          loadSample(SAMPLE_ATTENTION_MD);
-        } else if (action === 'sample-fiber') {
-          loadSample(SAMPLE_FIBER_MD);
-        } else if (action === 'what-is-markdown') {
-          // Phase 2 prototype: no real navigation target
+        // Button enable only when strictly in range
+        compileBtn.disabled = !inRange
+        compileBtn.setAttribute('aria-disabled', String(!inRange))
+      }
+
+      function formatNumber(n) {
+        return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+      }
+
+      textarea.addEventListener('input', updateCounter)
+
+      /* ---------- Tab switching ---------- */
+
+      /**
+       * @param {ImportMode} mode
+       */
+      function switchTab(mode) {
+        tabs.forEach((tab) => {
+          const isActive = tab.id === `tab-${mode}`
+          tab.classList.toggle('is-active', isActive)
+          tab.setAttribute('aria-selected', String(isActive))
+        })
+        panels.forEach((panel) => {
+          panel.classList.toggle('is-active', panel.id === `panel-${mode}`)
+        })
+      }
+
+      document.getElementById('tab-paste').addEventListener('click', () => switchTab('paste'))
+      document.getElementById('tab-upload').addEventListener('click', () => switchTab('upload'))
+
+      /* ---------- Sample markdown shortcut ---------- */
+
+      /**
+       * @param {string} sampleText
+       */
+      function loadSample(sampleText) {
+        switchTab('paste')
+        textarea.value = sampleText
+        updateCounter()
+        textarea.focus()
+        // Place cursor at end
+        textarea.selectionStart = textarea.selectionEnd = textarea.value.length
+      }
+
+      document.querySelectorAll('[data-action]').forEach((el) => {
+        el.addEventListener('click', (e) => {
+          const action = e.currentTarget.getAttribute('data-action')
+          if (action === 'sample' || action === 'sample-rag') {
+            loadSample(SAMPLE_RAG_MD)
+          } else if (action === 'sample-attention') {
+            loadSample(SAMPLE_ATTENTION_MD)
+          } else if (action === 'sample-fiber') {
+            loadSample(SAMPLE_FIBER_MD)
+          } else if (action === 'what-is-markdown') {
+            // Phase 2 prototype: no real navigation target
+            // eslint-disable-next-line no-console
+            console.log('[demo] 显示 Markdown 说明（未实现）')
+          } else if (action === 'settings') {
+            // eslint-disable-next-line no-console
+            console.log('[demo] 打开设置面板（未实现）')
+          }
+        })
+      })
+
+      /* ---------- Cmd / Ctrl + Enter to compile ---------- */
+
+      document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+          if (!compileBtn.disabled) {
+            triggerCompile()
+          }
+        }
+      })
+
+      /* ---------- Compile flow ---------- */
+
+      /**
+       * Simulate compile: button → loading → navigate to next page.
+       * In Phase 3 this will POST markdown to the compile API.
+       */
+      function triggerCompile() {
+        if (compileBtn.disabled) return
+
+        compileBtn.classList.add('btn-primary--loading')
+        compileBtn.setAttribute('aria-busy', 'true')
+        compileBtn.disabled = true
+
+        // Simulated compile duration (Phase 2 visual only)
+        window.setTimeout(() => {
           // eslint-disable-next-line no-console
-          console.log('[demo] 显示 Markdown 说明（未实现）');
-        } else if (action === 'settings') {
+          console.log('[demo] 编译完成，跳转 02-compiling.html（未实现）')
+          // In Phase 3: window.location.href = './02-compiling.html';
+          compileBtn.classList.remove('btn-primary--loading')
+          compileBtn.removeAttribute('aria-busy')
+          compileBtn.disabled = false
+        }, 1600)
+      }
+
+      compileBtn.addEventListener('click', triggerCompile)
+
+      /* ---------- File upload (dropzone + file input) ---------- */
+
+      /**
+       * @param {File} file
+       */
+      function handleFile(file) {
+        if (!/\.(md|markdown)$/i.test(file.name) && !/text\/(markdown|plain)/.test(file.type)) {
           // eslint-disable-next-line no-console
-          console.log('[demo] 打开设置面板（未实现）');
+          console.warn('[demo] 仅支持 .md / .markdown 文件')
+          return
         }
-      });
-    });
-
-    /* ---------- Cmd / Ctrl + Enter to compile ---------- */
-
-    document.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        if (!compileBtn.disabled) {
-          triggerCompile();
+        const reader = new FileReader()
+        reader.onload = () => {
+          // Load into paste textarea for visual continuity, then switch tabs
+          textarea.value = String(reader.result || '')
+          updateCounter()
+          switchTab('paste')
+          if (!compileBtn.disabled) {
+            compileBtnUpload.disabled = false
+            compileBtnUpload.setAttribute('aria-disabled', 'false')
+          }
         }
+        reader.readAsText(file)
       }
-    });
 
-    /* ---------- Compile flow ---------- */
-
-    /**
-     * Simulate compile: button → loading → navigate to next page.
-     * In Phase 3 this will POST markdown to the compile API.
-     */
-    function triggerCompile() {
-      if (compileBtn.disabled) return;
-
-      compileBtn.classList.add('btn-primary--loading');
-      compileBtn.setAttribute('aria-busy', 'true');
-      compileBtn.disabled = true;
-
-      // Simulated compile duration (Phase 2 visual only)
-      window.setTimeout(() => {
-        // eslint-disable-next-line no-console
-        console.log('[demo] 编译完成，跳转 02-compiling.html（未实现）');
-        // In Phase 3: window.location.href = './02-compiling.html';
-        compileBtn.classList.remove('btn-primary--loading');
-        compileBtn.removeAttribute('aria-busy');
-        compileBtn.disabled = false;
-      }, 1600);
-    }
-
-    compileBtn.addEventListener('click', triggerCompile);
-
-    /* ---------- File upload (dropzone + file input) ---------- */
-
-    /**
-     * @param {File} file
-     */
-    function handleFile(file) {
-      if (!/\.(md|markdown)$/i.test(file.name) &&
-          !/text\/(markdown|plain)/.test(file.type)) {
-        // eslint-disable-next-line no-console
-        console.warn('[demo] 仅支持 .md / .markdown 文件');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        // Load into paste textarea for visual continuity, then switch tabs
-        textarea.value = String(reader.result || '');
-        updateCounter();
-        switchTab('paste');
-        if (!compileBtn.disabled) {
-          compileBtnUpload.disabled = false;
-          compileBtnUpload.setAttribute('aria-disabled', 'false');
+      fileInput.addEventListener('change', (e) => {
+        const target = /** @type {HTMLInputElement} */ (e.target)
+        if (target.files && target.files[0]) {
+          handleFile(target.files[0])
         }
-      };
-      reader.readAsText(file);
-    }
+      })
 
-    fileInput.addEventListener('change', (e) => {
-      const target = /** @type {HTMLInputElement} */ (e.target);
-      if (target.files && target.files[0]) {
-        handleFile(target.files[0]);
-      }
-    });
+      ;['dragenter', 'dragover'].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          dropzone.classList.add('is-dragover')
+        })
+      })
 
-    ['dragenter', 'dragover'].forEach(evt => {
-      dropzone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropzone.classList.add('is-dragover');
-      });
-    });
+      ;['dragleave', 'drop'].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          dropzone.classList.remove('is-dragover')
+        })
+      })
 
-    ['dragleave', 'drop'].forEach(evt => {
-      dropzone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropzone.classList.remove('is-dragover');
-      });
-    });
+      dropzone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer && e.dataTransfer.files
+        if (files && files[0]) {
+          handleFile(files[0])
+        }
+      })
 
-    dropzone.addEventListener('drop', (e) => {
-      const files = e.dataTransfer && e.dataTransfer.files;
-      if (files && files[0]) {
-        handleFile(files[0]);
-      }
-    });
+      /* ---------- Initial state ---------- */
 
-    /* ---------- Initial state ---------- */
-
-    updateCounter();
-  </script>
-
-</body>
+      updateCounter()
+    </script>
+  </body>
 </html>

@@ -19,11 +19,10 @@ import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useReviewStore } from '@/lib/state/review-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
 import { useModuleStore } from '@/lib/state/module-store'
-import { loadStoredModule } from '@/lib/persistence/module-library'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorageValueWithLegacyFallback } from '@/lib/persistence/client/storage'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
-import type { ReviewFilter, AttemptRecord, Quiz } from '@/types/domain'
+import type { ReviewFilter, Module, AttemptRecord, Quiz } from '@/types/domain'
 
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
@@ -70,10 +69,12 @@ export default function ReviewPage() {
   const { session, startSession, recordResult, nextQuestion, endSession } = useReviewStore()
   const addAttempt = useAttemptsStore((s) => s.addAttempt)
   const getNextAttemptVersion = useAttemptsStore((s) => s.getNextAttemptVersion)
+  const getAttempts = useAttemptsStore((s) => s.getAttempts)
   const reevaluateLastAttempt = useAttemptsStore((s) => s.reevaluateLastAttempt)
   const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
   const config = useSettingsStore((s) => s.config)
   const correctQuizAnswer = useModuleStore((s) => s.correctQuizAnswer)
+  const setModule = useModuleStore((s) => s.setModule)
 
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
@@ -82,7 +83,10 @@ export default function ReviewPage() {
   /** 记录当前题目展示时间，用于计算答题耗时 */
   const quizDisplayStart = useRef<number>(Date.now())
 
-  const moduleData = useMemo(() => loadStoredModule(storage, params.moduleId!), [params.moduleId])
+  const moduleData = useMemo(
+    () => getStorageValueWithLegacyFallback<Module>(StorageKeys.module(params.moduleId!)),
+    [params.moduleId],
+  )
 
   const counts = useMemo(() => {
     if (!moduleData) return { all: 0, wrong: 0, guessed: 0, due: 0 }
@@ -110,21 +114,26 @@ export default function ReviewPage() {
     if (initializedFor.current === `${params.moduleId}:${currentFilter}`) return
     initializedFor.current = `${params.moduleId}:${currentFilter}`
 
-    const moduleData = storage.get(StorageKeys.module(params.moduleId))
     if (!moduleData) {
       setNotFound(true)
       return
     }
 
+    // Review 页的编辑动作复用 module-store；先注入当前题库，确保
+    // correctQuizAnswer 不会因为 currentModule 为空或指向别的题库而 no-op。
+    setModule(moduleData)
     const started = startSession(params.moduleId, currentFilter)
     if (!started) {
       setEmpty(true)
     }
-  }, [hydrated, params.moduleId, currentFilter, startSession])
+  }, [hydrated, params.moduleId, currentFilter, moduleData, setModule, startSession])
 
   const currentQueueItem = session ? session.queue[session.currentIndex] : null
   const currentQuiz = currentQueueItem?.quiz ?? null
   const isFinished = session !== null && session.currentIndex >= session.queue.length
+  const latestAttempt = currentQueueItem ? getAttempts(currentQueueItem.slotId).at(-1) : undefined
+  const submittedAnswer =
+    phase !== 'answering' && latestAttempt ? latestAttempt.userAnswer : undefined
 
   // 当题目切换时记录展示时间
   useEffect(() => {
@@ -400,6 +409,7 @@ export default function ReviewPage() {
             quiz={currentQuiz}
             disabled={phase !== 'answering'}
             onAnswer={handleAnswer}
+            submittedAnswer={submittedAnswer}
           />
         </div>
 

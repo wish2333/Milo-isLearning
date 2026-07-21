@@ -1,13 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="color-scheme" content="dark" />
-  <meta name="theme-color" content="#0E1311" />
-  <title>AI Learning Compiler · Design System / Phase 1</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0E1311" />
+    <title>AI Learning Compiler · Design System / Phase 1</title>
 
-  <!--
+    <!--
     Phase 1 静态视觉验证页
     =======================
     对应 docs/ui-design/DESIGN-SPEC.md V1.1
@@ -23,1039 +23,1182 @@
       - Feynman textarea 实时字数计数器渐进色变
   -->
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-  <!-- Google Fonts CSS API — dynamically serves optimal @font-face rules
+    <!-- Google Fonts CSS API — dynamically serves optimal @font-face rules
        (woff2 + variable + unicode-range slicing for CJK) -->
-  <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E"
+    />
 
-  <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css" />
 
-  <style>
-    /* Page-specific layout for the showcase itself (not part of design system) */
-    .showcase {
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: var(--space-8) var(--space-8) var(--space-10);
-    }
-    .showcase__hero {
-      padding: var(--space-9) 0 var(--space-8);
-      border-bottom: 1px solid var(--border-subtle);
-      margin-bottom: var(--space-8);
-    }
-    .showcase__title {
-      font-family: var(--font-display);
-      font-size: var(--text-3xl);
-      font-weight: var(--weight-semibold);
-      letter-spacing: var(--tracking-tight);
-      margin-bottom: var(--space-3);
-    }
-    .showcase__subtitle {
-      font-family: var(--font-serif);
-      font-size: var(--text-md);
-      color: var(--fg-secondary);
-      max-width: 60ch;
-    }
-    .showcase__nav {
-      position: sticky;
-      top: 56px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--space-3);
-      padding: var(--space-4) 0;
-      margin-bottom: var(--space-8);
-      border-bottom: 1px solid var(--border-subtle);
-      background: rgba(14, 19, 17, 0.92);
-      backdrop-filter: blur(8px);
-      z-index: 5;
-    }
-    .showcase__nav a {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      transition: color var(--duration-instant) var(--ease-standard);
-    }
-    .showcase__nav a:hover { color: var(--accent-primary); }
+    <style>
+      /* Page-specific layout for the showcase itself (not part of design system) */
+      .showcase {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: var(--space-8) var(--space-8) var(--space-10);
+      }
+      .showcase__hero {
+        padding: var(--space-9) 0 var(--space-8);
+        border-bottom: 1px solid var(--border-subtle);
+        margin-bottom: var(--space-8);
+      }
+      .showcase__title {
+        font-family: var(--font-display);
+        font-size: var(--text-3xl);
+        font-weight: var(--weight-semibold);
+        letter-spacing: var(--tracking-tight);
+        margin-bottom: var(--space-3);
+      }
+      .showcase__subtitle {
+        font-family: var(--font-serif);
+        font-size: var(--text-md);
+        color: var(--fg-secondary);
+        max-width: 60ch;
+      }
+      .showcase__nav {
+        position: sticky;
+        top: 56px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+        padding: var(--space-4) 0;
+        margin-bottom: var(--space-8);
+        border-bottom: 1px solid var(--border-subtle);
+        background: rgba(14, 19, 17, 0.92);
+        backdrop-filter: blur(8px);
+        z-index: 5;
+      }
+      .showcase__nav a {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        transition: color var(--duration-instant) var(--ease-standard);
+      }
+      .showcase__nav a:hover {
+        color: var(--accent-primary);
+      }
 
-    .showcase__section {
-      padding: var(--space-8) 0;
-      border-top: 1px dashed var(--border-subtle);
-    }
-    .showcase__section:first-of-type { border-top: none; }
+      .showcase__section {
+        padding: var(--space-8) 0;
+        border-top: 1px dashed var(--border-subtle);
+      }
+      .showcase__section:first-of-type {
+        border-top: none;
+      }
 
-    .showcase__section-title {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      font-weight: var(--weight-medium);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      margin-bottom: var(--space-2);
-    }
-    .showcase__section-desc {
-      font-family: var(--font-serif);
-      font-size: var(--text-md);
-      color: var(--fg-secondary);
-      margin-bottom: var(--space-6);
-      max-width: 65ch;
-      line-height: var(--leading-normal);
-    }
+      .showcase__section-title {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        font-weight: var(--weight-medium);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        margin-bottom: var(--space-2);
+      }
+      .showcase__section-desc {
+        font-family: var(--font-serif);
+        font-size: var(--text-md);
+        color: var(--fg-secondary);
+        margin-bottom: var(--space-6);
+        max-width: 65ch;
+        line-height: var(--leading-normal);
+      }
 
-    .demo-row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-start;
-      gap: var(--space-5);
-      margin-bottom: var(--space-6);
-    }
-    .demo-row--vertical {
-      flex-direction: column;
-      gap: var(--space-3);
-    }
-    .demo-label {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--fg-tertiary);
-      letter-spacing: var(--tracking-mono);
-      margin-bottom: var(--space-2);
-      text-transform: uppercase;
-    }
-    .demo-block {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-2);
-      min-width: 240px;
-      max-width: 100%;
-    }
-    .demo-block--full { max-width: 100%; width: 100%; }
+      .demo-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: var(--space-5);
+        margin-bottom: var(--space-6);
+      }
+      .demo-row--vertical {
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+      .demo-label {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--fg-tertiary);
+        letter-spacing: var(--tracking-mono);
+        margin-bottom: var(--space-2);
+        text-transform: uppercase;
+      }
+      .demo-block {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        min-width: 240px;
+        max-width: 100%;
+      }
+      .demo-block--full {
+        max-width: 100%;
+        width: 100%;
+      }
 
-    .swatch-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: var(--space-3);
-    }
-    .swatch {
-      padding: var(--space-4);
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-default);
-      background: var(--bg-surface);
-    }
-    .swatch__chip {
-      height: 64px;
-      border-radius: var(--radius-sm);
-      margin-bottom: var(--space-3);
-      border: 1px solid var(--border-subtle);
-    }
-    .swatch__name {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      color: var(--fg-primary);
-      letter-spacing: var(--tracking-mono);
-      margin-bottom: 2px;
-    }
-    .swatch__hex {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--fg-tertiary);
-    }
-  </style>
-</head>
-<body>
-  <a href="#main" class="skip-link">Skip to main content</a>
+      .swatch-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: var(--space-3);
+      }
+      .swatch {
+        padding: var(--space-4);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-default);
+        background: var(--bg-surface);
+      }
+      .swatch__chip {
+        height: 64px;
+        border-radius: var(--radius-sm);
+        margin-bottom: var(--space-3);
+        border: 1px solid var(--border-subtle);
+      }
+      .swatch__name {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--fg-primary);
+        letter-spacing: var(--tracking-mono);
+        margin-bottom: 2px;
+      }
+      .swatch__hex {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--fg-tertiary);
+      }
+    </style>
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to main content</a>
 
-  <!-- ============= Top navigation (real component) ============= -->
-  <header class="nav-top" role="banner">
-    <button class="nav-top__back" type="button">
-      <span aria-hidden="true">&larr;</span>
-      <span>概览</span>
-    </button>
-    <span class="nav-top__brand">AI Learning Compiler</span>
-    <div class="nav-top__actions">
-      <button class="btn-text" type="button">清空进度</button>
-    </div>
-  </header>
-
-  <main id="main" class="showcase">
-
-    <!-- ============= Hero ============= -->
-    <section class="showcase__hero">
-      <h1 class="showcase__title">Design System · Phase 1</h1>
-      <p class="showcase__subtitle">
-        AI Learning Compiler V1.1 视觉验证页。本页展示完整组件库、排版阶梯、色彩 token、
-        以及关键的微互动（细线动效、Grid 展开、字数计数器渐进色变）。
-        所有元素均按 <em>学术沉静</em> 基调呈现。
-      </p>
-    </section>
-
-    <!-- ============= Section nav ============= -->
-    <nav class="showcase__nav" aria-label="Section navigation">
-      <a href="#tokens">§1 Tokens</a>
-      <a href="#typography">§2 Typography</a>
-      <a href="#buttons">§3 Buttons</a>
-      <a href="#options">§4 Options</a>
-      <a href="#cards">§5 Cards</a>
-      <a href="#inputs">§6 Inputs</a>
-      <a href="#progress">§7 Progress</a>
-      <a href="#feedback">§8 Feedback</a>
-      <a href="#stages">§9 Stage Banners</a>
-    </nav>
-
-    <!-- =========================================================== -->
-    <!-- §1. Color tokens                                            -->
-    <!-- =========================================================== -->
-    <section class="showcase__section" id="tokens">
-      <p class="showcase__section-title">§1 · Color Tokens</p>
-      <p class="showcase__section-desc">
-        暗色主题（默认）。80% 中性色 + 20% 强调色。错误反馈用柔和陶土橙（绝不鲜红），
-        成功反馈用柔和鼠尾草绿。所有文字配色均通过 WCAG 2.1 AA 验证。
-      </p>
-
-      <div class="demo-label">Background layers</div>
-      <div class="swatch-grid" style="margin-bottom: var(--space-6);">
-        <div class="swatch">
-          <div class="swatch__chip" style="background: var(--bg-base);"></div>
-          <div class="swatch__name">--bg-base</div>
-          <div class="swatch__hex">#0E1311</div>
-        </div>
-        <div class="swatch">
-          <div class="swatch__chip" style="background: var(--bg-surface);"></div>
-          <div class="swatch__name">--bg-surface</div>
-          <div class="swatch__hex">#161C19</div>
-        </div>
-        <div class="swatch">
-          <div class="swatch__chip" style="background: var(--bg-elevated);"></div>
-          <div class="swatch__name">--bg-elevated</div>
-          <div class="swatch__hex">#1E2622</div>
-        </div>
+    <!-- ============= Top navigation (real component) ============= -->
+    <header class="nav-top" role="banner">
+      <button class="nav-top__back" type="button">
+        <span aria-hidden="true">&larr;</span>
+        <span>概览</span>
+      </button>
+      <span class="nav-top__brand">AI Learning Compiler</span>
+      <div class="nav-top__actions">
+        <button class="btn-text" type="button">清空进度</button>
       </div>
+    </header>
 
-      <div class="demo-label">Foreground layers (≥ AA contrast)</div>
-      <div class="swatch-grid" style="margin-bottom: var(--space-6);">
-        <div class="swatch">
-          <div class="swatch__chip" style="background: var(--fg-primary);"></div>
-          <div class="swatch__name">--fg-primary</div>
-          <div class="swatch__hex">#ECE6D4 · 14.2:1</div>
-        </div>
-        <div class="swatch">
-          <div class="swatch__chip" style="background: var(--fg-secondary);"></div>
-          <div class="swatch__name">--fg-secondary</div>
-          <div class="swatch__hex">#B5AE9C · 8.7:1</div>
-        </div>
-        <div class="swatch">
-          <div class="swatch__chip" style="background: var(--fg-tertiary);"></div>
-          <div class="swatch__name">--fg-tertiary</div>
-          <div class="swatch__hex">#7A7466 · 4.6:1</div>
-        </div>
-      </div>
+    <main id="main" class="showcase">
+      <!-- ============= Hero ============= -->
+      <section class="showcase__hero">
+        <h1 class="showcase__title">Design System · Phase 1</h1>
+        <p class="showcase__subtitle">
+          AI Learning Compiler V1.1 视觉验证页。本页展示完整组件库、排版阶梯、色彩 token、
+          以及关键的微互动（细线动效、Grid 展开、字数计数器渐进色变）。 所有元素均按
+          <em>学术沉静</em> 基调呈现。
+        </p>
+      </section>
 
-      <div class="demo-label">Accent colors</div>
-      <div class="swatch-grid">
-        <div class="swatch">
-          <div class="swatch__chip" style="background: var(--accent-primary);"></div>
-          <div class="swatch__name">--accent-primary</div>
-          <div class="swatch__hex">#D4A574 · 金棕</div>
-        </div>
-        <div class="swatch">
-          <div class="swatch__chip" style="background: var(--success);"></div>
-          <div class="swatch__name">--success</div>
-          <div class="swatch__hex">#7FA88C · 鼠尾草绿</div>
-        </div>
-        <div class="swatch">
-          <div class="swatch__chip" style="background: var(--warning);"></div>
-          <div class="swatch__name">--warning</div>
-          <div class="swatch__hex">#C99A6E · 陶土橙</div>
-        </div>
-        <div class="swatch">
-          <div class="swatch__chip" style="background: var(--stage-challenge);"></div>
-          <div class="swatch__name">--stage-challenge</div>
-          <div class="swatch__hex">#B8895C · 加深金棕</div>
-        </div>
-        <div class="swatch">
-          <div class="swatch__chip" style="background: var(--stage-feynman);"></div>
-          <div class="swatch__name">--stage-feynman</div>
-          <div class="swatch__hex">#E8C894 · 提亮金棕</div>
-        </div>
-      </div>
-    </section>
+      <!-- ============= Section nav ============= -->
+      <nav class="showcase__nav" aria-label="Section navigation">
+        <a href="#tokens">§1 Tokens</a>
+        <a href="#typography">§2 Typography</a>
+        <a href="#buttons">§3 Buttons</a>
+        <a href="#options">§4 Options</a>
+        <a href="#cards">§5 Cards</a>
+        <a href="#inputs">§6 Inputs</a>
+        <a href="#progress">§7 Progress</a>
+        <a href="#feedback">§8 Feedback</a>
+        <a href="#stages">§9 Stage Banners</a>
+      </nav>
 
-    <!-- =========================================================== -->
-    <!-- §2. Typography                                              -->
-    <!-- =========================================================== -->
-    <section class="showcase__section" id="typography">
-      <p class="showcase__section-title">§2 · Typography Scale</p>
-      <p class="showcase__section-desc">
-        字体：Fraunces（英文衬线，可变字重） × 思源宋体（中文衬线） × JetBrains Mono（等宽小标签）。
-        字号采用 1.250 大三度音阶。中英文之间通过 <code>text-spacing-trim</code> 自动添加间距。
-      </p>
+      <!-- =========================================================== -->
+      <!-- §1. Color tokens                                            -->
+      <!-- =========================================================== -->
+      <section class="showcase__section" id="tokens">
+        <p class="showcase__section-title">§1 · Color Tokens</p>
+        <p class="showcase__section-desc">
+          暗色主题（默认）。80% 中性色 + 20% 强调色。错误反馈用柔和陶土橙（绝不鲜红），
+          成功反馈用柔和鼠尾草绿。所有文字配色均通过 WCAG 2.1 AA 验证。
+        </p>
 
-      <div class="demo-row demo-row--vertical">
-        <div>
-          <div class="demo-label">h-display · 64px / Fraunces SemiBold</div>
-          <div class="h-display">你已经学会了。The Quick Brown Fox.</div>
-        </div>
-        <div>
-          <div class="demo-label">h1 · 48px / Fraunces SemiBold</div>
-          <div class="h1">理解 RAG · Retrieval-Augmented Generation</div>
-        </div>
-        <div>
-          <div class="demo-label">h2 · 36px / Fraunces Medium</div>
-          <div class="h2">什么是检索 · What is Retrieval</div>
-        </div>
-        <div>
-          <div class="demo-label">h3 · 28px / Fraunces Regular · Quiz 题干默认字号</div>
-          <div class="h3">下面哪一个属于 Few-shot Prompting？</div>
-        </div>
-        <div>
-          <div class="demo-label">lead · 22px · Module 导言</div>
-          <div class="lead">完成本模块后，你能向一个高中生解释 RAG 是什么、为什么需要它。</div>
-        </div>
-        <div>
-          <div class="demo-label">body · 16px · 默认正文</div>
-          <div class="body">RAG 通过检索外部文档，把它和用户问题一起喂给模型，从而减少幻觉。</div>
-        </div>
-        <div>
-          <div class="demo-label">body-secondary · 16px / 次要色 / 行高 1.75 · 解释文案</div>
-          <div class="body-secondary">
-            Few-shot 通过示例引导模型输出格式。其他选项：B 是 zero-shot（无示例），
-            C 是 RLHF，D 是 fine-tuning。注意区分 RAG 与微调的本质差异。
+        <div class="demo-label">Background layers</div>
+        <div class="swatch-grid" style="margin-bottom: var(--space-6)">
+          <div class="swatch">
+            <div class="swatch__chip" style="background: var(--bg-base)"></div>
+            <div class="swatch__name">--bg-base</div>
+            <div class="swatch__hex">#0E1311</div>
           </div>
-        </div>
-        <div>
-          <div class="demo-label">label-mono · 12px 大写等宽 · 阶段标签</div>
-          <div><span class="label-stage">Module 1 · Concept A</span></div>
-        </div>
-        <div>
-          <div class="demo-label">meta-mono · 14px 等宽 · 字数计数</div>
-          <div><span class="meta-mono">1,234 / 200-20000</span></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- =========================================================== -->
-    <!-- §3. Buttons                                                 -->
-    <!-- =========================================================== -->
-    <section class="showcase__section" id="buttons">
-      <p class="showcase__section-title">§3 · Button System</p>
-      <p class="showcase__section-desc">
-        按钮文案随表达自由度上升而变化：<code>下一题</code> → <code>继续</code> →
-        <code>补全这句话</code> → <code>写下我的解释</code>。Hover 仅变色，绝不缩放。
-      </p>
-
-      <div class="demo-row demo-row--vertical">
-        <div class="demo-block">
-          <div class="demo-label">btn-primary · default / hover / disabled / loading</div>
-          <div class="demo-row">
-            <button class="btn-primary" type="button">下一题</button>
-            <button class="btn-primary" type="button" style="background: var(--accent-primary-hover);">下一题 · hover</button>
-            <button class="btn-primary" type="button" disabled>提交</button>
-            <button class="btn-primary btn-primary--loading" type="button">评分中</button>
+          <div class="swatch">
+            <div class="swatch__chip" style="background: var(--bg-surface)"></div>
+            <div class="swatch__name">--bg-surface</div>
+            <div class="swatch__hex">#161C19</div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background: var(--bg-elevated)"></div>
+            <div class="swatch__name">--bg-elevated</div>
+            <div class="swatch__hex">#1E2622</div>
           </div>
         </div>
 
-        <div class="demo-block">
-          <div class="demo-label">文案随阶段演进</div>
-          <div class="demo-row">
-            <button class="btn-primary" type="button">下一题</button>
-            <button class="btn-primary" type="button">继续</button>
-            <button class="btn-primary" type="button">下一步</button>
-            <button class="btn-primary" type="button">补全这句话</button>
-            <button class="btn-primary" type="button">写下我的解释</button>
+        <div class="demo-label">Foreground layers (≥ AA contrast)</div>
+        <div class="swatch-grid" style="margin-bottom: var(--space-6)">
+          <div class="swatch">
+            <div class="swatch__chip" style="background: var(--fg-primary)"></div>
+            <div class="swatch__name">--fg-primary</div>
+            <div class="swatch__hex">#ECE6D4 · 14.2:1</div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background: var(--fg-secondary)"></div>
+            <div class="swatch__name">--fg-secondary</div>
+            <div class="swatch__hex">#B5AE9C · 8.7:1</div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background: var(--fg-tertiary)"></div>
+            <div class="swatch__name">--fg-tertiary</div>
+            <div class="swatch__hex">#7A7466 · 4.6:1</div>
           </div>
         </div>
 
-        <div class="demo-block">
-          <div class="demo-label">btn-secondary · default / hover</div>
-          <div class="demo-row">
-            <button class="btn-secondary" type="button">返回</button>
-            <button class="btn-secondary" type="button" style="border-color: var(--border-strong); background: var(--bg-elevated);">返回 · hover</button>
-            <button class="btn-secondary" type="button">重写一次</button>
-            <button class="btn-secondary" type="button">再编译一份</button>
+        <div class="demo-label">Accent colors</div>
+        <div class="swatch-grid">
+          <div class="swatch">
+            <div class="swatch__chip" style="background: var(--accent-primary)"></div>
+            <div class="swatch__name">--accent-primary</div>
+            <div class="swatch__hex">#D4A574 · 金棕</div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background: var(--success)"></div>
+            <div class="swatch__name">--success</div>
+            <div class="swatch__hex">#7FA88C · 鼠尾草绿</div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background: var(--warning)"></div>
+            <div class="swatch__name">--warning</div>
+            <div class="swatch__hex">#C99A6E · 陶土橙</div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background: var(--stage-challenge)"></div>
+            <div class="swatch__name">--stage-challenge</div>
+            <div class="swatch__hex">#B8895C · 加深金棕</div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background: var(--stage-feynman)"></div>
+            <div class="swatch__name">--stage-feynman</div>
+            <div class="swatch__hex">#E8C894 · 提亮金棕</div>
           </div>
         </div>
+      </section>
 
-        <div class="demo-block">
-          <div class="demo-label">btn-text · 辅助操作</div>
-          <div class="demo-row">
-            <button class="btn-text" type="button">导入示例 Markdown</button>
-            <button class="btn-text" type="button">了解更多</button>
-            <button class="btn-text" type="button">使用示例重试</button>
+      <!-- =========================================================== -->
+      <!-- §2. Typography                                              -->
+      <!-- =========================================================== -->
+      <section class="showcase__section" id="typography">
+        <p class="showcase__section-title">§2 · Typography Scale</p>
+        <p class="showcase__section-desc">
+          字体：Fraunces（英文衬线，可变字重） × 思源宋体（中文衬线） × JetBrains
+          Mono（等宽小标签）。 字号采用 1.250 大三度音阶。中英文之间通过
+          <code>text-spacing-trim</code> 自动添加间距。
+        </p>
+
+        <div class="demo-row demo-row--vertical">
+          <div>
+            <div class="demo-label">h-display · 64px / Fraunces SemiBold</div>
+            <div class="h-display">你已经学会了。The Quick Brown Fox.</div>
+          </div>
+          <div>
+            <div class="demo-label">h1 · 48px / Fraunces SemiBold</div>
+            <div class="h1">理解 RAG · Retrieval-Augmented Generation</div>
+          </div>
+          <div>
+            <div class="demo-label">h2 · 36px / Fraunces Medium</div>
+            <div class="h2">什么是检索 · What is Retrieval</div>
+          </div>
+          <div>
+            <div class="demo-label">h3 · 28px / Fraunces Regular · Quiz 题干默认字号</div>
+            <div class="h3">下面哪一个属于 Few-shot Prompting？</div>
+          </div>
+          <div>
+            <div class="demo-label">lead · 22px · Module 导言</div>
+            <div class="lead">完成本模块后，你能向一个高中生解释 RAG 是什么、为什么需要它。</div>
+          </div>
+          <div>
+            <div class="demo-label">body · 16px · 默认正文</div>
+            <div class="body">RAG 通过检索外部文档，把它和用户问题一起喂给模型，从而减少幻觉。</div>
+          </div>
+          <div>
+            <div class="demo-label">body-secondary · 16px / 次要色 / 行高 1.75 · 解释文案</div>
+            <div class="body-secondary">
+              Few-shot 通过示例引导模型输出格式。其他选项：B 是 zero-shot（无示例）， C 是 RLHF，D
+              是 fine-tuning。注意区分 RAG 与微调的本质差异。
+            </div>
+          </div>
+          <div>
+            <div class="demo-label">label-mono · 12px 大写等宽 · 阶段标签</div>
+            <div><span class="label-stage">Module 1 · Concept A</span></div>
+          </div>
+          <div>
+            <div class="demo-label">meta-mono · 14px 等宽 · 字数计数</div>
+            <div><span class="meta-mono">1,234 / 200-20000</span></div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- =========================================================== -->
-    <!-- §4. Options                                                 -->
-    <!-- =========================================================== -->
-    <section class="showcase__section" id="options">
-      <p class="showcase__section-title">§4 · Option System</p>
-      <p class="showcase__section-desc">
-        Choice 选项 4 状态变体（默认 / Hover / Selected / Correct / Wrong）。
-        答对用 <code>::after + transform: scaleX()</code> 划过 1px 细线（点击下方任意选项试试）。
-        答错用陶土橙（无 ✗ 符号），同步亮起正确选项的鼠尾草绿。
-      </p>
+      <!-- =========================================================== -->
+      <!-- §3. Buttons                                                 -->
+      <!-- =========================================================== -->
+      <section class="showcase__section" id="buttons">
+        <p class="showcase__section-title">§3 · Button System</p>
+        <p class="showcase__section-desc">
+          按钮文案随表达自由度上升而变化：<code>下一题</code> → <code>继续</code> →
+          <code>补全这句话</code> → <code>写下我的解释</code>。Hover 仅变色，绝不缩放。
+        </p>
 
-      <div class="demo-row demo-row--vertical">
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">option-choice · 交互演示（点击切换状态）</div>
-          <p style="margin-bottom: var(--space-4); color: var(--fg-secondary); font-size: var(--text-sm);">
-            点击选项触发"答对"细线动效；点击 <code>[演示答错]</code> 触发"答错"反馈。
-          </p>
-
-          <div style="display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4);">
-            <button class="option-choice" data-option="A" type="button">
-              <span class="option-choice__letter">A</span>
-              <span class="option-choice__text">给模型一个示例："将句子翻译为英文：你好 → Hello"</span>
-            </button>
-            <button class="option-choice" data-option="B" type="button">
-              <span class="option-choice__letter">B</span>
-              <span class="option-choice__text">让模型自由生成，不提供任何示例</span>
-            </button>
-            <button class="option-choice" data-option="C" type="button">
-              <span class="option-choice__letter">C</span>
-              <span class="option-choice__text">使用强化学习训练模型以适应新任务</span>
-            </button>
-            <button class="option-choice" data-option="D" type="button">
-              <span class="option-choice__letter">D</span>
-              <span class="option-choice__text">调整模型参数以适应下游任务（fine-tuning）</span>
-            </button>
+        <div class="demo-row demo-row--vertical">
+          <div class="demo-block">
+            <div class="demo-label">btn-primary · default / hover / disabled / loading</div>
+            <div class="demo-row">
+              <button class="btn-primary" type="button">下一题</button>
+              <button
+                class="btn-primary"
+                type="button"
+                style="background: var(--accent-primary-hover)"
+              >
+                下一题 · hover
+              </button>
+              <button class="btn-primary" type="button" disabled>提交</button>
+              <button class="btn-primary btn-primary--loading" type="button">评分中</button>
+            </div>
           </div>
 
-          <div class="demo-row">
-            <button class="btn-secondary" id="demo-correct" type="button">演示答对（A）</button>
-            <button class="btn-secondary" id="demo-wrong" type="button">演示答错（点 B，正确是 A）</button>
-            <button class="btn-text" id="demo-reset" type="button">重置</button>
+          <div class="demo-block">
+            <div class="demo-label">文案随阶段演进</div>
+            <div class="demo-row">
+              <button class="btn-primary" type="button">下一题</button>
+              <button class="btn-primary" type="button">继续</button>
+              <button class="btn-primary" type="button">下一步</button>
+              <button class="btn-primary" type="button">补全这句话</button>
+              <button class="btn-primary" type="button">写下我的解释</button>
+            </div>
+          </div>
+
+          <div class="demo-block">
+            <div class="demo-label">btn-secondary · default / hover</div>
+            <div class="demo-row">
+              <button class="btn-secondary" type="button">返回</button>
+              <button
+                class="btn-secondary"
+                type="button"
+                style="border-color: var(--border-strong); background: var(--bg-elevated)"
+              >
+                返回 · hover
+              </button>
+              <button class="btn-secondary" type="button">重写一次</button>
+              <button class="btn-secondary" type="button">再编译一份</button>
+            </div>
+          </div>
+
+          <div class="demo-block">
+            <div class="demo-label">btn-text · 辅助操作</div>
+            <div class="demo-row">
+              <button class="btn-text" type="button">导入示例 Markdown</button>
+              <button class="btn-text" type="button">了解更多</button>
+              <button class="btn-text" type="button">使用示例重试</button>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">option-sort · 排序题（移动端会自动显示 ↑↓ 箭头）</div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-3);">
-            <div class="option-sort">
-              <span class="option-sort__handle" aria-hidden="true">⋮⋮</span>
-              <span class="option-sort__index">1</span>
-              <span class="option-sort__text">用户提问 · User asks a question</span>
-              <div class="option-sort__arrows">
-                <button class="option-sort__arrow" type="button" disabled aria-label="上移">↑</button>
-                <button class="option-sort__arrow" type="button" aria-label="下移">↓</button>
+      <!-- =========================================================== -->
+      <!-- §4. Options                                                 -->
+      <!-- =========================================================== -->
+      <section class="showcase__section" id="options">
+        <p class="showcase__section-title">§4 · Option System</p>
+        <p class="showcase__section-desc">
+          Choice 选项 4 状态变体（默认 / Hover / Selected / Correct / Wrong）。 答对用
+          <code>::after + transform: scaleX()</code> 划过 1px 细线（点击下方任意选项试试）。
+          答错用陶土橙（无 ✗ 符号），同步亮起正确选项的鼠尾草绿。
+        </p>
+
+        <div class="demo-row demo-row--vertical">
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">option-choice · 交互演示（点击切换状态）</div>
+            <p
+              style="
+                margin-bottom: var(--space-4);
+                color: var(--fg-secondary);
+                font-size: var(--text-sm);
+              "
+            >
+              点击选项触发"答对"细线动效；点击 <code>[演示答错]</code> 触发"答错"反馈。
+            </p>
+
+            <div
+              style="
+                display: flex;
+                flex-direction: column;
+                gap: var(--space-3);
+                margin-bottom: var(--space-4);
+              "
+            >
+              <button class="option-choice" data-option="A" type="button">
+                <span class="option-choice__letter">A</span>
+                <span class="option-choice__text"
+                  >给模型一个示例："将句子翻译为英文：你好 → Hello"</span
+                >
+              </button>
+              <button class="option-choice" data-option="B" type="button">
+                <span class="option-choice__letter">B</span>
+                <span class="option-choice__text">让模型自由生成，不提供任何示例</span>
+              </button>
+              <button class="option-choice" data-option="C" type="button">
+                <span class="option-choice__letter">C</span>
+                <span class="option-choice__text">使用强化学习训练模型以适应新任务</span>
+              </button>
+              <button class="option-choice" data-option="D" type="button">
+                <span class="option-choice__letter">D</span>
+                <span class="option-choice__text">调整模型参数以适应下游任务（fine-tuning）</span>
+              </button>
+            </div>
+
+            <div class="demo-row">
+              <button class="btn-secondary" id="demo-correct" type="button">演示答对（A）</button>
+              <button class="btn-secondary" id="demo-wrong" type="button">
+                演示答错（点 B，正确是 A）
+              </button>
+              <button class="btn-text" id="demo-reset" type="button">重置</button>
+            </div>
+          </div>
+
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">option-sort · 排序题（移动端会自动显示 ↑↓ 箭头）</div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-3)">
+              <div class="option-sort">
+                <span class="option-sort__handle" aria-hidden="true">⋮⋮</span>
+                <span class="option-sort__index">1</span>
+                <span class="option-sort__text">用户提问 · User asks a question</span>
+                <div class="option-sort__arrows">
+                  <button class="option-sort__arrow" type="button" disabled aria-label="上移">
+                    ↑
+                  </button>
+                  <button class="option-sort__arrow" type="button" aria-label="下移">↓</button>
+                </div>
+              </div>
+              <div class="option-sort">
+                <span class="option-sort__handle" aria-hidden="true">⋮⋮</span>
+                <span class="option-sort__index">2</span>
+                <span class="option-sort__text">文档向量化 · Embed documents</span>
+                <div class="option-sort__arrows">
+                  <button class="option-sort__arrow" type="button" aria-label="上移">↑</button>
+                  <button class="option-sort__arrow" type="button" aria-label="下移">↓</button>
+                </div>
+              </div>
+              <div class="option-sort">
+                <span class="option-sort__handle" aria-hidden="true">⋮⋮</span>
+                <span class="option-sort__index">3</span>
+                <span class="option-sort__text">检索相关文档 · Retrieve</span>
+                <div class="option-sort__arrows">
+                  <button class="option-sort__arrow" type="button" aria-label="上移">↑</button>
+                  <button class="option-sort__arrow" type="button" aria-label="下移">↓</button>
+                </div>
+              </div>
+              <div class="option-sort">
+                <span class="option-sort__handle" aria-hidden="true">⋮⋮</span>
+                <span class="option-sort__index">4</span>
+                <span class="option-sort__text">模型生成回答 · Generate</span>
+                <div class="option-sort__arrows">
+                  <button class="option-sort__arrow" type="button" aria-label="上移">↑</button>
+                  <button class="option-sort__arrow" type="button" disabled aria-label="下移">
+                    ↓
+                  </button>
+                </div>
               </div>
             </div>
-            <div class="option-sort">
-              <span class="option-sort__handle" aria-hidden="true">⋮⋮</span>
-              <span class="option-sort__index">2</span>
-              <span class="option-sort__text">文档向量化 · Embed documents</span>
-              <div class="option-sort__arrows">
-                <button class="option-sort__arrow" type="button" aria-label="上移">↑</button>
-                <button class="option-sort__arrow" type="button" aria-label="下移">↓</button>
+          </div>
+
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">option-fill-blank · 内联输入（现代浏览器自动撑开宽度）</div>
+            <p class="h3" style="margin-bottom: var(--space-3)">
+              RAG 的全称是
+              <input class="option-fill-blank" type="text" placeholder="……" aria-label="填空" />
+              -Augmented Generation。
+            </p>
+            <p style="color: var(--fg-tertiary); font-size: var(--text-sm)">
+              提示：试着输入 <code>Retrieval</code>，输入框会随内容自动撑开。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================== -->
+      <!-- §5. Cards                                                   -->
+      <!-- =========================================================== -->
+      <section class="showcase__section" id="cards">
+        <p class="showcase__section-title">§5 · Card System</p>
+        <p class="showcase__section-desc">
+          卡片用于结构化展示信息。Rubric 评分卡使用<strong>形状 + 颜色</strong>双重编码 （实心 ● /
+          半填充 ◐ / 空心 ○），符合 a11y 规范。
+        </p>
+
+        <div class="demo-row demo-row--vertical">
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">card-concept · 概念卡（概览页）</div>
+            <div class="card-concept">
+              <div class="card-concept__name">Concept A · 什么是检索</div>
+              <div class="card-concept__definition">从大量数据中找到相关信息的过程</div>
+              <div class="card-concept__key-points">
+                <div class="card-concept__key-point">检索的定义与基本流程</div>
+                <div class="card-concept__key-point">检索在 RAG 中的作用</div>
+                <div class="card-concept__key-point">稠密检索 vs 稀疏检索</div>
               </div>
             </div>
-            <div class="option-sort">
-              <span class="option-sort__handle" aria-hidden="true">⋮⋮</span>
-              <span class="option-sort__index">3</span>
-              <span class="option-sort__text">检索相关文档 · Retrieve</span>
-              <div class="option-sort__arrows">
-                <button class="option-sort__arrow" type="button" aria-label="上移">↑</button>
-                <button class="option-sort__arrow" type="button" aria-label="下移">↓</button>
+          </div>
+
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">card-rubric · Rubric 评分卡（Feynman Step 6 提交后）</div>
+            <div class="card-rubric">
+              <div class="card-rubric__header">
+                <span class="card-rubric__title">Rubric 评分</span>
+                <span class="card-rubric__score">80 / 100</span>
+              </div>
+              <div class="card-rubric__item">
+                <span class="card-rubric__marker card-rubric__marker--hit" aria-label="命中"
+                  >●</span
+                >
+                <div>
+                  <div class="card-rubric__criterion">解释了 RAG 的定义</div>
+                  <div class="card-rubric__comment">你提到"检索增强生成"，清晰准确。</div>
+                </div>
+                <span class="card-rubric__points">+25</span>
+              </div>
+              <div class="card-rubric__item">
+                <span class="card-rubric__marker card-rubric__marker--hit" aria-label="命中"
+                  >●</span
+                >
+                <div>
+                  <div class="card-rubric__criterion">解释了为什么需要 RAG</div>
+                  <div class="card-rubric__comment">提到减少幻觉，抓住了核心动机。</div>
+                </div>
+                <span class="card-rubric__points">+25</span>
+              </div>
+              <div class="card-rubric__item">
+                <span class="card-rubric__marker card-rubric__marker--partial" aria-label="部分命中"
+                  >◐</span
+                >
+                <div>
+                  <div class="card-rubric__criterion">解释了 RAG 与微调的区别</div>
+                  <div class="card-rubric__comment">提到"知识更新"但未深入展开。</div>
+                </div>
+                <span class="card-rubric__points">+15</span>
+              </div>
+              <div class="card-rubric__item">
+                <span class="card-rubric__marker card-rubric__marker--miss" aria-label="未提及"
+                  >○</span
+                >
+                <div>
+                  <div class="card-rubric__criterion">解释了 RAG 的局限性</div>
+                  <div class="card-rubric__comment">这是关键点：RAG 受检索质量限制。</div>
+                </div>
+                <span class="card-rubric__points">+15</span>
               </div>
             </div>
-            <div class="option-sort">
-              <span class="option-sort__handle" aria-hidden="true">⋮⋮</span>
-              <span class="option-sort__index">4</span>
-              <span class="option-sort__text">模型生成回答 · Generate</span>
-              <div class="option-sort__arrows">
-                <button class="option-sort__arrow" type="button" aria-label="上移">↑</button>
-                <button class="option-sort__arrow" type="button" disabled aria-label="下移">↓</button>
+          </div>
+
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">card-gaps · 遗漏提示（标题"还可以补充"，非"你遗漏了"）</div>
+            <div class="card-gaps">
+              <div class="card-gaps__title">还可以补充</div>
+              <div class="card-gaps__list">
+                <div class="card-gaps__item">RAG 与微调的核心区别：参数更新 vs 上下文注入</div>
+                <div class="card-gaps__item">RAG 的检索延迟问题与缓存策略</div>
               </div>
             </div>
           </div>
         </div>
+      </section>
 
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">option-fill-blank · 内联输入（现代浏览器自动撑开宽度）</div>
-          <p class="h3" style="margin-bottom: var(--space-3);">
-            RAG 的全称是
-            <input class="option-fill-blank" type="text" placeholder="……" aria-label="填空" />
-            -Augmented Generation。
-          </p>
-          <p style="color: var(--fg-tertiary); font-size: var(--text-sm);">
-            提示：试着输入 <code>Retrieval</code>，输入框会随内容自动撑开。
-          </p>
-        </div>
-      </div>
-    </section>
+      <!-- =========================================================== -->
+      <!-- §6. Inputs                                                  -->
+      <!-- =========================================================== -->
+      <section class="showcase__section" id="inputs">
+        <p class="showcase__section-title">§6 · Input System</p>
+        <p class="showcase__section-desc">
+          Feynman 最终输出框使用 16px 圆角 + 22px 衬线 + 1.75 行高，营造"写作空间"仪式感。
+          字数计数器实时变色：80% 下限→金棕（预提示），90% 上限→陶土橙（温和预警）。
+        </p>
 
-    <!-- =========================================================== -->
-    <!-- §5. Cards                                                   -->
-    <!-- =========================================================== -->
-    <section class="showcase__section" id="cards">
-      <p class="showcase__section-title">§5 · Card System</p>
-      <p class="showcase__section-desc">
-        卡片用于结构化展示信息。Rubric 评分卡使用<strong>形状 + 颜色</strong>双重编码
-        （实心 ● / 半填充 ◐ / 空心 ○），符合 a11y 规范。
-      </p>
-
-      <div class="demo-row demo-row--vertical">
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">card-concept · 概念卡（概览页）</div>
-          <div class="card-concept">
-            <div class="card-concept__name">Concept A · 什么是检索</div>
-            <div class="card-concept__definition">从大量数据中找到相关信息的过程</div>
-            <div class="card-concept__key-points">
-              <div class="card-concept__key-point">检索的定义与基本流程</div>
-              <div class="card-concept__key-point">检索在 RAG 中的作用</div>
-              <div class="card-concept__key-point">稠密检索 vs 稀疏检索</div>
+        <div class="demo-row demo-row--vertical">
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">
+              textarea-feynman · Feynman Step 6 完整输出（下限 100 / 上限 500）
             </div>
+            <div class="textarea-wrapper">
+              <textarea
+                class="textarea-feynman"
+                id="demo-feynman-textarea"
+                placeholder="现在，请用你自己的话完整解释：RAG 是什么、为什么需要它..."
+                aria-describedby="demo-feynman-counter"
+              ></textarea>
+              <span class="textarea-counter" id="demo-feynman-counter" aria-live="polite"
+                >0 / 100-500</span
+              >
+            </div>
+            <p
+              style="
+                margin-top: var(--space-3);
+                font-size: var(--text-sm);
+                color: var(--fg-tertiary);
+              "
+            >
+              试着输入：<code>80 字</code> 时计数器变金棕；<code>100 字</code> 后回到灰色；
+              <code>450 字</code> 时变陶土橙。
+            </p>
           </div>
-        </div>
 
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">card-rubric · Rubric 评分卡（Feynman Step 6 提交后）</div>
-          <div class="card-rubric">
-            <div class="card-rubric__header">
-              <span class="card-rubric__title">Rubric 评分</span>
-              <span class="card-rubric__score">80 / 100</span>
-            </div>
-            <div class="card-rubric__item">
-              <span class="card-rubric__marker card-rubric__marker--hit" aria-label="命中">●</span>
-              <div>
-                <div class="card-rubric__criterion">解释了 RAG 的定义</div>
-                <div class="card-rubric__comment">你提到"检索增强生成"，清晰准确。</div>
-              </div>
-              <span class="card-rubric__points">+25</span>
-            </div>
-            <div class="card-rubric__item">
-              <span class="card-rubric__marker card-rubric__marker--hit" aria-label="命中">●</span>
-              <div>
-                <div class="card-rubric__criterion">解释了为什么需要 RAG</div>
-                <div class="card-rubric__comment">提到减少幻觉，抓住了核心动机。</div>
-              </div>
-              <span class="card-rubric__points">+25</span>
-            </div>
-            <div class="card-rubric__item">
-              <span class="card-rubric__marker card-rubric__marker--partial" aria-label="部分命中">◐</span>
-              <div>
-                <div class="card-rubric__criterion">解释了 RAG 与微调的区别</div>
-                <div class="card-rubric__comment">提到"知识更新"但未深入展开。</div>
-              </div>
-              <span class="card-rubric__points">+15</span>
-            </div>
-            <div class="card-rubric__item">
-              <span class="card-rubric__marker card-rubric__marker--miss" aria-label="未提及">○</span>
-              <div>
-                <div class="card-rubric__criterion">解释了 RAG 的局限性</div>
-                <div class="card-rubric__comment">这是关键点：RAG 受检索质量限制。</div>
-              </div>
-              <span class="card-rubric__points">+15</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">card-gaps · 遗漏提示（标题"还可以补充"，非"你遗漏了"）</div>
-          <div class="card-gaps">
-            <div class="card-gaps__title">还可以补充</div>
-            <div class="card-gaps__list">
-              <div class="card-gaps__item">RAG 与微调的核心区别：参数更新 vs 上下文注入</div>
-              <div class="card-gaps__item">RAG 的检索延迟问题与缓存策略</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- =========================================================== -->
-    <!-- §6. Inputs                                                  -->
-    <!-- =========================================================== -->
-    <section class="showcase__section" id="inputs">
-      <p class="showcase__section-title">§6 · Input System</p>
-      <p class="showcase__section-desc">
-        Feynman 最终输出框使用 16px 圆角 + 22px 衬线 + 1.75 行高，营造"写作空间"仪式感。
-        字数计数器实时变色：80% 下限→金棕（预提示），90% 上限→陶土橙（温和预警）。
-      </p>
-
-      <div class="demo-row demo-row--vertical">
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">textarea-feynman · Feynman Step 6 完整输出（下限 100 / 上限 500）</div>
-          <div class="textarea-wrapper">
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">textarea-import · Markdown 粘贴框（等宽字体）</div>
             <textarea
-              class="textarea-feynman"
-              id="demo-feynman-textarea"
-              placeholder="现在，请用你自己的话完整解释：RAG 是什么、为什么需要它..."
-              aria-describedby="demo-feynman-counter"></textarea>
-            <span class="textarea-counter" id="demo-feynman-counter" aria-live="polite">0 / 100-500</span>
+              class="textarea-import"
+              placeholder="# 在此粘贴你的 Markdown...&#10;&#10;## 标题示例&#10;正文内容..."
+            ></textarea>
           </div>
-          <p style="margin-top: var(--space-3); font-size: var(--text-sm); color: var(--fg-tertiary);">
-            试着输入：<code>80 字</code> 时计数器变金棕；<code>100 字</code> 后回到灰色；
-            <code>450 字</code> 时变陶土橙。
-          </p>
         </div>
+      </section>
 
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">textarea-import · Markdown 粘贴框（等宽字体）</div>
-          <textarea
-            class="textarea-import"
-            placeholder="# 在此粘贴你的 Markdown...&#10;&#10;## 标题示例&#10;正文内容..."></textarea>
-        </div>
-      </div>
-    </section>
+      <!-- =========================================================== -->
+      <!-- §7. Progress indicators                                     -->
+      <!-- =========================================================== -->
+      <section class="showcase__section" id="progress">
+        <p class="showcase__section-title">§7 · Progress Indicators</p>
+        <p class="showcase__section-desc">
+          阶梯是<strong>唯一</strong>贯穿全局的视觉隐喻。Concept 内 Quiz 进度用 1px 细线条辅助。
+          Feynman 步骤用 6 圆点指示器（active 圆点带柔和光晕，是唯一允许外发光的元素）。
+        </p>
 
-    <!-- =========================================================== -->
-    <!-- §7. Progress indicators                                     -->
-    <!-- =========================================================== -->
-    <section class="showcase__section" id="progress">
-      <p class="showcase__section-title">§7 · Progress Indicators</p>
-      <p class="showcase__section-desc">
-        阶梯是<strong>唯一</strong>贯穿全局的视觉隐喻。Concept 内 Quiz 进度用 1px 细线条辅助。
-        Feynman 步骤用 6 圆点指示器（active 圆点带柔和光晕，是唯一允许外发光的元素）。
-      </p>
-
-      <div class="demo-row demo-row--vertical">
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">staircase · Module 阶梯（已完成 Concept A → 进行中 B → 锁定其余）</div>
-          <ol class="staircase" role="progressbar" aria-valuenow="37" aria-valuemin="0" aria-valuemax="100" aria-label="Module 学习进度">
-            <li class="stair stair--completed" aria-label="Concept A 已完成">
-              <span class="stair__label">A</span>
-            </li>
-            <li class="stair stair--completed" aria-label="Concept A 已完成">
-              <span class="stair__label">A</span>
-            </li>
-            <li class="stair stair--active" aria-label="Concept B 进行中">
-              <span class="stair__label">B</span>
-            </li>
-            <li class="stair stair--active" aria-label="Concept B 进行中">
-              <span class="stair__label">B</span>
-            </li>
-            <li class="stair stair--locked" aria-label="Concept C 待解锁">
-              <span class="stair__label">C</span>
-            </li>
-            <li class="stair stair--locked staircase--challenge" aria-label="Challenge 待解锁">
-              <span class="stair__label">Chl</span>
-            </li>
-            <li class="stair stair--locked staircase--feynman" aria-label="Feynman 待解锁">
-              <span class="stair__label">F</span>
-            </li>
-          </ol>
-        </div>
-
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">staircase · 全部完成态（含一个 skipped，与 completed 几乎无差异）</div>
-          <ol class="staircase" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
-            <li class="stair stair--completed"><span class="stair__label">A</span></li>
-            <li class="stair stair--completed"><span class="stair__label">A</span></li>
-            <li class="stair stair--skipped" aria-label="Concept B 跳过"><span class="stair__label">B</span></li>
-            <li class="stair stair--completed"><span class="stair__label">B</span></li>
-            <li class="stair stair--completed"><span class="stair__label">C</span></li>
-            <li class="stair stair--completed staircase--challenge"><span class="stair__label">Chl</span></li>
-            <li class="stair stair--completed staircase--feynman"><span class="stair__label">F</span></li>
-          </ol>
-          <p style="margin-top: var(--space-5); font-size: var(--text-sm); color: var(--fg-tertiary);">
-            第 3 格（B-1）是"失败但跳过"状态，与已完成格在视觉上几乎无差异——
-            避免给用户制造"我留下了瑕疵"的负面感（M3 错误即学习）。
-          </p>
-        </div>
-
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">progress-thin · Concept 内细线进度（37.5%）</div>
-          <div style="max-width: 480px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
-              <span class="meta-mono">Concept A · 第 3 步 / 共 8 步</span>
+        <div class="demo-row demo-row--vertical">
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">
+              staircase · Module 阶梯（已完成 Concept A → 进行中 B → 锁定其余）
             </div>
-            <div class="progress-thin">
-              <div class="progress-thin__fill" style="width: 37.5%;"></div>
+            <ol
+              class="staircase"
+              role="progressbar"
+              aria-valuenow="37"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-label="Module 学习进度"
+            >
+              <li class="stair stair--completed" aria-label="Concept A 已完成">
+                <span class="stair__label">A</span>
+              </li>
+              <li class="stair stair--completed" aria-label="Concept A 已完成">
+                <span class="stair__label">A</span>
+              </li>
+              <li class="stair stair--active" aria-label="Concept B 进行中">
+                <span class="stair__label">B</span>
+              </li>
+              <li class="stair stair--active" aria-label="Concept B 进行中">
+                <span class="stair__label">B</span>
+              </li>
+              <li class="stair stair--locked" aria-label="Concept C 待解锁">
+                <span class="stair__label">C</span>
+              </li>
+              <li class="stair stair--locked staircase--challenge" aria-label="Challenge 待解锁">
+                <span class="stair__label">Chl</span>
+              </li>
+              <li class="stair stair--locked staircase--feynman" aria-label="Feynman 待解锁">
+                <span class="stair__label">F</span>
+              </li>
+            </ol>
+          </div>
+
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">
+              staircase · 全部完成态（含一个 skipped，与 completed 几乎无差异）
+            </div>
+            <ol
+              class="staircase"
+              role="progressbar"
+              aria-valuenow="100"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <li class="stair stair--completed"><span class="stair__label">A</span></li>
+              <li class="stair stair--completed"><span class="stair__label">A</span></li>
+              <li class="stair stair--skipped" aria-label="Concept B 跳过">
+                <span class="stair__label">B</span>
+              </li>
+              <li class="stair stair--completed"><span class="stair__label">B</span></li>
+              <li class="stair stair--completed"><span class="stair__label">C</span></li>
+              <li class="stair stair--completed staircase--challenge">
+                <span class="stair__label">Chl</span>
+              </li>
+              <li class="stair stair--completed staircase--feynman">
+                <span class="stair__label">F</span>
+              </li>
+            </ol>
+            <p
+              style="
+                margin-top: var(--space-5);
+                font-size: var(--text-sm);
+                color: var(--fg-tertiary);
+              "
+            >
+              第 3 格（B-1）是"失败但跳过"状态，与已完成格在视觉上几乎无差异——
+              避免给用户制造"我留下了瑕疵"的负面感（M3 错误即学习）。
+            </p>
+          </div>
+
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">progress-thin · Concept 内细线进度（37.5%）</div>
+            <div style="max-width: 480px">
+              <div
+                style="display: flex; justify-content: space-between; margin-bottom: var(--space-2)"
+              >
+                <span class="meta-mono">Concept A · 第 3 步 / 共 8 步</span>
+              </div>
+              <div class="progress-thin">
+                <div class="progress-thin__fill" style="width: 37.5%"></div>
+              </div>
             </div>
           </div>
+
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">stepper-feynman · Feynman 步骤指示器（当前在 Step 3）</div>
+            <ol class="stepper-feynman" style="max-width: 360px" aria-label="Feynman 步骤进度">
+              <li
+                class="stepper-feynman__step stepper-feynman__step--completed"
+                aria-label="Step 1 已完成"
+              ></li>
+              <li class="stepper-feynman__connector" aria-hidden="true"></li>
+              <li
+                class="stepper-feynman__step stepper-feynman__step--completed"
+                aria-label="Step 2 已完成"
+              ></li>
+              <li class="stepper-feynman__connector" aria-hidden="true"></li>
+              <li
+                class="stepper-feynman__step stepper-feynman__step--active"
+                aria-label="Step 3 进行中"
+              ></li>
+              <li class="stepper-feynman__connector" aria-hidden="true"></li>
+              <li class="stepper-feynman__step" aria-label="Step 4 待解锁"></li>
+              <li class="stepper-feynman__connector" aria-hidden="true"></li>
+              <li class="stepper-feynman__step" aria-label="Step 5 待解锁"></li>
+              <li class="stepper-feynman__connector" aria-hidden="true"></li>
+              <li class="stepper-feynman__step" aria-label="Step 6 待解锁"></li>
+            </ol>
+          </div>
         </div>
+      </section>
 
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">stepper-feynman · Feynman 步骤指示器（当前在 Step 3）</div>
-          <ol class="stepper-feynman" style="max-width: 360px;" aria-label="Feynman 步骤进度">
-            <li class="stepper-feynman__step stepper-feynman__step--completed" aria-label="Step 1 已完成"></li>
-            <li class="stepper-feynman__connector" aria-hidden="true"></li>
-            <li class="stepper-feynman__step stepper-feynman__step--completed" aria-label="Step 2 已完成"></li>
-            <li class="stepper-feynman__connector" aria-hidden="true"></li>
-            <li class="stepper-feynman__step stepper-feynman__step--active" aria-label="Step 3 进行中"></li>
-            <li class="stepper-feynman__connector" aria-hidden="true"></li>
-            <li class="stepper-feynman__step" aria-label="Step 4 待解锁"></li>
-            <li class="stepper-feynman__connector" aria-hidden="true"></li>
-            <li class="stepper-feynman__step" aria-label="Step 5 待解锁"></li>
-            <li class="stepper-feynman__connector" aria-hidden="true"></li>
-            <li class="stepper-feynman__step" aria-label="Step 6 待解锁"></li>
-          </ol>
-        </div>
-      </div>
-    </section>
+      <!-- =========================================================== -->
+      <!-- §8. Feedback                                                -->
+      <!-- =========================================================== -->
+      <section class="showcase__section" id="feedback">
+        <p class="showcase__section-title">§8 · Feedback Components</p>
+        <p class="showcase__section-desc">
+          解释面板用 <code>grid-template-rows: 0fr → 1fr</code> 丝滑展开（V1.1 修订， 性能优于
+          max-height）。反馈文案 ≤ 50 字，鼓励性语气，绝不出现感叹号、emoji、"恭喜"。
+        </p>
 
-    <!-- =========================================================== -->
-    <!-- §8. Feedback                                                -->
-    <!-- =========================================================== -->
-    <section class="showcase__section" id="feedback">
-      <p class="showcase__section-title">§8 · Feedback Components</p>
-      <p class="showcase__section-desc">
-        解释面板用 <code>grid-template-rows: 0fr → 1fr</code> 丝滑展开（V1.1 修订，
-        性能优于 max-height）。反馈文案 ≤ 50 字，鼓励性语气，绝不出现感叹号、emoji、"恭喜"。
-      </p>
+        <div class="demo-row demo-row--vertical">
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">panel-explanation · 解释面板（点击按钮切换展开/收起）</div>
 
-      <div class="demo-row demo-row--vertical">
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">panel-explanation · 解释面板（点击按钮切换展开/收起）</div>
+            <div style="margin-bottom: var(--space-3)">
+              <button class="btn-secondary" id="demo-toggle-panel" type="button">
+                展开 / 收起解释面板
+              </button>
+            </div>
 
-          <div style="margin-bottom: var(--space-3);">
-            <button class="btn-secondary" id="demo-toggle-panel" type="button">展开 / 收起解释面板</button>
+            <div class="text-feedback" style="margin-bottom: var(--space-3)">很好。</div>
+
+            <div class="panel-explanation-wrapper" id="demo-panel-wrapper">
+              <div class="panel-explanation">
+                <div class="panel-explanation__inner">
+                  Few-shot 通过提供示例引导模型输出格式，让模型模仿示例的结构。 其他选项中，B 是
+                  zero-shot（无示例），C 是 RLHF（基于人类反馈的强化学习）， D 是
+                  fine-tuning（参数微调）。注意 RAG 与 fine-tuning 的本质差异： RAG
+                  注入上下文，fine-tuning 更新参数。
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="text-feedback" style="margin-bottom: var(--space-3);">很好。</div>
-
-          <div class="panel-explanation-wrapper" id="demo-panel-wrapper">
-            <div class="panel-explanation">
-              <div class="panel-explanation__inner">
-                Few-shot 通过提供示例引导模型输出格式，让模型模仿示例的结构。
-                其他选项中，B 是 zero-shot（无示例），C 是 RLHF（基于人类反馈的强化学习），
-                D 是 fine-tuning（参数微调）。注意 RAG 与 fine-tuning 的本质差异：
-                RAG 注入上下文，fine-tuning 更新参数。
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">text-feedback · 反馈短语库（鼓励性，≤ 50 字）</div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-3)">
+              <div class="text-feedback" style="animation: none; opacity: 1; transform: none">
+                很好。
+              </div>
+              <div class="text-feedback" style="animation: none; opacity: 1; transform: none">
+                正是这样。
+              </div>
+              <div class="text-feedback" style="animation: none; opacity: 1; transform: none">
+                对。
+              </div>
+              <div class="text-feedback" style="animation: none; opacity: 1; transform: none">
+                差一点。关键在于：Few-shot 必须提供示例。
+              </div>
+              <div class="text-feedback" style="animation: none; opacity: 1; transform: none">
+                再看一遍。
+              </div>
+              <div class="text-feedback" style="animation: none; opacity: 1; transform: none">
+                我们继续下一个吧。这个概念可以在费曼阶段再回来。
               </div>
             </div>
           </div>
         </div>
+      </section>
 
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">text-feedback · 反馈短语库（鼓励性，≤ 50 字）</div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-3);">
-            <div class="text-feedback" style="animation: none; opacity: 1; transform: none;">很好。</div>
-            <div class="text-feedback" style="animation: none; opacity: 1; transform: none;">正是这样。</div>
-            <div class="text-feedback" style="animation: none; opacity: 1; transform: none;">对。</div>
-            <div class="text-feedback" style="animation: none; opacity: 1; transform: none;">差一点。关键在于：Few-shot 必须提供示例。</div>
-            <div class="text-feedback" style="animation: none; opacity: 1; transform: none;">再看一遍。</div>
-            <div class="text-feedback" style="animation: none; opacity: 1; transform: none;">我们继续下一个吧。这个概念可以在费曼阶段再回来。</div>
+      <!-- =========================================================== -->
+      <!-- §9. Stage banners                                           -->
+      <!-- =========================================================== -->
+      <section class="showcase__section" id="stages">
+        <p class="showcase__section-title">§9 · Stage Transition Banners</p>
+        <p class="showcase__section-desc">
+          进入 Challenge / Feynman 阶段时从顶部滑入，停留 2 秒淡出。 Challenge 用加深金棕，Feynman
+          用提亮金棕，强化阶段切换仪式感。
+        </p>
+
+        <div class="demo-row demo-row--vertical">
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">stage-banner · Challenge 阶段</div>
+            <div class="stage-banner" role="status">综合挑战 · 3 道跨概念题</div>
+          </div>
+
+          <div class="demo-block demo-block--full">
+            <div class="demo-label">stage-banner · Feynman 阶段</div>
+            <div class="stage-banner stage-banner--feynman" role="status">
+              模块费曼 · 你已到达 Module 顶点
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- =========================================================== -->
-    <!-- §9. Stage banners                                           -->
-    <!-- =========================================================== -->
-    <section class="showcase__section" id="stages">
-      <p class="showcase__section-title">§9 · Stage Transition Banners</p>
-      <p class="showcase__section-desc">
-        进入 Challenge / Feynman 阶段时从顶部滑入，停留 2 秒淡出。
-        Challenge 用加深金棕，Feynman 用提亮金棕，强化阶段切换仪式感。
+      <hr class="section-divider section-divider--center" style="margin: var(--space-10) auto" />
+
+      <p
+        style="
+          text-align: center;
+          color: var(--fg-tertiary);
+          font-family: var(--font-mono);
+          font-size: var(--text-xs);
+          letter-spacing: var(--tracking-mono);
+        "
+      >
+        DESIGN SYSTEM · PHASE 1 · END
       </p>
+      <p
+        style="
+          text-align: center;
+          color: var(--fg-quaternary);
+          font-family: var(--font-mono);
+          font-size: 11px;
+          margin-top: var(--space-3);
+        "
+      >
+        对应 docs/ui-design/DESIGN-SPEC.md V1.1
+      </p>
+    </main>
 
-      <div class="demo-row demo-row--vertical">
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">stage-banner · Challenge 阶段</div>
-          <div class="stage-banner" role="status">
-            综合挑战 · 3 道跨概念题
-          </div>
-        </div>
+    <!-- ============= Demo JavaScript ============= -->
+    <script>
+      // ============================================================
+      // §1. Choice option interactive demo
+      //    Triggers .is-line-drawn for the scaleX() animation
+      // ============================================================
+      ;(function setupChoiceDemo() {
+        const options = document.querySelectorAll('.option-choice[data-option]')
+        const correctLetter = 'A'
 
-        <div class="demo-block demo-block--full">
-          <div class="demo-label">stage-banner · Feynman 阶段</div>
-          <div class="stage-banner stage-banner--feynman" role="status">
-            模块费曼 · 你已到达 Module 顶点
-          </div>
-        </div>
-      </div>
-    </section>
+        function clearAll() {
+          options.forEach((opt) => {
+            opt.classList.remove(
+              'option-choice--selected',
+              'option-choice--correct',
+              'option-choice--wrong',
+              'is-line-drawn',
+            )
+          })
+        }
 
-    <hr class="section-divider section-divider--center" style="margin: var(--space-10) auto;" />
-
-    <p style="text-align: center; color: var(--fg-tertiary); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: var(--tracking-mono);">
-      DESIGN SYSTEM · PHASE 1 · END
-    </p>
-    <p style="text-align: center; color: var(--fg-quaternary); font-family: var(--font-mono); font-size: 11px; margin-top: var(--space-3);">
-      对应 docs/ui-design/DESIGN-SPEC.md V1.1
-    </p>
-
-  </main>
-
-  <!-- ============= Demo JavaScript ============= -->
-  <script>
-    // ============================================================
-    // §1. Choice option interactive demo
-    //    Triggers .is-line-drawn for the scaleX() animation
-    // ============================================================
-    (function setupChoiceDemo() {
-      const options = document.querySelectorAll('.option-choice[data-option]');
-      const correctLetter = 'A';
-
-      function clearAll() {
-        options.forEach(opt => {
-          opt.classList.remove(
-            'option-choice--selected',
-            'option-choice--correct',
-            'option-choice--wrong',
-            'is-line-drawn'
-          );
-        });
-      }
-
-      function markCorrect(letter) {
-        clearAll();
-        const target = document.querySelector(`.option-choice[data-option="${letter}"]`);
-        if (!target) return;
-        target.classList.add('option-choice--correct');
-        // Trigger line draw on next frame so the transition fires
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => target.classList.add('is-line-drawn'));
-        });
-      }
-
-      function markWrong(selectedLetter, correctLetter) {
-        clearAll();
-        const selected = document.querySelector(`.option-choice[data-option="${selectedLetter}"]`);
-        const correct = document.querySelector(`.option-choice[data-option="${correctLetter}"]`);
-        if (selected) selected.classList.add('option-choice--wrong');
-        if (correct) {
-          correct.classList.add('option-choice--correct');
+        function markCorrect(letter) {
+          clearAll()
+          const target = document.querySelector(`.option-choice[data-option="${letter}"]`)
+          if (!target) return
+          target.classList.add('option-choice--correct')
+          // Trigger line draw on next frame so the transition fires
           requestAnimationFrame(() => {
-            requestAnimationFrame(() => correct.classList.add('is-line-drawn'));
-          });
-        }
-      }
-
-      document.getElementById('demo-correct').addEventListener('click', () => markCorrect('A'));
-      document.getElementById('demo-wrong').addEventListener('click', () => markWrong('B', 'A'));
-      document.getElementById('demo-reset').addEventListener('click', clearAll);
-
-      // Click option → toggle selected state (for visual exploration)
-      options.forEach(opt => {
-        opt.addEventListener('click', () => {
-          if (opt.classList.contains('option-choice--correct') ||
-              opt.classList.contains('option-choice--wrong')) return;
-          opt.classList.toggle('option-choice--selected');
-        });
-      });
-    })();
-
-    // ============================================================
-    // §2. Explanation panel toggle (grid-template-rows demo)
-    // ============================================================
-    (function setupPanelDemo() {
-      const wrapper = document.getElementById('demo-panel-wrapper');
-      const toggleBtn = document.getElementById('demo-toggle-panel');
-
-      // Start open so visitor sees content
-      wrapper.classList.add('panel-explanation-wrapper--open');
-
-      toggleBtn.addEventListener('click', () => {
-        wrapper.classList.toggle('panel-explanation-wrapper--open');
-      });
-    })();
-
-    // ============================================================
-    // §2.5 Sortable drag-and-drop + arrow controls (V1.1 §4.2.2)
-    //    Zero-dependency HTML5 Drag and Drop API.
-    //    - Desktop: drag via handle (whole row draggable)
-    //    - Mobile fallback: tap ↑ / ↓ arrows
-    // ============================================================
-    (function setupSortableDemo() {
-      const containers = document.querySelectorAll('.option-sort__arrows');
-
-      containers.forEach((arrowsContainer) => {
-        // The parent <div class="option-sort__arrows"> holds 2 arrow buttons.
-        // Each .option-sort is the arrows' parentElement.parentElement... let's find the list container.
-        // Layout: <ol? no — we used plain divs. Container is the parent of all .option-sort elements.
-        const sortRow = arrowsContainer.closest('.option-sort');
-        if (!sortRow) return;
-
-        const list = sortRow.parentElement;  // the wrapper div containing all .option-sort rows
-        const rows = Array.from(list.children).filter(el => el.classList.contains('option-sort'));
-
-        // Re-index and update arrow disabled state
-        function reindex() {
-          const items = Array.from(list.children).filter(el => el.classList.contains('option-sort'));
-          items.forEach((row, i) => {
-            const indexEl = row.querySelector('.option-sort__index');
-            if (indexEl) indexEl.textContent = String(i + 1);
-
-            const [upBtn, downBtn] = row.querySelectorAll('.option-sort__arrow');
-            if (upBtn)   upBtn.disabled   = (i === 0);
-            if (downBtn) downBtn.disabled  = (i === items.length - 1);
-          });
+            requestAnimationFrame(() => target.classList.add('is-line-drawn'))
+          })
         }
 
-        // ---- Arrow click handlers ----
-        const [upBtn, downBtn] = arrowsContainer.querySelectorAll('.option-sort__arrow');
-        if (upBtn) {
-          upBtn.addEventListener('click', () => {
-            const prev = sortRow.previousElementSibling;
-            if (prev && prev.classList.contains('option-sort')) {
-              list.insertBefore(sortRow, prev);
-              reindex();
-            }
-          });
-        }
-        if (downBtn) {
-          downBtn.addEventListener('click', () => {
-            const next = sortRow.nextElementSibling;
-            if (next && next.classList.contains('option-sort')) {
-              list.insertBefore(next, sortRow);
-              reindex();
-            }
-          });
-        }
-      });
-
-      // ---- Native HTML5 drag-and-drop (desktop) ----
-      // Attach once per list. Find all unique list containers.
-      const lists = new Set();
-      document.querySelectorAll('.option-sort').forEach(row => {
-        lists.add(row.parentElement);
-      });
-
-      lists.forEach((list) => {
-        let draggedRow = null;
-
-        function reindex() {
-          const items = Array.from(list.children).filter(el => el.classList.contains('option-sort'));
-          items.forEach((row, i) => {
-            const indexEl = row.querySelector('.option-sort__index');
-            if (indexEl) indexEl.textContent = String(i + 1);
-
-            const arrows = row.querySelectorAll('.option-sort__arrow');
-            if (arrows[0]) arrows[0].disabled = (i === 0);
-            if (arrows[1]) arrows[1].disabled = (i === items.length - 1);
-          });
-        }
-
-        list.querySelectorAll('.option-sort').forEach((row) => {
-          row.draggable = true;
-
-          // Prevent buttons inside the row from initiating drag
-          // (so users can click ↑ ↓ without triggering HTML5 drag)
-          row.querySelectorAll('button').forEach(btn => {
-            btn.draggable = false;
-          });
-
-          row.addEventListener('dragstart', (e) => {
-            draggedRow = row;
-            row.classList.add('is-dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            // Some browsers need setData to fire subsequent dragover events
-            try { e.dataTransfer.setData('text/plain', ''); } catch (_) {}
-          });
-
-          row.addEventListener('dragend', () => {
-            row.classList.remove('is-dragging');
-            // Clean up any leftover drop indicators
-            list.querySelectorAll('.option-sort').forEach(r => {
-              r.style.borderTop = '';
-              r.style.borderBottom = '';
-            });
-            draggedRow = null;
-            reindex();
-          });
-
-          row.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            if (!draggedRow || draggedRow === row) return;
-            e.dataTransfer.dropEffect = 'move';
-
-            // Decide if cursor is in upper or lower half of the row
-            const rect = row.getBoundingClientRect();
-            const midpoint = rect.top + rect.height / 2;
-            const isAbove = e.clientY < midpoint;
-
-            // Visual hint: thin line where the drop will land
-            row.style.borderTop = '';
-            row.style.borderBottom = '';
-            if (isAbove) {
-              row.style.borderTop = `2px solid var(--accent-primary)`;
-            } else {
-              row.style.borderBottom = `2px solid var(--accent-primary)`;
-            }
-          });
-
-          row.addEventListener('dragleave', () => {
-            row.style.borderTop = '';
-            row.style.borderBottom = '';
-          });
-
-          row.addEventListener('drop', (e) => {
-            e.preventDefault();
-            if (!draggedRow || draggedRow === row) return;
-
-            const rect = row.getBoundingClientRect();
-            const midpoint = rect.top + rect.height / 2;
-            const isAbove = e.clientY < midpoint;
-
-            if (isAbove) {
-              list.insertBefore(draggedRow, row);
-            } else {
-              list.insertBefore(draggedRow, row.nextSibling);
-            }
-            // reindex called in dragend
-          });
-        });
-      });
-    })();
-
-    // ============================================================
-    // §3. Feynman textarea counter — V1.1 §4.4.2 progressive states
-    //    < 80% min        → --fg-tertiary (gray)
-    //    80-100% min      → --accent-primary (golden brown, "almost there")
-    //    100-90% max      → --fg-tertiary (gray, valid)
-    //    >= 90% max       → --warning (terracotta, gentle warning)
-    // ============================================================
-    (function setupFeynmanCounter() {
-      const textarea = document.getElementById('demo-feynman-textarea');
-      const counter = document.getElementById('demo-feynman-counter');
-      const MIN = 100;
-      const MAX = 500;
-
-      function update() {
-        const len = textarea.value.length;
-        counter.textContent = `${len} / ${MIN}-${MAX}`;
-
-        counter.classList.remove(
-          'textarea-counter--approaching-min',
-          'textarea-counter--approaching-max'
-        );
-
-        if (len >= MAX * 0.9) {
-          counter.classList.add('textarea-counter--approaching-max');
-        } else if (len >= MIN * 0.8 && len < MIN) {
-          counter.classList.add('textarea-counter--approaching-min');
-        }
-      }
-
-      textarea.addEventListener('input', update);
-      update();
-    })();
-
-    // ============================================================
-    // §4. VisualViewport keyboard adaptation (V1.1 §7.3.6)
-    //    Sets --keyboard-height and toggles .keyboard-open
-    // ============================================================
-    (function setupKeyboardAdaptation() {
-      if (!window.visualViewport) return;
-      const viewport = window.visualViewport;
-
-      const onResize = () => {
-        const keyboardHeight = window.innerHeight - viewport.height;
-        if (keyboardHeight > 100) {
-          document.body.classList.add('keyboard-open');
-          document.documentElement.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
-          const active = document.activeElement;
-          if (active && typeof active.scrollIntoView === 'function') {
-            active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        function markWrong(selectedLetter, correctLetter) {
+          clearAll()
+          const selected = document.querySelector(`.option-choice[data-option="${selectedLetter}"]`)
+          const correct = document.querySelector(`.option-choice[data-option="${correctLetter}"]`)
+          if (selected) selected.classList.add('option-choice--wrong')
+          if (correct) {
+            correct.classList.add('option-choice--correct')
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => correct.classList.add('is-line-drawn'))
+            })
           }
-        } else {
-          document.body.classList.remove('keyboard-open');
-          document.documentElement.style.removeProperty('--keyboard-height');
         }
-      };
 
-      viewport.addEventListener('resize', onResize);
-      viewport.addEventListener('scroll', onResize);
-    })();
-  </script>
-</body>
+        document.getElementById('demo-correct').addEventListener('click', () => markCorrect('A'))
+        document.getElementById('demo-wrong').addEventListener('click', () => markWrong('B', 'A'))
+        document.getElementById('demo-reset').addEventListener('click', clearAll)
+
+        // Click option → toggle selected state (for visual exploration)
+        options.forEach((opt) => {
+          opt.addEventListener('click', () => {
+            if (
+              opt.classList.contains('option-choice--correct') ||
+              opt.classList.contains('option-choice--wrong')
+            )
+              return
+            opt.classList.toggle('option-choice--selected')
+          })
+        })
+      })()
+
+      // ============================================================
+      // §2. Explanation panel toggle (grid-template-rows demo)
+      // ============================================================
+      ;(function setupPanelDemo() {
+        const wrapper = document.getElementById('demo-panel-wrapper')
+        const toggleBtn = document.getElementById('demo-toggle-panel')
+
+        // Start open so visitor sees content
+        wrapper.classList.add('panel-explanation-wrapper--open')
+
+        toggleBtn.addEventListener('click', () => {
+          wrapper.classList.toggle('panel-explanation-wrapper--open')
+        })
+      })()
+
+      // ============================================================
+      // §2.5 Sortable drag-and-drop + arrow controls (V1.1 §4.2.2)
+      //    Zero-dependency HTML5 Drag and Drop API.
+      //    - Desktop: drag via handle (whole row draggable)
+      //    - Mobile fallback: tap ↑ / ↓ arrows
+      // ============================================================
+      ;(function setupSortableDemo() {
+        const containers = document.querySelectorAll('.option-sort__arrows')
+
+        containers.forEach((arrowsContainer) => {
+          // The parent <div class="option-sort__arrows"> holds 2 arrow buttons.
+          // Each .option-sort is the arrows' parentElement.parentElement... let's find the list container.
+          // Layout: <ol? no — we used plain divs. Container is the parent of all .option-sort elements.
+          const sortRow = arrowsContainer.closest('.option-sort')
+          if (!sortRow) return
+
+          const list = sortRow.parentElement // the wrapper div containing all .option-sort rows
+          const rows = Array.from(list.children).filter((el) =>
+            el.classList.contains('option-sort'),
+          )
+
+          // Re-index and update arrow disabled state
+          function reindex() {
+            const items = Array.from(list.children).filter((el) =>
+              el.classList.contains('option-sort'),
+            )
+            items.forEach((row, i) => {
+              const indexEl = row.querySelector('.option-sort__index')
+              if (indexEl) indexEl.textContent = String(i + 1)
+
+              const [upBtn, downBtn] = row.querySelectorAll('.option-sort__arrow')
+              if (upBtn) upBtn.disabled = i === 0
+              if (downBtn) downBtn.disabled = i === items.length - 1
+            })
+          }
+
+          // ---- Arrow click handlers ----
+          const [upBtn, downBtn] = arrowsContainer.querySelectorAll('.option-sort__arrow')
+          if (upBtn) {
+            upBtn.addEventListener('click', () => {
+              const prev = sortRow.previousElementSibling
+              if (prev && prev.classList.contains('option-sort')) {
+                list.insertBefore(sortRow, prev)
+                reindex()
+              }
+            })
+          }
+          if (downBtn) {
+            downBtn.addEventListener('click', () => {
+              const next = sortRow.nextElementSibling
+              if (next && next.classList.contains('option-sort')) {
+                list.insertBefore(next, sortRow)
+                reindex()
+              }
+            })
+          }
+        })
+
+        // ---- Native HTML5 drag-and-drop (desktop) ----
+        // Attach once per list. Find all unique list containers.
+        const lists = new Set()
+        document.querySelectorAll('.option-sort').forEach((row) => {
+          lists.add(row.parentElement)
+        })
+
+        lists.forEach((list) => {
+          let draggedRow = null
+
+          function reindex() {
+            const items = Array.from(list.children).filter((el) =>
+              el.classList.contains('option-sort'),
+            )
+            items.forEach((row, i) => {
+              const indexEl = row.querySelector('.option-sort__index')
+              if (indexEl) indexEl.textContent = String(i + 1)
+
+              const arrows = row.querySelectorAll('.option-sort__arrow')
+              if (arrows[0]) arrows[0].disabled = i === 0
+              if (arrows[1]) arrows[1].disabled = i === items.length - 1
+            })
+          }
+
+          list.querySelectorAll('.option-sort').forEach((row) => {
+            row.draggable = true
+
+            // Prevent buttons inside the row from initiating drag
+            // (so users can click ↑ ↓ without triggering HTML5 drag)
+            row.querySelectorAll('button').forEach((btn) => {
+              btn.draggable = false
+            })
+
+            row.addEventListener('dragstart', (e) => {
+              draggedRow = row
+              row.classList.add('is-dragging')
+              e.dataTransfer.effectAllowed = 'move'
+              // Some browsers need setData to fire subsequent dragover events
+              try {
+                e.dataTransfer.setData('text/plain', '')
+              } catch (_) {}
+            })
+
+            row.addEventListener('dragend', () => {
+              row.classList.remove('is-dragging')
+              // Clean up any leftover drop indicators
+              list.querySelectorAll('.option-sort').forEach((r) => {
+                r.style.borderTop = ''
+                r.style.borderBottom = ''
+              })
+              draggedRow = null
+              reindex()
+            })
+
+            row.addEventListener('dragover', (e) => {
+              e.preventDefault()
+              if (!draggedRow || draggedRow === row) return
+              e.dataTransfer.dropEffect = 'move'
+
+              // Decide if cursor is in upper or lower half of the row
+              const rect = row.getBoundingClientRect()
+              const midpoint = rect.top + rect.height / 2
+              const isAbove = e.clientY < midpoint
+
+              // Visual hint: thin line where the drop will land
+              row.style.borderTop = ''
+              row.style.borderBottom = ''
+              if (isAbove) {
+                row.style.borderTop = `2px solid var(--accent-primary)`
+              } else {
+                row.style.borderBottom = `2px solid var(--accent-primary)`
+              }
+            })
+
+            row.addEventListener('dragleave', () => {
+              row.style.borderTop = ''
+              row.style.borderBottom = ''
+            })
+
+            row.addEventListener('drop', (e) => {
+              e.preventDefault()
+              if (!draggedRow || draggedRow === row) return
+
+              const rect = row.getBoundingClientRect()
+              const midpoint = rect.top + rect.height / 2
+              const isAbove = e.clientY < midpoint
+
+              if (isAbove) {
+                list.insertBefore(draggedRow, row)
+              } else {
+                list.insertBefore(draggedRow, row.nextSibling)
+              }
+              // reindex called in dragend
+            })
+          })
+        })
+      })()
+
+      // ============================================================
+      // §3. Feynman textarea counter — V1.1 §4.4.2 progressive states
+      //    < 80% min        → --fg-tertiary (gray)
+      //    80-100% min      → --accent-primary (golden brown, "almost there")
+      //    100-90% max      → --fg-tertiary (gray, valid)
+      //    >= 90% max       → --warning (terracotta, gentle warning)
+      // ============================================================
+      ;(function setupFeynmanCounter() {
+        const textarea = document.getElementById('demo-feynman-textarea')
+        const counter = document.getElementById('demo-feynman-counter')
+        const MIN = 100
+        const MAX = 500
+
+        function update() {
+          const len = textarea.value.length
+          counter.textContent = `${len} / ${MIN}-${MAX}`
+
+          counter.classList.remove(
+            'textarea-counter--approaching-min',
+            'textarea-counter--approaching-max',
+          )
+
+          if (len >= MAX * 0.9) {
+            counter.classList.add('textarea-counter--approaching-max')
+          } else if (len >= MIN * 0.8 && len < MIN) {
+            counter.classList.add('textarea-counter--approaching-min')
+          }
+        }
+
+        textarea.addEventListener('input', update)
+        update()
+      })()
+
+      // ============================================================
+      // §4. VisualViewport keyboard adaptation (V1.1 §7.3.6)
+      //    Sets --keyboard-height and toggles .keyboard-open
+      // ============================================================
+      ;(function setupKeyboardAdaptation() {
+        if (!window.visualViewport) return
+        const viewport = window.visualViewport
+
+        const onResize = () => {
+          const keyboardHeight = window.innerHeight - viewport.height
+          if (keyboardHeight > 100) {
+            document.body.classList.add('keyboard-open')
+            document.documentElement.style.setProperty('--keyboard-height', `${keyboardHeight}px`)
+            const active = document.activeElement
+            if (active && typeof active.scrollIntoView === 'function') {
+              active.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }
+          } else {
+            document.body.classList.remove('keyboard-open')
+            document.documentElement.style.removeProperty('--keyboard-height')
+          }
+        }
+
+        viewport.addEventListener('resize', onResize)
+        viewport.addEventListener('scroll', onResize)
+      })()
+    </script>
+  </body>
 </html>

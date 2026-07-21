@@ -71,6 +71,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
   const [isGuessed, setIsGuessed] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [submittedAnswer, setSubmittedAnswer] = useState<string | null>(null)
 
   // 获取当前应该显示的 Challenge quiz
   const slotQuiz = currentModule?.challengeQuizzes?.[quizIndex]
@@ -84,6 +85,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
     setIsGuessed(false)
     setError(null)
     setHistoryOpen(false)
+    setSubmittedAnswer(null)
     // 如果 currentQuiz 不属于当前 challenge slot，重置为 slot quiz
     if (slotQuiz && (!currentQuiz || currentQuiz.id !== slotQuiz.id)) {
       if (!currentQuiz || currentQuiz.conceptId !== 'challenge') {
@@ -112,6 +114,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
 
       setPhase('evaluating')
       setError(null)
+      setSubmittedAnswer(userAnswer)
 
       // 一次性快照 attemptVersion，避免记录作答时出现竞态
       const attemptVersion = getNextAttemptVersion(slotId)
@@ -119,7 +122,6 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
       try {
         const result = await evaluateAnswerAsync(quiz, userAnswer)
 
-        // 记录 AttemptRecord（attemptVersion 已在函数入口快照）
         const attempt: AttemptRecord = {
           id:
             typeof crypto !== 'undefined' && crypto.randomUUID
@@ -333,7 +335,12 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
         {/* Quiz */}
         <div className="pt-2 space-y-4">
           <BackgroundPanel background={quiz.background} />
-          <QuizRenderer quiz={quiz} disabled={phase !== 'answering'} onAnswer={handleAnswer} />
+          <QuizRenderer
+            quiz={quiz}
+            disabled={phase !== 'answering'}
+            onAnswer={handleAnswer}
+            submittedAnswer={phase !== 'answering' ? (submittedAnswer ?? undefined) : undefined}
+          />
         </div>
 
         {/* Evaluating */}

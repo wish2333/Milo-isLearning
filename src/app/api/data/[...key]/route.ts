@@ -79,10 +79,7 @@ function isSameOrigin(req: NextRequest): boolean {
   return originHost === expectedHost
 }
 
-export async function GET(
-  req: NextRequest,
-  ctx: { params: Promise<{ key?: string[] }> },
-) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ key?: string[] }> }) {
   if (!isStorageEnabled) {
     return NextResponse.json({ enabled: false }, { status: 404 })
   }
@@ -106,10 +103,7 @@ export async function GET(
   })
 }
 
-export async function PUT(
-  req: NextRequest,
-  ctx: { params: Promise<{ key?: string[] }> },
-) {
+export async function PUT(req: NextRequest, ctx: { params: Promise<{ key?: string[] }> }) {
   if (!isStorageEnabled) {
     return NextResponse.json({ enabled: false }, { status: 404 })
   }
@@ -136,10 +130,7 @@ export async function PUT(
   return new Response(null, { status: 204 })
 }
 
-export async function DELETE(
-  req: NextRequest,
-  ctx: { params: Promise<{ key?: string[] }> },
-) {
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ key?: string[] }> }) {
   if (!isStorageEnabled) {
     return NextResponse.json({ enabled: false }, { status: 404 })
   }

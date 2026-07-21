@@ -1,13 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="color-scheme" content="dark" />
-  <meta name="theme-color" content="#0E1311" />
-  <title>AI Learning Compiler · Module 导言</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0E1311" />
+    <title>AI Learning Compiler · Module 导言</title>
 
-  <!--
+    <!--
     Phase 3 · Module 导言页 · §5.4
     ==============================
     让用户明确学习目标，建立"我能做到"的初始信念。
@@ -18,171 +18,183 @@
       - 费曼目标单独列出 — 让用户从一开始就知道终点（P1-UI-1）
   -->
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E"
+    />
 
-  <link rel="stylesheet" href="./styles.css" />
-  <script src="./mock-data.js"></script>
-  <script src="./app.js"></script>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./mock-data.js"></script>
+    <script src="./app.js"></script>
 
-  <style>
-    .intro-page {
-      max-width: 640px;
-      padding-top: var(--space-10);  /* 128px · 仪式性留白 */
-      padding-bottom: var(--space-10);
-    }
+    <style>
+      .intro-page {
+        max-width: 640px;
+        padding-top: var(--space-10); /* 128px · 仪式性留白 */
+        padding-bottom: var(--space-10);
+      }
 
-    .intro-eyebrow {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      text-align: center;
-      margin-bottom: var(--space-4);
-    }
+      .intro-eyebrow {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        text-align: center;
+        margin-bottom: var(--space-4);
+      }
 
-    .intro-title {
-      font-family: var(--font-serif);
-      font-size: var(--text-2xl);  /* 36px */
-      font-weight: var(--weight-medium);
-      line-height: var(--leading-snug);
-      color: var(--fg-primary);
-      letter-spacing: var(--tracking-tight);
-      text-align: center;
-      margin-bottom: var(--space-6);
-    }
+      .intro-title {
+        font-family: var(--font-serif);
+        font-size: var(--text-2xl); /* 36px */
+        font-weight: var(--weight-medium);
+        line-height: var(--leading-snug);
+        color: var(--fg-primary);
+        letter-spacing: var(--tracking-tight);
+        text-align: center;
+        margin-bottom: var(--space-6);
+      }
 
-    .intro-divider {
-      width: 48px;
-      height: 1px;
-      background: var(--accent-primary);
-      border: none;
-      margin: 0 auto var(--space-7);
-    }
+      .intro-divider {
+        width: 48px;
+        height: 1px;
+        background: var(--accent-primary);
+        border: none;
+        margin: 0 auto var(--space-7);
+      }
 
-    .intro-goal {
-      font-family: var(--font-serif);
-      font-size: var(--text-xl);  /* 28px · §5.4.2 大字号导言 */
-      font-weight: var(--weight-regular);
-      line-height: var(--leading-normal);
-      color: var(--fg-primary);
-      text-align: center;
-      max-width: 28ch;
-      margin: 0 auto var(--space-9);
-    }
+      .intro-goal {
+        font-family: var(--font-serif);
+        font-size: var(--text-xl); /* 28px · §5.4.2 大字号导言 */
+        font-weight: var(--weight-regular);
+        line-height: var(--leading-normal);
+        color: var(--fg-primary);
+        text-align: center;
+        max-width: 28ch;
+        margin: 0 auto var(--space-9);
+      }
 
-    .intro-feynman-label {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      text-align: center;
-      margin-bottom: var(--space-3);
-    }
+      .intro-feynman-label {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        text-align: center;
+        margin-bottom: var(--space-3);
+      }
 
-    .intro-feynman-goal {
-      font-family: var(--font-serif);
-      font-size: var(--text-md);  /* 18px */
-      line-height: var(--leading-normal);
-      color: var(--fg-secondary);
-      text-align: center;
-      max-width: 36ch;
-      margin: 0 auto var(--space-9);
-    }
+      .intro-feynman-goal {
+        font-family: var(--font-serif);
+        font-size: var(--text-md); /* 18px */
+        line-height: var(--leading-normal);
+        color: var(--fg-secondary);
+        text-align: center;
+        max-width: 36ch;
+        margin: 0 auto var(--space-9);
+      }
 
-    .intro-action {
-      display: flex;
-      justify-content: center;
-      margin-top: var(--space-7);
-    }
+      .intro-action {
+        display: flex;
+        justify-content: center;
+        margin-top: var(--space-7);
+      }
 
-    .intro-action .btn-primary {
-      min-width: 240px;
-    }
+      .intro-action .btn-primary {
+        min-width: 240px;
+      }
 
-    @media (max-width: 1023px) {
-      .intro-title { font-size: var(--text-xl); }
-      .intro-goal { font-size: var(--text-lg); }
-    }
+      @media (max-width: 1023px) {
+        .intro-title {
+          font-size: var(--text-xl);
+        }
+        .intro-goal {
+          font-size: var(--text-lg);
+        }
+      }
 
-    @media (max-width: 767px) {
-      .intro-page { padding-top: var(--space-8); }
-      .intro-title { font-size: var(--text-lg); }
-      .intro-goal { font-size: var(--text-md); }
-      .intro-action .btn-primary { width: 100%; min-width: 0; }
-    }
-  </style>
-</head>
+      @media (max-width: 767px) {
+        .intro-page {
+          padding-top: var(--space-8);
+        }
+        .intro-title {
+          font-size: var(--text-lg);
+        }
+        .intro-goal {
+          font-size: var(--text-md);
+        }
+        .intro-action .btn-primary {
+          width: 100%;
+          min-width: 0;
+        }
+      }
+    </style>
+  </head>
 
-<body>
-  <a href="#main-content" class="skip-link">跳到主要内容</a>
+  <body>
+    <a href="#main-content" class="skip-link">跳到主要内容</a>
 
-  <div class="app-shell">
+    <div class="app-shell">
+      <div id="nav-top-mount"></div>
 
-    <div id="nav-top-mount"></div>
+      <main id="main-content" class="page intro-page" role="main">
+        <p class="intro-eyebrow">Module 1</p>
 
-    <main id="main-content" class="page intro-page" role="main">
+        <h1 class="intro-title" id="intro-title">理解 RAG</h1>
 
-      <p class="intro-eyebrow">Module 1</p>
+        <hr class="intro-divider" />
 
-      <h1 class="intro-title" id="intro-title">理解 RAG</h1>
+        <p class="intro-goal" id="intro-goal">
+          完成本模块后，<br />
+          你能向一个高中生<br />
+          解释 RAG 是什么、<br />
+          为什么需要它。
+        </p>
 
-      <hr class="intro-divider" />
+        <p class="intro-feynman-label">费曼目标</p>
+        <p class="intro-feynman-goal" id="intro-feynman-goal">解释 RAG 是什么、为什么需要它</p>
 
-      <p class="intro-goal" id="intro-goal">
-        完成本模块后，<br />
-        你能向一个高中生<br />
-        解释 RAG 是什么、<br />
-        为什么需要它。
-      </p>
+        <div class="intro-action">
+          <button type="button" class="btn-primary" id="start-btn">进入第一个概念</button>
+        </div>
+      </main>
+    </div>
 
-      <p class="intro-feynman-label">费曼目标</p>
-      <p class="intro-feynman-goal" id="intro-feynman-goal">
-        解释 RAG 是什么、为什么需要它
-      </p>
+    <script>
+      'use strict'
 
-      <div class="intro-action">
-        <button type="button" class="btn-primary" id="start-btn">进入第一个概念</button>
-      </div>
+      const moduleData = window.MOCK.module
 
-    </main>
+      document.getElementById('intro-title').textContent = moduleData.title
+      // Goal is split across multiple lines for ceremony; we just inject the goal text
+      document.getElementById('intro-goal').innerHTML = moduleData.goal
+        .replace(/，\s*/g, '，<br />')
+        .replace(/。\s*$/g, '<br />。')
+      document.getElementById('intro-feynman-goal').textContent = moduleData.goal
+        .replace(/^完成本模块后，[，,]?\s*/, '')
+        .replace(/。$/, '')
 
-  </div>
+      document.getElementById('start-btn').addEventListener('click', () => {
+        // Enter Concept A → 05-learn-choice.html
+        window.ALC.setState({
+          currentStage: 'concept',
+          currentConceptIndex: 0,
+          currentStepInConcept: 1,
+        })
+        window.ALC.navigate('05-learn-choice.html')
+      })
 
-  <script>
-    'use strict';
-
-    const moduleData = window.MOCK.module;
-
-    document.getElementById('intro-title').textContent = moduleData.title;
-    // Goal is split across multiple lines for ceremony; we just inject the goal text
-    document.getElementById('intro-goal').innerHTML = moduleData.goal
-      .replace(/，\s*/g, '，<br />')
-      .replace(/。\s*$/g, '<br />。');
-    document.getElementById('intro-feynman-goal').textContent =
-      moduleData.goal.replace(/^完成本模块后，[，,]?\s*/, '').replace(/。$/, '');
-
-    document.getElementById('start-btn').addEventListener('click', () => {
-      // Enter Concept A → 05-learn-choice.html
-      window.ALC.setState({
-        currentStage: 'concept',
-        currentConceptIndex: 0,
-        currentStepInConcept: 1,
-      });
-      window.ALC.navigate('05-learn-choice.html');
-    });
-
-    window.ALC.renderNavTop({
-      back: '概览',
-      backTarget: '03-overview.html',
-    });
-  </script>
-
-</body>
+      window.ALC.renderNavTop({
+        back: '概览',
+        backTarget: '03-overview.html',
+      })
+    </script>
+  </body>
 </html>

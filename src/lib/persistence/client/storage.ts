@@ -1,5 +1,5 @@
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
-import { LocalStorageRepository } from './local-storage'
+import { LocalStorageRepository, storage as legacyStorage } from './local-storage'
 import { ClientFetchStorageRepository } from './client-fetch-storage'
 import type { StorageRepository } from '../shared/repository'
 
@@ -50,4 +50,22 @@ export function getProductionStorage(): ClientFetchStorageRepository {
     productionRepo = new ClientFetchStorageRepository()
   }
   return productionRepo
+}
+
+/**
+ * 读取 production 数据，并兼容 V2.1.3 之前误写入 browser LocalStorage 的记录。
+ *
+ * 旧版本的部分入口没有经过 getStorage()，导致 Module 可能只存在于 legacy
+ * LocalStorage。读取时自动回填 production cache，并由其写队列异步落盘。
+ */
+export function getStorageValueWithLegacyFallback<T>(key: string): T | null {
+  const repository = getStorage()
+  const current = repository.get<T>(key)
+  if (current !== null || isShowcaseMode) return current
+
+  const legacy = legacyStorage.get<T>(key)
+  if (legacy === null) return null
+
+  repository.set(key, legacy)
+  return legacy
 }

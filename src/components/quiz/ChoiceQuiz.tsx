@@ -20,6 +20,8 @@ interface ChoiceQuizProps {
   quiz: Quiz
   disabled: boolean
   onAnswer: (userAnswer: string) => void
+  /** 提交后的用户答案，用于三态视觉标记（正解/错选/未选） */
+  submittedAnswer?: string
 }
 
 /** Fisher-Yates shuffle（稳定，不修改原数组） */
@@ -32,7 +34,7 @@ function shuffle<T>(arr: readonly T[]): T[] {
   return result
 }
 
-export function ChoiceQuiz({ quiz, disabled, onAnswer }: ChoiceQuizProps) {
+export function ChoiceQuiz({ quiz, disabled, onAnswer, submittedAnswer }: ChoiceQuizProps) {
   // quiz.options[0] 是正解，打乱后渲染
   const shuffledOptions = useMemo(() => {
     if (!quiz.options) return []
@@ -46,6 +48,8 @@ export function ChoiceQuiz({ quiz, disabled, onAnswer }: ChoiceQuizProps) {
     onAnswer(selected)
   }
 
+  const isSubmitted = disabled && submittedAnswer !== undefined
+
   return (
     <div className="space-y-4">
       {/* Stem */}
@@ -55,18 +59,44 @@ export function ChoiceQuiz({ quiz, disabled, onAnswer }: ChoiceQuizProps) {
       <div className="space-y-2">
         {shuffledOptions.map((option, i) => {
           const isSelected = selected === option
+          const isCorrectAnswer = isSubmitted && option === quiz.answer
+          const isUserWrong = isSubmitted && option === submittedAnswer && option !== quiz.answer
+
+          let optionClassName = 'alc-option w-full text-left text-base flex items-center gap-2 '
+          if (isSubmitted) {
+            if (isCorrectAnswer) {
+              optionClassName += 'border-success/60 bg-success-soft/40 text-success'
+            } else if (isUserWrong) {
+              optionClassName += 'border-warning/50 bg-warning-soft/30 text-warning'
+            } else {
+              optionClassName += 'opacity-50'
+            }
+          } else {
+            optionClassName += disabled ? 'cursor-default opacity-60' : ''
+          }
+
           return (
             <button
               key={option}
               onClick={() => !disabled && setSelected(option)}
               disabled={disabled}
-              className={`alc-option w-full text-left text-base ${
-                disabled ? 'cursor-default opacity-60' : ''
-              }`}
+              className={optionClassName}
               data-selected={isSelected ? 'true' : undefined}
             >
-              <span className="mr-2 text-xs text-fg-tertiary">{String.fromCharCode(65 + i)}</span>
-              {option}
+              <span className="mr-2 text-xs text-fg-tertiary shrink-0">
+                {String.fromCharCode(65 + i)}
+              </span>
+              <span className="flex-1">{option}</span>
+              {isCorrectAnswer && (
+                <span className="ml-auto shrink-0" aria-label="正确答案">
+                  ✓
+                </span>
+              )}
+              {isUserWrong && (
+                <span className="ml-auto shrink-0" aria-label="你的选择">
+                  ✗
+                </span>
+              )}
             </button>
           )
         })}

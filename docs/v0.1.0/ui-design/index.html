@@ -1,13 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="color-scheme" content="dark" />
-  <meta name="theme-color" content="#0E1311" />
-  <title>AI Learning Compiler · 原型索引</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0E1311" />
+    <title>AI Learning Compiler · 原型索引</title>
 
-  <!--
+    <!--
     Phase 2 原型索引页
     ================
     汇总 Phase 1 组件展示 + Phase 2 的 4 个 P0 关键页面原型。
@@ -22,429 +22,414 @@
       - 组件库 · components.html
   -->
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Serif+SC:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230E1311'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' fill='%23D4A574' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E"
+    />
 
-  <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css" />
 
-  <style>
-    .index-page {
-      max-width: 860px;
-      padding-top: var(--space-9);
-    }
+    <style>
+      .index-page {
+        max-width: 860px;
+        padding-top: var(--space-9);
+      }
 
-    .index-hero {
-      text-align: center;
-      margin-bottom: var(--space-9);
-    }
+      .index-hero {
+        text-align: center;
+        margin-bottom: var(--space-9);
+      }
 
-    .index-hero__eyebrow {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      margin-bottom: var(--space-3);
-    }
+      .index-hero__eyebrow {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        margin-bottom: var(--space-3);
+      }
 
-    .index-hero__title {
-      font-family: var(--font-display);
-      font-size: var(--text-3xl);  /* 48px */
-      font-weight: var(--weight-semibold);
-      line-height: var(--leading-tight);
-      letter-spacing: var(--tracking-tight);
-      color: var(--fg-primary);
-      margin-bottom: var(--space-4);
-    }
+      .index-hero__title {
+        font-family: var(--font-display);
+        font-size: var(--text-3xl); /* 48px */
+        font-weight: var(--weight-semibold);
+        line-height: var(--leading-tight);
+        letter-spacing: var(--tracking-tight);
+        color: var(--fg-primary);
+        margin-bottom: var(--space-4);
+      }
 
-    .index-hero__subtitle {
-      font-family: var(--font-serif);
-      font-size: var(--text-md);
-      line-height: var(--leading-normal);
-      color: var(--fg-secondary);
-      max-width: 48ch;
-      margin: 0 auto;
-    }
+      .index-hero__subtitle {
+        font-family: var(--font-serif);
+        font-size: var(--text-md);
+        line-height: var(--leading-normal);
+        color: var(--fg-secondary);
+        max-width: 48ch;
+        margin: 0 auto;
+      }
 
-    .index-hero__divider {
-      width: 48px;
-      height: 1px;
-      background: var(--accent-primary);
-      border: none;
-      margin: var(--space-6) auto;
-    }
+      .index-hero__divider {
+        width: 48px;
+        height: 1px;
+        background: var(--accent-primary);
+        border: none;
+        margin: var(--space-6) auto;
+      }
 
-    .index-section {
-      margin-bottom: var(--space-8);
-    }
+      .index-section {
+        margin-bottom: var(--space-8);
+      }
 
-    .index-section__title {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-      color: var(--fg-tertiary);
-      margin-bottom: var(--space-4);
-      padding-bottom: var(--space-2);
-      border-bottom: 1px solid var(--border-subtle);
-    }
+      .index-section__title {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+        color: var(--fg-tertiary);
+        margin-bottom: var(--space-4);
+        padding-bottom: var(--space-2);
+        border-bottom: 1px solid var(--border-subtle);
+      }
 
-    .index-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: var(--space-4);
-    }
+      .index-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: var(--space-4);
+      }
 
-    .index-card {
-      display: block;
-      padding: var(--space-5) var(--space-6);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-default);
-      border-radius: var(--radius-md);
-      text-decoration: none;
-      transition: border-color var(--duration-instant) var(--ease-standard),
-                  background var(--duration-instant) var(--ease-standard);
-    }
+      .index-card {
+        display: block;
+        padding: var(--space-5) var(--space-6);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        text-decoration: none;
+        transition:
+          border-color var(--duration-instant) var(--ease-standard),
+          background var(--duration-instant) var(--ease-standard);
+      }
 
-    .index-card:hover {
-      border-color: var(--border-strong);
-      background: var(--bg-elevated);
-    }
+      .index-card:hover {
+        border-color: var(--border-strong);
+        background: var(--bg-elevated);
+      }
 
-    .index-card__code {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      letter-spacing: var(--tracking-mono);
-      color: var(--fg-tertiary);
-      margin-bottom: var(--space-2);
-    }
+      .index-card__code {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        letter-spacing: var(--tracking-mono);
+        color: var(--fg-tertiary);
+        margin-bottom: var(--space-2);
+      }
 
-    .index-card__title {
-      font-family: var(--font-serif);
-      font-size: var(--text-md);
-      color: var(--fg-primary);
-      margin-bottom: var(--space-2);
-      font-weight: var(--weight-medium);
-    }
+      .index-card__title {
+        font-family: var(--font-serif);
+        font-size: var(--text-md);
+        color: var(--fg-primary);
+        margin-bottom: var(--space-2);
+        font-weight: var(--weight-medium);
+      }
 
-    .index-card__desc {
-      font-family: var(--font-serif);
-      font-size: var(--text-sm);
-      line-height: var(--leading-normal);
-      color: var(--fg-secondary);
-    }
+      .index-card__desc {
+        font-family: var(--font-serif);
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+        color: var(--fg-secondary);
+      }
 
-    .index-card__arrow {
-      display: inline-block;
-      margin-top: var(--space-3);
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      color: var(--accent-primary);
-      letter-spacing: var(--tracking-mono);
-      text-transform: uppercase;
-    }
+      .index-card__arrow {
+        display: inline-block;
+        margin-top: var(--space-3);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--accent-primary);
+        letter-spacing: var(--tracking-mono);
+        text-transform: uppercase;
+      }
 
-    .index-footnote {
-      margin-top: var(--space-8);
-      padding-top: var(--space-5);
-      border-top: 1px dashed var(--border-subtle);
+      .index-footnote {
+        margin-top: var(--space-8);
+        padding-top: var(--space-5);
+        border-top: 1px dashed var(--border-subtle);
 
-      font-family: var(--font-serif);
-      font-size: var(--text-sm);
-      line-height: var(--leading-relaxed);
-      color: var(--fg-tertiary);
-    }
+        font-family: var(--font-serif);
+        font-size: var(--text-sm);
+        line-height: var(--leading-relaxed);
+        color: var(--fg-tertiary);
+      }
 
-    .index-footnote code {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      color: var(--fg-secondary);
-      background: var(--bg-surface);
-      padding: 0 var(--space-2);
-      border-radius: var(--radius-sm);
-    }
+      .index-footnote code {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--fg-secondary);
+        background: var(--bg-surface);
+        padding: 0 var(--space-2);
+        border-radius: var(--radius-sm);
+      }
 
-    @media (max-width: 767px) {
-      .index-page { padding-top: var(--space-7); }
-      .index-hero__title { font-size: var(--text-2xl); }
-      .index-grid { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
+      @media (max-width: 767px) {
+        .index-page {
+          padding-top: var(--space-7);
+        }
+        .index-hero__title {
+          font-size: var(--text-2xl);
+        }
+        .index-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
 
-<body>
-  <a href="#main-content" class="skip-link">跳到主要内容</a>
+  <body>
+    <a href="#main-content" class="skip-link">跳到主要内容</a>
 
-  <div class="app-shell">
+    <div class="app-shell">
+      <header class="nav-top" role="banner">
+        <span class="nav-top__brand">AI Learning Compiler · Phase 2</span>
+        <div class="nav-top__actions">
+          <a href="./components.html" class="btn-text">Phase 1 组件库</a>
+        </div>
+      </header>
 
-    <header class="nav-top" role="banner">
-      <span class="nav-top__brand">AI Learning Compiler · Phase 2</span>
-      <div class="nav-top__actions">
-        <a href="./components.html" class="btn-text">Phase 1 组件库</a>
-      </div>
-    </header>
+      <main id="main-content" class="page index-page" role="main">
+        <section class="index-hero">
+          <p class="index-hero__eyebrow">Phase 1 + 2 + 3 · 完整原型集</p>
+          <h1 class="index-hero__title">13 个页面 + 完整用户旅程</h1>
+          <hr class="index-hero__divider" />
+          <p class="index-hero__subtitle">
+            从导入 → 编译 → 概览 → 学习（Choice/Sorting/Fill Blank 三种交互）→ Challenge → Feynman 6
+            步 → 完成，全旅程可走通。 含 mock-data.js 数据层与 app.js 路由 + LocalStorage 状态。
+          </p>
+        </section>
 
-    <main id="main-content" class="page index-page" role="main">
-
-      <section class="index-hero">
-        <p class="index-hero__eyebrow">Phase 1 + 2 + 3 · 完整原型集</p>
-        <h1 class="index-hero__title">13 个页面 + 完整用户旅程</h1>
-        <hr class="index-hero__divider" />
-        <p class="index-hero__subtitle">
-          从导入 → 编译 → 概览 → 学习（Choice/Sorting/Fill Blank 三种交互）→
-          Challenge → Feynman 6 步 → 完成，全旅程可走通。
-          含 mock-data.js 数据层与 app.js 路由 + LocalStorage 状态。
-        </p>
-      </section>
-
-      <!-- ========================================================
+        <!-- ========================================================
            Phase 2 · P0 关键页面（5 个）
            ======================================================== -->
-      <section class="index-section">
-        <h2 class="index-section__title">Phase 2 · P0 关键页面</h2>
+        <section class="index-section">
+          <h2 class="index-section__title">Phase 2 · P0 关键页面</h2>
 
-        <div class="index-grid">
+          <div class="index-grid">
+            <a href="./01-home.html" class="index-card">
+              <p class="index-card__code">01-home.html</p>
+              <p class="index-card__title">首页 / 导入</p>
+              <p class="index-card__desc">
+                粘贴 / 上传 Markdown，渐进式字数计数器，Cmd+Enter 编译， 三个示例快捷填充（RAG /
+                Attention / Fiber）。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
 
-          <a href="./01-home.html" class="index-card">
-            <p class="index-card__code">01-home.html</p>
-            <p class="index-card__title">首页 / 导入</p>
-            <p class="index-card__desc">
-              粘贴 / 上传 Markdown，渐进式字数计数器，Cmd+Enter 编译，
-              三个示例快捷填充（RAG / Attention / Fiber）。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
+            <a href="./05-learn-choice.html" class="index-card">
+              <p class="index-card__code">05-learn-choice.html</p>
+              <p class="index-card__title">学习页 · Choice 题（含反馈态）</p>
+              <p class="index-card__desc">
+                阶梯进度 + Concept 内细线 + 题干字号 28px &gt; 选项 17px； 5 状态机（未答 / 已选 /
+                答对 / 答错 / 连续答错 3 次强制 advance）； 1px 细线 scaleX 划过；grid-template-rows
+                解释面板展开。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
 
-          <a href="./05-learn-choice.html" class="index-card">
-            <p class="index-card__code">05-learn-choice.html</p>
-            <p class="index-card__title">学习页 · Choice 题（含反馈态）</p>
-            <p class="index-card__desc">
-              阶梯进度 + Concept 内细线 + 题干字号 28px &gt; 选项 17px；
-              5 状态机（未答 / 已选 / 答对 / 答错 / 连续答错 3 次强制 advance）；
-              1px 细线 scaleX 划过；grid-template-rows 解释面板展开。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
+            <a href="./09-feynman-final.html" class="index-card">
+              <p class="index-card__code">09-feynman-final.html</p>
+              <p class="index-card__title">费曼 · Step 6 最终输出</p>
+              <p class="index-card__desc">
+                Feynman 顶点提亮 + 微光晕；6 步 stepper；textarea 100-500 字；
+                提交后多阶段评分展示（错峰 Rubric / Gaps / 范文）； 重写一次 / 完成 Module 双按钮。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
 
-          <a href="./09-feynman-final.html" class="index-card">
-            <p class="index-card__code">09-feynman-final.html</p>
-            <p class="index-card__title">费曼 · Step 6 最终输出</p>
-            <p class="index-card__desc">
-              Feynman 顶点提亮 + 微光晕；6 步 stepper；textarea 100-500 字；
-              提交后多阶段评分展示（错峰 Rubric / Gaps / 范文）；
-              重写一次 / 完成 Module 双按钮。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
+            <a href="./10-done.html" class="index-card">
+              <p class="index-card__code">10-done.html</p>
+              <p class="index-card__title">完成页 · 6 秒仪式</p>
+              <p class="index-card__desc">
+                字符级 stagger 标题；阶梯全点亮；2×2 掌握度卡片； 被跳过概念复习入口；5
+                分制主观评分；跳过仪式链接。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
+          </div>
+        </section>
 
-          <a href="./10-done.html" class="index-card">
-            <p class="index-card__code">10-done.html</p>
-            <p class="index-card__title">完成页 · 6 秒仪式</p>
-            <p class="index-card__desc">
-              字符级 stagger 标题；阶梯全点亮；2×2 掌握度卡片；
-              被跳过概念复习入口；5 分制主观评分；跳过仪式链接。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
-
-        </div>
-      </section>
-
-      <!-- ========================================================
+        <!-- ========================================================
            Phase 3 · 全 10 页可交互原型（8 个新增）
            ======================================================== -->
-      <section class="index-section">
-        <h2 class="index-section__title">Phase 3 · 全 10 页可交互原型</h2>
+        <section class="index-section">
+          <h2 class="index-section__title">Phase 3 · 全 10 页可交互原型</h2>
 
-        <div class="index-grid">
+          <div class="index-grid">
+            <a href="./02-compiling.html" class="index-card">
+              <p class="index-card__code">02-compiling.html</p>
+              <p class="index-card__title">编译中</p>
+              <p class="index-card__desc">
+                5 阶阶梯式进度（清洗/切分/概念/练习/费曼）； §5.2.6 Agent 超时抚慰态（8 秒文字替换 /
+                15 秒追加取消入口）； 透明优于粉饰：保留「约 18 秒（已 X 秒）」。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
 
-          <a href="./02-compiling.html" class="index-card">
-            <p class="index-card__code">02-compiling.html</p>
-            <p class="index-card__title">编译中</p>
-            <p class="index-card__desc">
-              5 阶阶梯式进度（清洗/切分/概念/练习/费曼）；
-              §5.2.6 Agent 超时抚慰态（8 秒文字替换 / 15 秒追加取消入口）；
-              透明优于粉饰：保留「约 18 秒（已 X 秒）」。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
+            <a href="./03-overview.html" class="index-card">
+              <p class="index-card__code">03-overview.html</p>
+              <p class="index-card__title">课程概览</p>
+              <p class="index-card__desc">
+                Module 标题 + 导言 + 元信息（3 个概念 · 5 分钟前 · 约 18 分钟）； 3 个 Concept
+                卡片（不显示 Quiz 数，避免题海感）； 首次/继续/重学三态切换。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
 
-          <a href="./03-overview.html" class="index-card">
-            <p class="index-card__code">03-overview.html</p>
-            <p class="index-card__title">课程概览</p>
-            <p class="index-card__desc">
-              Module 标题 + 导言 + 元信息（3 个概念 · 5 分钟前 · 约 18 分钟）；
-              3 个 Concept 卡片（不显示 Quiz 数，避免题海感）；
-              首次/继续/重学三态切换。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
+            <a href="./04-intro.html" class="index-card">
+              <p class="index-card__code">04-intro.html</p>
+              <p class="index-card__title">Module 导言</p>
+              <p class="index-card__desc">
+                128px 仪式性留白；36px 标题 + 28px 大字号目标； 费曼目标单独列出（P1-UI-1
+                让用户从一开始就知道终点）。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
 
-          <a href="./04-intro.html" class="index-card">
-            <p class="index-card__code">04-intro.html</p>
-            <p class="index-card__title">Module 导言</p>
-            <p class="index-card__desc">
-              128px 仪式性留白；36px 标题 + 28px 大字号目标；
-              费曼目标单独列出（P1-UI-1 让用户从一开始就知道终点）。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
+            <a href="./06-learn-sorting.html" class="index-card">
+              <p class="index-card__code">06-learn-sorting.html</p>
+              <p class="index-card__title">学习页 · 排序题变体</p>
+              <p class="index-card__desc">
+                §4.2.2 双轨支持：桌面拖拽（⋮⋮ 手柄）+ 平板/手机长按 / ↑↓ 箭头； 第 1 项 ↑
+                disabled，第 N 项 ↓ disabled； 提交后正确选项绿色 + 错误橙色 + 解释面板。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
 
-          <a href="./06-learn-sorting.html" class="index-card">
-            <p class="index-card__code">06-learn-sorting.html</p>
-            <p class="index-card__title">学习页 · 排序题变体</p>
-            <p class="index-card__desc">
-              §4.2.2 双轨支持：桌面拖拽（⋮⋮ 手柄）+ 平板/手机长按 / ↑↓ 箭头；
-              第 1 项 ↑ disabled，第 N 项 ↓ disabled；
-              提交后正确选项绿色 + 错误橙色 + 解释面板。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
+            <a href="./07-learn-fill-blank.html" class="index-card">
+              <p class="index-card__code">07-learn-fill-blank.html</p>
+              <p class="index-card__title">学习页 · 填空题变体</p>
+              <p class="index-card__desc">
+                §4.2.3 内联填空嵌入题干，仅下划线； field-sizing: content 自适应宽度（Chrome
+                123+/Safari 17.4+）； 老浏览器 mirror span 兜底； 答错后题干下方显示正确答案。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
 
-          <a href="./07-learn-fill-blank.html" class="index-card">
-            <p class="index-card__code">07-learn-fill-blank.html</p>
-            <p class="index-card__title">学习页 · 填空题变体</p>
-            <p class="index-card__desc">
-              §4.2.3 内联填空嵌入题干，仅下划线；
-              field-sizing: content 自适应宽度（Chrome 123+/Safari 17.4+）；
-              老浏览器 mirror span 兜底；
-              答错后题干下方显示正确答案。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
+            <a href="./08-challenge.html" class="index-card">
+              <p class="index-card__code">08-challenge.html</p>
+              <p class="index-card__title">Module Challenge</p>
+              <p class="index-card__desc">
+                §5.7 stage-banner 从顶部滑入「综合挑战 · 3 道跨概念题」停留 2 秒淡出； 背景叠加金棕
+                overlay 0.025 强化仪式感； Challenge 格加深金棕高亮。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
 
-          <a href="./08-challenge.html" class="index-card">
-            <p class="index-card__code">08-challenge.html</p>
-            <p class="index-card__title">Module Challenge</p>
-            <p class="index-card__desc">
-              §5.7 stage-banner 从顶部滑入「综合挑战 · 3 道跨概念题」停留 2 秒淡出；
-              背景叠加金棕 overlay 0.025 强化仪式感；
-              Challenge 格加深金棕高亮。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
+            <a href="./09-feynman-steps.html" class="index-card">
+              <p class="index-card__code">09-feynman-steps.html</p>
+              <p class="index-card__title">费曼 · Step 1-5</p>
+              <p class="index-card__desc">
+                Step 1-4 (Choice) + Step 5 (Fill Blank) 顺序切换； §5.8.4 答错不重试（PRD FR-06）·
+                反馈更柔和； 按钮文案序列感「下一步」/「补全这句话」； Step 5 完成后跳转
+                09-feynman-final.html。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
 
-          <a href="./09-feynman-steps.html" class="index-card">
-            <p class="index-card__code">09-feynman-steps.html</p>
-            <p class="index-card__title">费曼 · Step 1-5</p>
-            <p class="index-card__desc">
-              Step 1-4 (Choice) + Step 5 (Fill Blank) 顺序切换；
-              §5.8.4 答错不重试（PRD FR-06）· 反馈更柔和；
-              按钮文案序列感「下一步」/「补全这句话」；
-              Step 5 完成后跳转 09-feynman-final.html。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
+            <a href="./11-error.html" class="index-card">
+              <p class="index-card__code">11-error.html</p>
+              <p class="index-card__title">全局错误页</p>
+              <p class="index-card__desc">
+                编译失败 + 网络失败两种变体； §5.11 绝不使用红色、感叹号、警告图标；
+                错误是「信息」，不是「事件」——保持学术沉静基调。 URL 参数 ?type=compile|network
+                可直达。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
+          </div>
+        </section>
 
-          <a href="./11-error.html" class="index-card">
-            <p class="index-card__code">11-error.html</p>
-            <p class="index-card__title">全局错误页</p>
-            <p class="index-card__desc">
-              编译失败 + 网络失败两种变体；
-              §5.11 绝不使用红色、感叹号、警告图标；
-              错误是「信息」，不是「事件」——保持学术沉静基调。
-              URL 参数 ?type=compile|network 可直达。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
-
-        </div>
-      </section>
-
-      <!-- ========================================================
+        <!-- ========================================================
            Phase 3 · 数据层与路由层
            ======================================================== -->
-      <section class="index-section">
-        <h2 class="index-section__title">Phase 3 · 数据层与路由层</h2>
+        <section class="index-section">
+          <h2 class="index-section__title">Phase 3 · 数据层与路由层</h2>
 
-        <div class="index-grid">
+          <div class="index-grid">
+            <a href="./mock-data.js" class="index-card">
+              <p class="index-card__code">mock-data.js</p>
+              <p class="index-card__title">Mock 数据 · RAG Module</p>
+              <p class="index-card__desc">
+                完整 RAG Module JSON：3 个 Concept + Challenge + Feynman 5 步； 三种交互类型的样例
+                quiz（Choice/Sorting/Fill Blank）； 编译 5 阶段定义；错误场景；反馈短语库。
+              </p>
+              <span class="index-card__arrow">查看 &rarr;</span>
+            </a>
 
-          <a href="./mock-data.js" class="index-card">
-            <p class="index-card__code">mock-data.js</p>
-            <p class="index-card__title">Mock 数据 · RAG Module</p>
-            <p class="index-card__desc">
-              完整 RAG Module JSON：3 个 Concept + Challenge + Feynman 5 步；
-              三种交互类型的样例 quiz（Choice/Sorting/Fill Blank）；
-              编译 5 阶段定义；错误场景；反馈短语库。
-            </p>
-            <span class="index-card__arrow">查看 &rarr;</span>
-          </a>
+            <a href="./app.js" class="index-card">
+              <p class="index-card__code">app.js</p>
+              <p class="index-card__title">路由 + 状态管理 + LocalStorage</p>
+              <p class="index-card__desc">
+                window.ALC API：navigate / getState / setState / clearState / recordAnswer /
+                markConceptSkipped / renderNavTop / renderStaircase； hash-based 路由兼容 file://
+                协议；进度持久化与恢复。
+              </p>
+              <span class="index-card__arrow">查看 &rarr;</span>
+            </a>
+          </div>
+        </section>
 
-          <a href="./app.js" class="index-card">
-            <p class="index-card__code">app.js</p>
-            <p class="index-card__title">路由 + 状态管理 + LocalStorage</p>
-            <p class="index-card__desc">
-              window.ALC API：navigate / getState / setState / clearState /
-              recordAnswer / markConceptSkipped / renderNavTop / renderStaircase；
-              hash-based 路由兼容 file:// 协议；进度持久化与恢复。
-            </p>
-            <span class="index-card__arrow">查看 &rarr;</span>
-          </a>
-
-        </div>
-      </section>
-
-      <!-- ========================================================
+        <!-- ========================================================
            Phase 1 · 静态组件
            ======================================================== -->
-      <section class="index-section">
-        <h2 class="index-section__title">Phase 1 · 静态视觉验证</h2>
+        <section class="index-section">
+          <h2 class="index-section__title">Phase 1 · 静态视觉验证</h2>
 
-        <div class="index-grid">
+          <div class="index-grid">
+            <a href="./components.html" class="index-card">
+              <p class="index-card__code">components.html</p>
+              <p class="index-card__title">完整组件库展示</p>
+              <p class="index-card__desc">
+                设计 token（色板 / 字体 / 间距 / 动效）； 按钮 / 选项 / 卡片 / 输入 / 进度 /
+                反馈组件静态展示； 部分动效演示（细线划过 / 解释面板展开 / 字数计数器渐变）。
+              </p>
+              <span class="index-card__arrow">进入 &rarr;</span>
+            </a>
 
-          <a href="./components.html" class="index-card">
-            <p class="index-card__code">components.html</p>
-            <p class="index-card__title">完整组件库展示</p>
-            <p class="index-card__desc">
-              设计 token（色板 / 字体 / 间距 / 动效）；
-              按钮 / 选项 / 卡片 / 输入 / 进度 / 反馈组件静态展示；
-              部分动效演示（细线划过 / 解释面板展开 / 字数计数器渐变）。
-            </p>
-            <span class="index-card__arrow">进入 &rarr;</span>
-          </a>
+            <a href="./styles.css" class="index-card">
+              <p class="index-card__code">styles.css</p>
+              <p class="index-card__title">完整设计系统 CSS</p>
+              <p class="index-card__desc">
+                第二章 token + 第三章阶梯 + 第四章组件库 + 第六章动效 + 第七章响应式 +
+                第八章可访问性全部落实为 CSS 变量与类。
+              </p>
+              <span class="index-card__arrow">查看 &rarr;</span>
+            </a>
+          </div>
+        </section>
 
-          <a href="./styles.css" class="index-card">
-            <p class="index-card__code">styles.css</p>
-            <p class="index-card__title">完整设计系统 CSS</p>
-            <p class="index-card__desc">
-              第二章 token + 第三章阶梯 + 第四章组件库 + 第六章动效 +
-              第七章响应式 + 第八章可访问性全部落实为 CSS 变量与类。
-            </p>
-            <span class="index-card__arrow">查看 &rarr;</span>
-          </a>
-
-        </div>
-      </section>
-
-      <!-- ========================================================
+        <!-- ========================================================
            使用提示
            ======================================================== -->
-      <section class="index-footnote">
-        <p>
-          <strong>启动本地服务器</strong>（避免 file:// 协议的字体 CORS 限制）：
-        </p>
-        <p style="margin-top: var(--space-3);">
-          <code>node docs/ui-design/serve.js</code>
-          &nbsp;&nbsp;默认端口 8765，访问 <code>http://localhost:8765/</code>
-        </p>
-        <p style="margin-top: var(--space-3);">
-          <strong>评审快捷键</strong>：学习页按 1-4 选择选项 A-D，按 Enter 提交；
-          Feynman 页按 Cmd / Ctrl + Enter 提交 / 完成 Module；
-          完成页可点击「跳过仪式」立即查看终态。
-        </p>
-        <p style="margin-top: var(--space-3);">
-          <strong>演示控制面板</strong>：桌面端访问时，学习页 / Feynman / 完成页右下角有浮动控制面板，
-          可一键切换所有状态供快速视觉评审；移动端自动隐藏以模拟真实交互。
-        </p>
-      </section>
-
-    </main>
-
-  </div>
-
-</body>
+        <section class="index-footnote">
+          <p><strong>启动本地服务器</strong>（避免 file:// 协议的字体 CORS 限制）：</p>
+          <p style="margin-top: var(--space-3)">
+            <code>node docs/ui-design/serve.js</code>
+            &nbsp;&nbsp;默认端口 8765，访问 <code>http://localhost:8765/</code>
+          </p>
+          <p style="margin-top: var(--space-3)">
+            <strong>评审快捷键</strong>：学习页按 1-4 选择选项 A-D，按 Enter 提交； Feynman 页按 Cmd
+            / Ctrl + Enter 提交 / 完成 Module； 完成页可点击「跳过仪式」立即查看终态。
+          </p>
+          <p style="margin-top: var(--space-3)">
+            <strong>演示控制面板</strong>：桌面端访问时，学习页 / Feynman /
+            完成页右下角有浮动控制面板，
+            可一键切换所有状态供快速视觉评审；移动端自动隐藏以模拟真实交互。
+          </p>
+        </section>
+      </main>
+    </div>
+  </body>
 </html>

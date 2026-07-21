@@ -18,7 +18,7 @@ import { useEffect } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorageValueWithLegacyFallback } from '@/lib/persistence/client/storage'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
@@ -65,7 +65,9 @@ export default function ModulePage() {
     if (!hydrated || !routeModuleId) return
     if (currentModule?.id === routeModuleId) return
 
-    const storedModule = storage.get<Module>(StorageKeys.module(routeModuleId))
+    const storedModule = getStorageValueWithLegacyFallback<Module>(
+      StorageKeys.module(routeModuleId),
+    )
     if (storedModule) {
       setModule(storedModule)
       return
@@ -80,7 +82,7 @@ export default function ModulePage() {
       hydrated &&
       routeModuleId &&
       !currentModule &&
-      !storage.has(StorageKeys.module(routeModuleId))
+      !getStorageValueWithLegacyFallback<Module>(StorageKeys.module(routeModuleId))
     ) {
       router.replace('/learn/library')
     }

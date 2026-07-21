@@ -21,7 +21,7 @@ import { Suspense, useEffect, useRef, useState, useTransition } from 'react'
 
 import type { CompileConfig, CompileEvent } from '@/lib/compiler/pipeline/types'
 
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import { assignLocalModuleIdentity } from '@/lib/persistence/module-package'
 import { ensureCapacity } from '@/lib/persistence/quota'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
@@ -78,6 +78,7 @@ function CompilingFallback() {
 function CompilingPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const storage = getStorage()
   const config = useSettingsStore((s) => s.config)
   const handleEvent = useCompileStore((s) => s.handleEvent)
   const resetCompile = useCompileStore((s) => s.reset)

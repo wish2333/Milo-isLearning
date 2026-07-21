@@ -13,9 +13,10 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorageValueWithLegacyFallback } from '@/lib/persistence/client/storage'
 import { downloadWrongQuestionBook, hasWrongQuestions } from '@/lib/persistence/wrong-question-book'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
+import { useModuleStore } from '@/lib/state/module-store'
 import type { Module } from '@/types/domain'
 
 import { AnswerHistoryList } from '@/components/learn/AnswerHistoryList'
@@ -24,6 +25,7 @@ export default function HistoryPage() {
   const router = useRouter()
   const params = useParams<{ id: string }>()
   const hydrated = useHydrated()
+  const setModule = useModuleStore((s) => s.setModule)
 
   const [moduleData, setModuleData] = useState<Module | null>(null)
   const [notFound, setNotFound] = useState(false)
@@ -32,13 +34,14 @@ export default function HistoryPage() {
 
   useEffect(() => {
     if (!hydrated || !params.id) return
-    const stored = storage.get<Module>(StorageKeys.module(params.id))
+    const stored = getStorageValueWithLegacyFallback<Module>(StorageKeys.module(params.id))
     if (stored) {
+      setModule(stored)
       setModuleData(stored)
     } else {
       setNotFound(true)
     }
-  }, [hydrated, params.id])
+  }, [hydrated, params.id, setModule])
 
   const hasWrong = useMemo(
     () => (moduleData ? hasWrongQuestions(moduleData, attemptsBySlot) : false),
