@@ -11,7 +11,7 @@
 
 import { APP_MODE, isProductionMode } from '@/lib/runtime/app-mode'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 
 export interface AnalyticsEvent {
   name: string
@@ -34,7 +34,7 @@ function isBrowser(): boolean {
 /** Read pending events from LocalStorage */
 export function getPendingEvents(): AnalyticsEvent[] {
   if (!isBrowser()) return []
-  return storage.get<AnalyticsEvent[]>(STORAGE_KEY) ?? []
+  return getStorage().get<AnalyticsEvent[]>(STORAGE_KEY) ?? []
 }
 
 /** Showcase: persist batch to LocalStorage (existing M7.8 behavior) */
@@ -44,11 +44,11 @@ function persistToLocal(batch: AnalyticsEvent[]): void {
     events.push(...batch)
 
     try {
-      storage.set(STORAGE_KEY, events)
+      getStorage().set(STORAGE_KEY, events)
     } catch {
       const trimmed = events.slice(Math.floor(events.length / 2))
       try {
-        storage.set(STORAGE_KEY, trimmed)
+        getStorage().set(STORAGE_KEY, trimmed)
       } catch {
         // Still failing -- give up silently
       }

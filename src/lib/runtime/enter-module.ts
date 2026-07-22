@@ -1,6 +1,6 @@
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorageValueWithLegacyFallback } from '@/lib/persistence/client/storage'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import type { Module } from '@/types/domain'
 
@@ -23,7 +23,7 @@ export interface EnterModuleOptions {
  * 返回 true 表示成功加载，false 表示模块不存在。调用方负责 router.push。
  */
 export function enterModule({ moduleId, allowResume = true }: EnterModuleOptions): boolean {
-  const storedModule = storage.get<Module>(StorageKeys.module(moduleId))
+  const storedModule = getStorageValueWithLegacyFallback<Module>(StorageKeys.module(moduleId))
   if (!storedModule) return false
 
   useModuleStore.getState().setModule(storedModule)

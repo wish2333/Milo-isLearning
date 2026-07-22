@@ -106,6 +106,7 @@ describe('computeModuleProgress', () => {
     expect(result.conceptPercent).toBe(30)
     expect(result.currentConceptIndex).toBe(1)
     expect(result.label).toBe('概念 2/5')
+    expect(result.positionLabel).toBe('知识导论')
     expect(result.started).toBe(true)
     expect(result.done).toBe(false)
   })
@@ -119,6 +120,7 @@ describe('computeModuleProgress', () => {
     expect(result.completedConcepts).toBe(2)
     expect(result.conceptPercent).toBe(50)
     expect(result.label).toBe('概念 3/5')
+    expect(result.positionLabel).toBe('题目 1/1')
   })
 
   // #6: concept with quizIndex — does not depend on quizIndex
@@ -231,5 +233,19 @@ describe('computeModuleProgress', () => {
     )
     expect(result.answeredQuizCount).toBe(1)
     expect(result.label).toBe('概念 1/2 · 已答 1 题')
+  })
+
+  it('shows review position instead of pretending it is a normal question', () => {
+    const mod = makeModule(1)
+    const result = computeModuleProgress(
+      mod,
+      makeProgress({
+        kind: 'concept',
+        conceptIndex: 0,
+        quizIndex: 1,
+        reviewSlots: ['quiz-1-1'],
+      }),
+    )
+    expect(result.positionLabel).toBe('复习题 1/1')
   })
 })

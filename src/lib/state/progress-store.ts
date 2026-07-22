@@ -20,12 +20,11 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-import type { FeynmanAttempt, ModuleStage, ProgressState } from '@/types/domain'
+import type { FeynmanAttempt, Module, ModuleStage, ProgressState } from '@/types/domain'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { getStorage } from '@/lib/persistence/client/storage'
 import { createZustandStorage } from '@/lib/persistence/client/zustand-storage-adapter'
-import { storage } from '@/lib/persistence/client/local-storage'
 import { triggerAutoBackup } from '@/lib/persistence/client/auto-backup-trigger'
 
 import {
@@ -40,12 +39,9 @@ import { useSettingsStore } from './settings-store'
 /**
  * Storage Invariant (V2.0.1): per-module progress keys
  *
- * `alc:progress:{moduleId}` 在所有运行模式下均通过 `storage`（LocalStorageRepository
- * 单例）读写。`getStorage()` 仅用于 Zustand persist 的全局 blob `alc:state:progress`。
- *
- * （production 的 getStorage() 返回 SQLite Repository，per-module 数据在 LS 不在 SQLite）。
- *
- * 详见 docs/v2.0.0/v2.0.1-fix-report.md §3。
+ * `alc:progress:{moduleId}` 与 Zustand 全局 blob 都必须通过当前模式的
+ * `getStorage()` 读写：showcase 进入 browser LocalStorage，production 进入
+ * ClientFetchStorage 的 SQLite cache。两者如果分叉，题库摘要会回退成“未开始”。
  */
 interface ProgressStoreState {
   /** 当前 Module ID；null = 未开始 */
@@ -87,8 +83,8 @@ interface ProgressStoreState {
   /** 从 feynman_intro 或 concept 末尾进入 feynman_step(1) */
   startFeynman: () => void
 
-  /** 记录单个 Feynman 步骤的得分 */
-  recordFeynmanStep: (stepOrder: number, score: number) => void
+  /** 记录单个 Feynman 步骤的得分和作答文本（用于作答历史） */
+  recordFeynmanStep: (stepOrder: number, score: number, userAnswer?: string) => void
 
   /** feynman_final 提交最终输出 */
   submitFeynman: (finalOutput: string, finalScore: number, finalGaps: string[]) => void
@@ -100,6 +96,90 @@ interface ProgressStoreState {
 
   /** 重置全部进度（退出 Module / 清除进度时调用） */
   reset: () => void
+}
+
+/**
+ * Review slots are persisted as quiz IDs, so they can outlive a quiz edit,
+ * ignore action, or an older module snapshot. Keep only slots that still
+ * resolve to an active quiz in the current module. This is deliberately done
+ * at the state-machine boundary so an invalid slot cannot become a render-only
+ * state that has no way to advance.
+ */
+function normalizeReviewSlots(module: Module, reviewSlots: string[] | undefined): string[] {
+  if (!reviewSlots || reviewSlots.length === 0) return []
+
+  const activeQuizIds = new Set(
+    module.concepts
+      .flatMap((concept) => concept.quizSeries.quizzes)
+      .concat(module.challengeQuizzes ?? [])
+      .filter((quiz) => !quiz.ignored)
+      .map((quiz) => quiz.id),
+  )
+
+  return reviewSlots.filter(
+    (slotId, index, slots) => activeQuizIds.has(slotId) && slots.indexOf(slotId) === index,
+  )
+}
+
+/**
+ * Reconcile a persisted concept cursor with a cleaned review queue.
+ *
+ * The old cursor counted invalid review IDs. If an invalid ID appeared before
+ * the current cursor, simply replacing `reviewSlots` would shift the cursor to
+ * a later question. Re-map the cursor by counting valid slots before its old
+ * review position; the next `advance()` then remains aligned to the same
+ * originalQuizId.
+ */
+function normalizeConceptStage(module: Module, stage: ModuleStage): ModuleStage {
+  if (stage.kind === 'concept_intro') {
+    const reviewSlots = normalizeReviewSlots(module, stage.reviewSlots)
+    return reviewSlots.length > 0
+      ? { ...stage, reviewSlots }
+      : { kind: 'concept_intro', conceptIndex: stage.conceptIndex }
+  }
+
+  if (stage.kind !== 'concept') return stage
+
+  const concept = module.concepts[stage.conceptIndex]
+  if (!concept) return stage
+
+  const quizCount = concept.quizSeries.quizzes.length
+  const rawReviewSlots = stage.reviewSlots ?? []
+  const reviewSlots = normalizeReviewSlots(module, rawReviewSlots)
+
+  if (stage.quizIndex < quizCount) {
+    return reviewSlots.length > 0
+      ? { ...stage, reviewSlots }
+      : { kind: 'concept', conceptIndex: stage.conceptIndex, quizIndex: stage.quizIndex }
+  }
+
+  const rawReviewIndex = Math.max(stage.quizIndex - quizCount, 0)
+  // Preserve the current originalQuizId when it is still valid. If the old
+  // cursor points at a deleted/ignored slot, move to the first valid slot
+  // after it; when none remains, place the cursor at the queue end so the
+  // view's recovery effect can advance to the next concept/stage.
+  let normalizedReviewIndex = reviewSlots.length
+  for (let rawIndex = rawReviewIndex; rawIndex < rawReviewSlots.length; rawIndex++) {
+    const candidateIndex = reviewSlots.indexOf(rawReviewSlots[rawIndex]!)
+    if (candidateIndex >= 0) {
+      normalizedReviewIndex = candidateIndex
+      break
+    }
+  }
+  const normalizedQuizIndex = quizCount + normalizedReviewIndex
+
+  return reviewSlots.length > 0
+    ? {
+        kind: 'concept',
+        conceptIndex: stage.conceptIndex,
+        quizIndex: normalizedQuizIndex,
+        reviewSlots,
+      }
+    : {
+        kind: 'concept',
+        conceptIndex: stage.conceptIndex,
+        quizIndex: quizCount,
+      }
 }
 
 const initialState = {
@@ -118,16 +198,15 @@ export const useProgressStore = create<ProgressStoreState>()(
        * 恢复模块进度（不重置）。
        *
        * 恢复优先级：
-       *   1. 读取 LS 中的 per-module snapshot（storage.get）
+       *   1. 读取当前模式 repository 中的 per-module snapshot
        *   2. 若当前全局 blob 的 moduleId === 目标 moduleId，比较 updatedAt，取更新的快照
        *   3. 若快照 stage.kind === 'done' → 走 startModule 语义（让用户从头看）
        *   4. 若无任何有效进度 → 走 startModule 语义
        *
-       * Storage Invariant: 必须用 `storage`（LS）读 per-module，不能用 getStorage()
        * 旧 snapshot 可能缺少 feynmanAttempt，缺失时按 null 兼容。
        */
       resumeModule: (moduleId: string) => {
-        const snapshot = storage.get<ProgressState>(StorageKeys.progress(moduleId))
+        const snapshot = getStorage().get<ProgressState>(StorageKeys.progress(moduleId))
 
         const current = get()
         const globalMatched =
@@ -160,9 +239,14 @@ export const useProgressStore = create<ProgressStoreState>()(
         }
 
         if (winner) {
+          const currentModule = useModuleStore.getState().currentModule
+          const normalizedStage =
+            currentModule?.id === moduleId
+              ? normalizeConceptStage(currentModule, winner.stage)
+              : winner.stage
           set({
             moduleId,
-            stage: winner.stage,
+            stage: normalizedStage,
             updatedAt: winner.updatedAt,
             feynmanAttempt: winner.feynmanAttempt,
           })
@@ -222,14 +306,13 @@ export const useProgressStore = create<ProgressStoreState>()(
           }
 
           case 'concept_intro': {
+            const reviewSlots = normalizeReviewSlots(currentModule, stage.reviewSlots)
             set({
               stage: {
                 kind: 'concept',
                 conceptIndex: stage.conceptIndex,
                 quizIndex: 0,
-                ...(stage.reviewSlots && stage.reviewSlots.length > 0
-                  ? { reviewSlots: stage.reviewSlots }
-                  : {}),
+                ...(reviewSlots.length > 0 ? { reviewSlots } : {}),
               },
               updatedAt: Date.now(),
             })
@@ -242,11 +325,43 @@ export const useProgressStore = create<ProgressStoreState>()(
             if (!concept) return
 
             const quizCount = concept.quizSeries.quizzes.length
-            const currentReviewSlots = stage.reviewSlots ?? []
+            const rawReviewSlots = stage.reviewSlots ?? []
+            const currentReviewSlots = normalizeReviewSlots(currentModule, rawReviewSlots)
             const totalSlots = quizCount + currentReviewSlots.length
 
+            // A persisted cursor may still point at an invalid review ID.
+            // Compress the old review index before deciding the next slot.
+            const reviewCursor = quizIndex - quizCount
+            if (quizIndex >= quizCount) {
+              const validBeforeCursor = rawReviewSlots
+                .slice(0, Math.max(reviewCursor, 0))
+                .filter((slotId) => currentReviewSlots.includes(slotId)).length
+              const currentSlotId = rawReviewSlots[reviewCursor]
+              const currentSlotIsValid =
+                currentSlotId !== undefined && currentReviewSlots.includes(currentSlotId)
+              const nextQuizIndex = quizCount + validBeforeCursor + (currentSlotIsValid ? 1 : 0)
+
+              if (
+                nextQuizIndex !== quizIndex ||
+                currentReviewSlots.length !== rawReviewSlots.length
+              ) {
+                if (nextQuizIndex < totalSlots) {
+                  set({
+                    stage: {
+                      kind: 'concept',
+                      conceptIndex,
+                      quizIndex: nextQuizIndex,
+                      ...(currentReviewSlots.length > 0 ? { reviewSlots: currentReviewSlots } : {}),
+                    },
+                    updatedAt: Date.now(),
+                  })
+                  return
+                }
+              }
+            }
+
             // 同一 Concept 内还有下一题（含复习槽位）
-            if (quizIndex + 1 < totalSlots) {
+            if (quizIndex < quizCount && quizIndex + 1 < totalSlots) {
               set({
                 stage: {
                   kind: 'concept',
@@ -271,7 +386,11 @@ export const useProgressStore = create<ProgressStoreState>()(
                 ? collectConfirmSlots(currentModule, conceptIndex - 1, attemptsBySlot)
                 : []
 
-              const nextReviewSlots = [...wrongSlots, ...carriedSlots, ...confirmSlots]
+              const nextReviewSlots = normalizeReviewSlots(currentModule, [
+                ...wrongSlots,
+                ...carriedSlots,
+                ...confirmSlots,
+              ])
 
               const nextConceptIdx = conceptIndex + 1
               const nextConcept = currentModule.concepts[nextConceptIdx]
@@ -384,7 +503,7 @@ export const useProgressStore = create<ProgressStoreState>()(
         })
       },
 
-      recordFeynmanStep: (stepOrder, score) =>
+      recordFeynmanStep: (stepOrder, score, userAnswer) =>
         set((state) => {
           if (!state.feynmanAttempt) return state
           return {
@@ -392,7 +511,7 @@ export const useProgressStore = create<ProgressStoreState>()(
               ...state.feynmanAttempt,
               stepResults: [
                 ...state.feynmanAttempt.stepResults.filter((s) => s.stepOrder !== stepOrder),
-                { stepOrder, score },
+                { stepOrder, score, userAnswer },
               ],
             },
             updatedAt: Date.now(),
@@ -420,7 +539,16 @@ export const useProgressStore = create<ProgressStoreState>()(
         void triggerAutoBackup(true)
       },
 
-      setStage: (stage) => set({ stage, updatedAt: Date.now() }),
+      setStage: (stage) => {
+        const currentModule = useModuleStore.getState().currentModule
+        set({
+          stage:
+            currentModule && currentModule.id === get().moduleId
+              ? normalizeConceptStage(currentModule, stage)
+              : stage,
+          updatedAt: Date.now(),
+        })
+      },
 
       reset: () => set(initialState),
     }),
@@ -459,7 +587,7 @@ export const useProgressStore = create<ProgressStoreState>()(
       onRehydrateStorage: () => (state) => {
         // 首次加载（hydration）后同步到 per-module 存储
         if (state?.moduleId && state.stage) {
-          storage.set<ProgressState>(StorageKeys.progress(state.moduleId), {
+          getStorage().set<ProgressState>(StorageKeys.progress(state.moduleId), {
             moduleId: state.moduleId,
             stage: state.stage,
             updatedAt: state.updatedAt,
@@ -498,7 +626,7 @@ export const _unsubscribeProgressSync = useProgressStore.subscribe((state, prevS
 
   // 切换 Module 时保存前一个 Module 的最终进度
   if (prevState.moduleId && prevState.moduleId !== state.moduleId && prevState.stage) {
-    storage.set<ProgressState>(StorageKeys.progress(prevState.moduleId), {
+    getStorage().set<ProgressState>(StorageKeys.progress(prevState.moduleId), {
       moduleId: prevState.moduleId,
       stage: prevState.stage,
       updatedAt: prevState.updatedAt,
@@ -507,7 +635,7 @@ export const _unsubscribeProgressSync = useProgressStore.subscribe((state, prevS
   }
 
   // 始终同步当前 Module 的进度
-  storage.set<ProgressState>(StorageKeys.progress(state.moduleId), {
+  getStorage().set<ProgressState>(StorageKeys.progress(state.moduleId), {
     moduleId: state.moduleId,
     stage: state.stage,
     updatedAt: state.updatedAt,

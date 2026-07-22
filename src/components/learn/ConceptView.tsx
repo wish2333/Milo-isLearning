@@ -12,7 +12,7 @@
  *   4. advance → progress-store.advance() + 清 currentQuiz
  */
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
 import { createProvider } from '@/lib/providers'
@@ -39,6 +39,7 @@ import { AnswerHistoryList } from '@/components/learn/AnswerHistoryList'
 import { StaircaseProgress } from '@/components/learn/StaircaseProgress'
 import { ReviewSlotBadge } from '@/components/learn/ReviewSlotBadge'
 import { ReviewQueueIndicator } from '@/components/learn/ReviewQueueIndicator'
+import { QuizActionBar } from '@/components/quiz/QuizActionBar'
 
 interface ConceptViewProps {
   conceptIndex: number
@@ -74,19 +75,47 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
   const [error, setError] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [submittedAnswer, setSubmittedAnswer] = useState<string | null>(null)
+  const activeModuleIdRef = useRef<string | null>(null)
+  const activeSlotIdRef = useRef<string | null>(null)
 
   // 获取当前应该显示的 quiz
   const concept = currentModule?.concepts[conceptIndex]
   const quizCount = concept?.quizSeries.quizzes.length ?? 0
   const reviewSlots = stage?.kind === 'concept' ? (stage.reviewSlots ?? []) : []
-  const isReviewQuiz = quizIndex >= quizCount && reviewSlots.length > 0
-  const reviewSlotIndex = isReviewQuiz ? quizIndex - quizCount : -1
+  const reviewSlotIndex = quizIndex - quizCount
+  const isReviewQuiz = reviewSlotIndex >= 0 && reviewSlotIndex < reviewSlots.length
   const reviewSlotId = isReviewQuiz ? reviewSlots[reviewSlotIndex] : undefined
-  const reviewQuiz =
+  const foundReviewQuiz =
     reviewSlotId && currentModule ? findQuizInModule(currentModule, reviewSlotId) : undefined
+  const reviewQuiz = foundReviewQuiz?.ignored ? undefined : foundReviewQuiz
 
-  const slotQuiz = isReviewQuiz ? null : concept?.quizSeries.quizzes[quizIndex]
-  const quiz: Quiz | null = currentQuiz ?? slotQuiz ?? reviewQuiz ?? null
+  const slotQuiz = quizIndex < quizCount ? concept?.quizSeries.quizzes[quizIndex] : undefined
+  const expectedQuiz: Quiz | undefined = isReviewQuiz ? reviewQuiz : slotQuiz
+  const slotId = isReviewQuiz ? (reviewSlotId ?? '') : (slotQuiz?.id ?? '')
+
+  // currentQuiz may be a retry replacement. Accept it only when it belongs to
+  // the current concept and is not another original quiz from this module;
+  // otherwise a persisted quiz from the previous slot/module can overwrite
+  // the stage cursor (the source of the "题目 9" symptom).
+  const currentQuizIsRetryReplacement = Boolean(
+    currentModule &&
+    expectedQuiz &&
+    currentQuiz &&
+    activeModuleIdRef.current === currentModule.id &&
+    activeSlotIdRef.current === slotId &&
+    !findQuizInModule(currentModule, currentQuiz.id),
+  )
+  const currentQuizBelongsToSlot = Boolean(
+    expectedQuiz &&
+    currentQuiz &&
+    currentQuiz.conceptId === expectedQuiz.conceptId &&
+    (currentQuiz.id === expectedQuiz.id || currentQuizIsRetryReplacement),
+  )
+  const quiz: Quiz | null = expectedQuiz
+    ? currentQuizBelongsToSlot
+      ? currentQuiz
+      : expectedQuiz
+    : null
 
   // 进入新题时重置状态并同步 currentQuiz
   useEffect(() => {
@@ -97,22 +126,24 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
     setError(null)
     setHistoryOpen(false)
     setSubmittedAnswer(null)
-    // 如果 currentQuiz 与当前 slot 不匹配，重置为 slot quiz
-    if (isReviewQuiz && reviewQuiz) {
-      if (!currentQuiz || currentQuiz.id !== reviewQuiz.id) {
-        setCurrentQuiz(reviewQuiz)
-      }
-    } else if (slotQuiz && (!currentQuiz || currentQuiz.id !== slotQuiz.id)) {
-      // currentQuiz 可能是跨 view 切换遗留的（如从 Challenge 切回 Concept）
-      // 只有 currentQuiz 不属于当前 slot 时才重置
-      if (currentQuiz && currentQuiz.conceptId !== slotQuiz.conceptId) {
-        setCurrentQuiz(slotQuiz)
-      } else if (!currentQuiz) {
-        setCurrentQuiz(slotQuiz)
-      }
-    }
+    activeModuleIdRef.current = currentModule?.id ?? null
+    activeSlotIdRef.current = slotId || null
+    // 如果 currentQuiz 与当前 slot 不匹配，重置为 slot quiz；retry
+    // replacement 不在 module 中，因此由 currentQuizBelongsToSlot 保留。
+    if (expectedQuiz && !currentQuizBelongsToSlot) setCurrentQuiz(expectedQuiz)
+    if (!expectedQuiz && currentQuiz) clearCurrentQuiz()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conceptIndex, quizIndex])
+  }, [currentModule?.id, conceptIndex, quizIndex, slotId])
+
+  // 旧快照可能把无效 review slot 留在当前 cursor。不能让页面停留在
+  // `reviewQuiz === undefined` 的空题状态，交给状态机压缩/跳过该槽位。
+  useEffect(() => {
+    if (!currentModule || stage?.kind !== 'concept') return
+    if (phase !== 'answering' || expectedQuiz) return
+    clearCurrentQuiz()
+    advance()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentModule?.id, stage, phase, expectedQuiz, clearCurrentQuiz, advance])
 
   // auto-skip ignored concept quizzes (do not display, do not count)
   useEffect(() => {
@@ -123,8 +154,6 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
     advance()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conceptIndex, quizIndex, slotQuiz, phase])
-
-  const slotId = isReviewQuiz ? (reviewSlotId ?? '') : (slotQuiz?.id ?? '')
 
   const handleAnswer = useCallback(
     async (userAnswer: string) => {
@@ -281,7 +310,7 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
 
   return (
     <div className="text-fg-primary">
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-2xl mx-auto px-6 py-8 pb-32 space-y-6">
         {/* Progress indicator */}
         <div className="flex items-center gap-2 text-xs text-fg-quaternary">
           <span>
@@ -384,14 +413,14 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
             )}
 
             {/* Action buttons */}
-            <div className="pt-2 space-y-2">
+            <QuizActionBar>
               <button
                 onClick={handleAdvance}
                 className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover transition-colors"
               >
                 {isAdvancing ? '继续' : '继续下一步'}
               </button>
-            </div>
+            </QuizActionBar>
           </>
         )}
 

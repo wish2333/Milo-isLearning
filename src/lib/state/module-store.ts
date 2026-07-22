@@ -16,7 +16,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-import type { Module, Quiz } from '@/types/domain'
+import type { FeynmanStep, Module, Quiz } from '@/types/domain'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { renameModule, updateQuizInModule } from '@/lib/persistence/module-library'
 import { findQuizInModule } from '@/lib/runtime/adaptive-sequencer'
@@ -65,6 +65,17 @@ interface ModuleStoreState {
         | 'explanation'
         | 'distractors'
         | 'answerHint'
+      >
+    >,
+  ) => void
+
+  /** 修正当前 Module 内的费曼步骤答案等字段。 */
+  updateFeynmanStep: (
+    stepOrder: FeynmanStep['order'],
+    patch: Partial<
+      Pick<
+        FeynmanStep,
+        'answer' | 'options' | 'acceptableAnswers' | 'stem' | 'explanation' | 'answerHint'
       >
     >,
   ) => void
@@ -130,6 +141,27 @@ export const useModuleStore = create<ModuleStoreState>()(
             attempts: useAttemptsStore.getState().getAttempts(quizId),
           })
         }
+      },
+
+      updateFeynmanStep: (stepOrder, patch) => {
+        const current = get().currentModule
+        if (!current || current.origin === 'showcase') return
+        const stepIndex = current.feynmanTask.steps.findIndex((step) => step.order === stepOrder)
+        if (stepIndex === -1) return
+
+        const updatedSteps = current.feynmanTask.steps.map((step, index) =>
+          index === stepIndex ? { ...step, ...patch } : step,
+        )
+        const updatedModule: Module = {
+          ...current,
+          feynmanTask: { ...current.feynmanTask, steps: updatedSteps },
+        }
+        const repository = getStorage()
+        if (!repository.has(StorageKeys.module(current.id))) {
+          repository.set(StorageKeys.module(current.id), current)
+        }
+        repository.set(StorageKeys.module(current.id), updatedModule)
+        set({ currentModule: updatedModule })
       },
 
       updateKnowledgePage: (conceptId, content) => {

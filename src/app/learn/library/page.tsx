@@ -13,8 +13,10 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
+import { useAttemptsStore } from '@/lib/state/attempts-store'
+import { useProgressStore } from '@/lib/state/progress-store'
 import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import { listStoredModules } from '@/lib/persistence/module-library'
 import type { StoredModuleSummary } from '@/lib/persistence/module-library'
 import { getStorageCapacitySummary, type CapacitySummary } from '@/lib/persistence/quota'
@@ -44,6 +46,8 @@ function getTopicModules(topic: Topic, allModules: StoredModuleSummary[]): Store
 
 export default function LibraryPage() {
   const hydrated = useHydrated()
+  const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
+  const progressUpdatedAt = useProgressStore((s) => s.updatedAt)
 
   const [allModules, setAllModules] = useState<StoredModuleSummary[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
@@ -59,26 +63,27 @@ export default function LibraryPage() {
   const [orphanReport, setOrphanReport] = useState<OrphanReport | null>(null)
 
   const refresh = useCallback(() => {
+    const repository = getStorage()
     const studioMode = useRuntimeMode.getState().studioMode
     const effectiveShowcase = isShowcaseMode && !studioMode
-    setAllModules(listStoredModules(storage))
+    setAllModules(listStoredModules(repository))
     setTopics(
-      listTopics(storage).filter((t) =>
+      listTopics(repository).filter((t) =>
         effectiveShowcase ? t.origin === 'showcase' : t.origin !== 'showcase',
       ),
     )
-    setCapacity(getStorageCapacitySummary(storage, studioMode))
+    setCapacity(getStorageCapacitySummary(repository, studioMode))
   }, [])
 
   useEffect(() => {
     if (!hydrated) return
     refresh()
     // 检测孤儿引用（迁移或删除导致的悬空 moduleId）
-    const report = detectOrphans(storage)
+    const report = detectOrphans(getStorage())
     if (report.orphanProgressModuleIds.length > 0) {
       setOrphanReport(report)
     }
-  }, [hydrated, refresh])
+  }, [hydrated, refresh, attemptsBySlot, progressUpdatedAt])
 
   // ---------- 计算属性 ----------
 
@@ -107,10 +112,11 @@ export default function LibraryPage() {
 
   const handleSaveTopic = (data: { name: string; description?: string; moduleIds: string[] }) => {
     if (editingTopic) {
-      updateTopic(storage, editingTopic.id, { name: data.name, description: data.description })
-      reorderModulesInTopic(storage, editingTopic.id, data.moduleIds)
+      const repository = getStorage()
+      updateTopic(repository, editingTopic.id, { name: data.name, description: data.description })
+      reorderModulesInTopic(repository, editingTopic.id, data.moduleIds)
     } else {
-      createTopic(storage, data.name, data.description, data.moduleIds)
+      createTopic(getStorage(), data.name, data.description, data.moduleIds)
     }
     setShowCreator(false)
     setEditingTopic(null)
@@ -134,7 +140,7 @@ export default function LibraryPage() {
 
   const activeQualityReport =
     activeQualityFor !== null
-      ? storage.get<CompileQualityReport>(StorageKeys.qualityReport(activeQualityFor))
+      ? getStorage().get<CompileQualityReport>(StorageKeys.qualityReport(activeQualityFor))
       : null
   const activeQualityModule =
     activeQualityFor !== null ? allModules.find((m) => m.id === activeQualityFor) : null
@@ -200,7 +206,7 @@ export default function LibraryPage() {
               <button
                 type="button"
                 onClick={() => {
-                  cleanupOrphans(storage, orphanReport)
+                  cleanupOrphans(getStorage(), orphanReport)
                   setOrphanReport(null)
                   window.location.reload()
                 }}

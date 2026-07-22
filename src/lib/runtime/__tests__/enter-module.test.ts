@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { enterModule } from '../enter-module'
-import { storage } from '@/lib/persistence/client/local-storage'
 import type { Module } from '@/types/domain'
 
-vi.mock('@/lib/persistence/client/local-storage', () => ({
-  storage: { get: vi.fn(), set: vi.fn() },
-}))
+const mockStorageGet = vi.hoisted(() => vi.fn())
 
-const mockStorageGet = vi.mocked(storage.get)
+vi.mock('@/lib/persistence/client/storage', () => ({
+  getStorageValueWithLegacyFallback: mockStorageGet,
+}))
 
 // Stable mock fn references — shared across all calls to getState()
 const mockSetModule = vi.fn()

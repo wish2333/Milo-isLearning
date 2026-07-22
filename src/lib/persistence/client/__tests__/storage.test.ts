@@ -57,7 +57,8 @@ vi.mock('@/lib/persistence/client/client-fetch-storage', () => ({
   },
 }))
 
-const { getStorageValueWithLegacyFallback } = await import('../storage')
+const { getStorageKeysWithLegacyFallback, getStorageValueWithLegacyFallback } =
+  await import('../storage')
 
 describe('getStorageValueWithLegacyFallback', () => {
   beforeEach(() => {
@@ -86,5 +87,37 @@ describe('getStorageValueWithLegacyFallback', () => {
 
   it('两边都不存在时返回 null', () => {
     expect(getStorageValueWithLegacyFallback('alc:module:missing')).toBeNull()
+  })
+
+  it('production 已有索引时可合并 legacy 中尚未迁移的记录', () => {
+    type TopicIndexEntry = { id: string; stale?: boolean }
+
+    mocks.production.set<TopicIndexEntry[]>('alc:topic-index', [{ id: 'server-topic' }])
+    mocks.legacy.set('alc:topic-index', [
+      { id: 'legacy-topic' },
+      { id: 'server-topic', stale: true },
+    ])
+
+    expect(
+      getStorageValueWithLegacyFallback<TopicIndexEntry[]>('alc:topic-index', (current, legacy) => {
+        const merged = new Map(legacy.map((item) => [item.id, item]))
+        for (const item of current) merged.set(item.id, item)
+        return [...merged.values()]
+      }),
+    ).toEqual([{ id: 'legacy-topic' }, { id: 'server-topic' }])
+    expect(mocks.production.get('alc:topic-index')).toEqual([
+      { id: 'legacy-topic' },
+      { id: 'server-topic' },
+    ])
+  })
+
+  it('production 枚举 key 时包含尚未迁移的 legacy 题库', () => {
+    mocks.production.set('alc:module:server-module', { id: 'server-module' })
+    mocks.legacy.set('alc:module:legacy-module', { id: 'legacy-module' })
+
+    expect(getStorageKeysWithLegacyFallback()).toEqual([
+      'alc:module:server-module',
+      'alc:module:legacy-module',
+    ])
   })
 })

@@ -113,8 +113,11 @@ describe('ExpandJobView', () => {
     vi.stubGlobal('fetch', fetchMock)
   })
 
-  afterEach(() => {
-    act(() => root.unmount())
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
     container.remove()
     vi.unstubAllGlobals()
     ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false

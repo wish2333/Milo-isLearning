@@ -25,7 +25,8 @@ import { getStorage } from '@/lib/persistence/client/storage'
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
 import type { ReviewFilter, Module, AttemptRecord, Quiz } from '@/types/domain'
 
-import { LearnShell } from '@/components/learn/LearnShell'
+import { BackgroundPanel } from '@/components/learn/BackgroundPanel'
+import { QuizActionBar } from '@/components/quiz/QuizActionBar'
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
 import { createProvider } from '@/lib/providers'
@@ -345,8 +346,8 @@ export default function TopicReviewPage() {
   const progress = `${session.currentIndex + 1} / ${session.queue.length}`
 
   return (
-    <LearnShell stageLabel="主题重刷">
-      <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 space-y-6">
+    <main className="alc-page">
+      <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 pb-32 space-y-6">
         {/* Header */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -398,6 +399,7 @@ export default function TopicReviewPage() {
 
         {/* Quiz */}
         <div className="space-y-4">
+          <BackgroundPanel background={currentQuiz.background} />
           <QuizRenderer
             quiz={currentQuiz}
             disabled={phase !== 'answering'}
@@ -426,17 +428,17 @@ export default function TopicReviewPage() {
               onUnignoreQuiz={handleUnignoreQuiz}
             />
 
-            <div className="pt-2 space-y-2">
+            <QuizActionBar>
               <button
                 onClick={handleNext}
                 className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover transition-colors"
               >
                 {session.currentIndex + 1 >= session.queue.length ? '查看结果' : '下一题'}
               </button>
-            </div>
+            </QuizActionBar>
           </>
         )}
       </div>
-    </LearnShell>
+    </main>
   )
 }

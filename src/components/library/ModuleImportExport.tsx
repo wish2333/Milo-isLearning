@@ -20,7 +20,7 @@ import {
   serializeModulePackage,
 } from '@/lib/persistence/module-package'
 import { importTopicPackage, parseTopicPackage } from '@/lib/persistence/topic-package'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import type { KnowledgeSource, Module, Topic } from '@/types/domain'
 
@@ -83,7 +83,7 @@ export function ModuleImportExport({
           setBusy(false)
           return
         }
-        const topic = importTopicPackage(storage, result.pkg)
+        const topic = importTopicPackage(getStorage(), result.pkg)
         if (onTopicImported) onTopicImported(topic)
       } else {
         const result = parseModulePackage(text)
@@ -93,7 +93,7 @@ export function ModuleImportExport({
           setBusy(false)
           return
         }
-        const importedModule = importModulePackage(storage, result.pkg)
+        const importedModule = importModulePackage(getStorage(), result.pkg)
         if (onImported) onImported(importedModule)
       }
     } catch (err) {
@@ -140,6 +140,7 @@ export function ModuleImportExport({
  * @returns true 表示成功；false 表示 module 或 source 不存在
  */
 export function exportModuleToBrowserDownload(moduleId: string): boolean {
+  const storage = getStorage()
   const storedModule = storage.get<Module>(StorageKeys.module(moduleId))
   if (!storedModule) return false
 

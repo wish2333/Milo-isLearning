@@ -18,6 +18,8 @@ import { useState, useEffect } from 'react'
 
 import type { Quiz } from '@/types/domain'
 
+import { QuizActionBar } from './QuizActionBar'
+
 interface FillBlankQuizProps {
   quiz: Quiz
   disabled: boolean
@@ -103,13 +105,15 @@ export function FillBlankQuiz({ quiz, disabled, onAnswer }: FillBlankQuizProps) 
 
       {/* Submit */}
       {!disabled && (
-        <button
-          onClick={handleSubmit}
-          disabled={!allFilled}
-          className="alc-button-primary w-full disabled:bg-bg-elevated disabled:text-fg-tertiary"
-        >
-          确认答案
-        </button>
+        <QuizActionBar>
+          <button
+            onClick={handleSubmit}
+            disabled={!allFilled}
+            className="alc-button-primary w-full disabled:bg-bg-elevated disabled:text-fg-tertiary"
+          >
+            确认答案
+          </button>
+        </QuizActionBar>
       )}
     </div>
   )

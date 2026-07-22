@@ -9,6 +9,11 @@ import type { AttemptRecord, Module, ProgressState, Quiz } from '@/types/domain'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
 import { computeModuleProgress, type ModuleProgressInfo } from '@/lib/runtime/module-progress'
+import {
+  getStorage,
+  getStorageKeysWithLegacyFallback,
+  getStorageValueWithLegacyFallback,
+} from './client/storage'
 
 import { StorageKeys } from './shared/keys'
 import type { StorageRepository } from './shared/repository'
@@ -37,15 +42,21 @@ export interface StoredModuleSummary {
  * 无 progress 的 Module 视为 updatedAt=0（最旧）。
  */
 export function listStoredModules(repo: StorageRepository): StoredModuleSummary[] {
-  const persistedAttempts = repo.get<{
+  const useLegacyStorage = !isShowcaseMode && repo === getStorage()
+  const readCurrentOrLegacy = <T>(key: string): T | null =>
+    useLegacyStorage ? getStorageValueWithLegacyFallback<T>(key) : repo.get<T>(key)
+  const persistedAttempts = readCurrentOrLegacy<{
     state?: { attemptsBySlot?: Record<string, AttemptRecord[]> }
   }>('alc:state:attempts')
   const attemptsBySlot = persistedAttempts?.state?.attemptsBySlot
+  const persistedProgress = readCurrentOrLegacy<{
+    state?: ProgressState
+  }>(StorageKeys.progressState)
+  const moduleKeys = useLegacyStorage ? getStorageKeysWithLegacyFallback() : repo.keys()
 
-  return repo
-    .keys()
+  return moduleKeys
     .filter((key) => key.startsWith('alc:module:'))
-    .map((key) => repo.get<Module>(key))
+    .map((key) => readCurrentOrLegacy<Module>(key))
     .filter((module): module is Module => module !== null)
     .filter((module) => {
       // 运行时模式感知：studio 上下文下按 production 过滤
@@ -53,7 +64,14 @@ export function listStoredModules(repo: StorageRepository): StoredModuleSummary[
       return effectiveShowcase ? module.origin === 'showcase' : module.origin !== 'showcase'
     })
     .map((module) => {
-      const progress = repo.get<ProgressState>(StorageKeys.progress(module.id))
+      // Older production snapshots may contain only the active module in the
+      // global Zustand blob. Use it as a fallback until the per-module bridge
+      // has written `alc:progress:{moduleId}`.
+      const progress =
+        (useLegacyStorage
+          ? getStorageValueWithLegacyFallback<ProgressState>(StorageKeys.progress(module.id))
+          : repo.get<ProgressState>(StorageKeys.progress(module.id))) ??
+        (persistedProgress?.state?.moduleId === module.id ? persistedProgress.state : null)
       const conceptQuizCount = module.concepts.reduce(
         (sum, concept) => sum + concept.quizSeries.quizzes.length,
         0,
@@ -80,7 +98,9 @@ export function listStoredModules(repo: StorageRepository): StoredModuleSummary[
  * 按 id 加载单个 Module；不存在返回 null。
  */
 export function loadStoredModule(repo: StorageRepository, moduleId: string): Module | null {
-  return repo.get<Module>(StorageKeys.module(moduleId))
+  return !isShowcaseMode && repo === getStorage()
+    ? getStorageValueWithLegacyFallback<Module>(StorageKeys.module(moduleId))
+    : repo.get<Module>(StorageKeys.module(moduleId))
 }
 
 /**

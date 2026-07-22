@@ -30,7 +30,7 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 import { track, flush, flushEvents, getPendingEvents, _resetForTesting } from '../analytics'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 
 describe('analytics (showcase mode)', () => {
   beforeEach(() => {
@@ -70,6 +70,7 @@ describe('analytics (showcase mode)', () => {
   })
 
   it('track never throws on storage errors', () => {
+    const storage = getStorage()
     const originalSet = storage.set.bind(storage)
     storage.set = () => {
       throw new Error('quota')
@@ -79,6 +80,7 @@ describe('analytics (showcase mode)', () => {
   })
 
   it('drops events gracefully on repeated storage failures during flush', async () => {
+    const storage = getStorage()
     const originalSet = storage.set.bind(storage)
     storage.set = () => {
       throw new Error('quota')

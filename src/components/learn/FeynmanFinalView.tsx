@@ -20,6 +20,8 @@ import { track } from '@/lib/runtime/analytics'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
+import { FeynmanHistoryPanel } from '@/components/learn/FeynmanHistoryPanel'
+import { QuizActionBar } from '@/components/quiz/QuizActionBar'
 
 const MIN_CHARS = 100
 const MAX_CHARS = 500
@@ -29,12 +31,14 @@ export function FeynmanFinalView() {
   const currentModule = useModuleStore((s) => s.currentModule)
   const config = useSettingsStore((s) => s.config)
   const submitFeynman = useProgressStore((s) => s.submitFeynman)
+  const feynmanAttempt = useProgressStore((s) => s.feynmanAttempt)
 
   const [output, setOutput] = useState('')
   const [submitCount, setSubmitCount] = useState(0)
   const [evaluating, setEvaluating] = useState(false)
   const [result, setResult] = useState<FeynmanEvalOutput | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   const handleSubmit = useCallback(async () => {
     if (!config || !currentModule) return
@@ -87,12 +91,34 @@ export function FeynmanFinalView() {
 
   return (
     <div className="text-fg-primary">
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-2xl mx-auto px-6 py-8 pb-32 space-y-6">
         {/* Header */}
         <div className="space-y-1">
-          <p className="text-xs text-fg-quaternary uppercase tracking-wider">费曼最终任务</p>
-          <h2 className="text-xl font-semibold">{finalPrompt}</h2>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs text-fg-quaternary uppercase tracking-wider">费曼最终任务</p>
+              <h2 className="mt-1 text-xl font-semibold">{finalPrompt}</h2>
+            </div>
+            {feynmanAttempt && feynmanAttempt.stepResults.length > 0 && !historyOpen && (
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                className="alc-button-secondary shrink-0 text-xs px-3 py-1.5"
+              >
+                作答历史 ({feynmanAttempt.stepResults.length})
+              </button>
+            )}
+          </div>
         </div>
+
+        {historyOpen && (
+          <FeynmanHistoryPanel
+            steps={currentModule.feynmanTask.steps}
+            attempt={feynmanAttempt}
+            currentStepOrder={6}
+            onClose={() => setHistoryOpen(false)}
+          />
+        )}
 
         {/* Text output */}
         <div className="space-y-2">
@@ -113,13 +139,15 @@ export function FeynmanFinalView() {
 
         {/* Submit button */}
         {!hasResult && (
-          <button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover disabled:bg-bg-elevated disabled:text-fg-tertiary transition-colors"
-          >
-            {evaluating ? '正在评估...' : '提交评估'}
-          </button>
+          <QuizActionBar>
+            <button
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover disabled:bg-bg-elevated disabled:text-fg-tertiary transition-colors"
+            >
+              {evaluating ? '正在评估...' : '提交评估'}
+            </button>
+          </QuizActionBar>
         )}
 
         {/* Error */}
@@ -174,25 +202,27 @@ export function FeynmanFinalView() {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-2">
-              {canRetry ? (
+            <QuizActionBar>
+              <div className="flex gap-3">
+                {canRetry ? (
+                  <button
+                    onClick={() => {
+                      setResult(null)
+                      setOutput('')
+                    }}
+                    className="flex-1 py-3 rounded-lg border border-border-strong text-fg-secondary font-medium text-sm hover:bg-bg-elevated transition-colors"
+                  >
+                    重写一次 ({submitCount}/{MAX_SUBMITS})
+                  </button>
+                ) : null}
                 <button
-                  onClick={() => {
-                    setResult(null)
-                    setOutput('')
-                  }}
-                  className="flex-1 py-3 rounded-lg border border-border-strong text-fg-secondary font-medium text-sm hover:bg-bg-elevated transition-colors"
+                  onClick={handleFinish}
+                  className="flex-1 py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover transition-colors"
                 >
-                  重写一次 ({submitCount}/{MAX_SUBMITS})
+                  完成学习
                 </button>
-              ) : null}
-              <button
-                onClick={handleFinish}
-                className="flex-1 py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover transition-colors"
-              >
-                完成学习
-              </button>
-            </div>
+              </div>
+            </QuizActionBar>
           </div>
         )}
       </div>

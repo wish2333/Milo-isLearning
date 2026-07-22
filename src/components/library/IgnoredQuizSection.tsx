@@ -13,7 +13,7 @@ import { useMemo, useCallback } from 'react'
 import { useHydrated } from '@/lib/hooks/useHydrated'
 import { isShowcaseMode } from '@/lib/runtime/app-mode'
 import { useRuntimeMode } from '@/lib/state/runtime-mode-store'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import { loadStoredModule, updateQuizInModule } from '@/lib/persistence/module-library'
 import { useModuleStore } from '@/lib/state/module-store'
 import type { Module, Quiz } from '@/types/domain'
@@ -52,6 +52,7 @@ function collectIgnoredQuizzes(): ModuleIgnoredGroup[] {
   const studioMode = useRuntimeMode.getState().studioMode
   const effectiveShowcase = isShowcaseMode && !studioMode
 
+  const storage = getStorage()
   const keys = storage.keys()
   const groups: ModuleIgnoredGroup[] = []
 
@@ -103,6 +104,7 @@ export function IgnoredQuizSection() {
   const totalCount = useMemo(() => groups.reduce((sum, g) => sum + g.quizzes.length, 0), [groups])
 
   const restoreQuiz = useCallback((moduleId: string, quizId: string) => {
+    const storage = getStorage()
     const mod = loadStoredModule(storage, moduleId)
     if (!mod) return
 

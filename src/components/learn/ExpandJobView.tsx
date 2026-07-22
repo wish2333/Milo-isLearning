@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 
 import type { CompileEvent, CompileStage } from '@/lib/compiler/pipeline/types'
 import { addModuleToTopic } from '@/lib/persistence/topic-library'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import { loadStoredModule } from '@/lib/persistence/module-library'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { computeModuleProgress } from '@/lib/runtime/module-progress'
@@ -155,6 +155,7 @@ function statusClass(status: ExpandJobItem['status']): string {
 
 export function ExpandJobView({ initialRequest = null, jobId = null }: ExpandJobViewProps) {
   const router = useRouter()
+  const storage = isProductionMode ? getStorage() : null
   const config = useSettingsStore((state) => state.config)
   const attemptsBySlot = useAttemptsStore((state) => state.attemptsBySlot)
   const [job, setJob] = useState<ExpandJob | null>(null)
@@ -166,6 +167,7 @@ export function ExpandJobView({ initialRequest = null, jobId = null }: ExpandJob
   const [, setStorageVersion] = useState(0)
   const controllerRef = useRef<AbortController | null>(null)
   const startedInitialRef = useRef(false)
+  const mountedRef = useRef(true)
 
   const refreshJob = useCallback(async (targetJobId: string): Promise<ExpandJob | null> => {
     if (!isProductionMode) return null
@@ -190,12 +192,15 @@ export function ExpandJobView({ initialRequest = null, jobId = null }: ExpandJob
   const hydrateCompletedItem = useCallback(async (item: ExpandJobItem, topicId?: string) => {
     if (!isProductionMode) return
     if (!item.moduleId) return
+    if (!mountedRef.current) return
+    const repository = getStorage()
     const storedModule = await readServerValue<Module>(StorageKeys.module(item.moduleId))
-    if (!storedModule) return
-    storage.set(StorageKeys.module(storedModule.id), storedModule)
+    if (!mountedRef.current || !storedModule) return
+    repository.set(StorageKeys.module(storedModule.id), storedModule)
+    if (!mountedRef.current) return
     const source = await readServerValue<unknown>(StorageKeys.source(storedModule.sourceId))
-    if (source !== null) storage.set(StorageKeys.source(storedModule.sourceId), source)
-    if (topicId) addModuleToTopic(storage, topicId, storedModule.id)
+    if (source !== null) repository.set(StorageKeys.source(storedModule.sourceId), source)
+    if (topicId) addModuleToTopic(repository, topicId, storedModule.id)
   }, [])
 
   const hydrateCompletedItems = useCallback(
@@ -416,7 +421,13 @@ export function ExpandJobView({ initialRequest = null, jobId = null }: ExpandJob
     void startStream(initialRequest)
   }, [initialRequest, jobId, ready, startStream])
 
-  useEffect(() => () => controllerRef.current?.abort(), [])
+  useEffect(
+    () => () => {
+      mountedRef.current = false
+      controllerRef.current?.abort()
+    },
+    [],
+  )
 
   const request = useMemo(() => (job ? requestFromJob(job) : initialRequest), [initialRequest, job])
 
@@ -484,7 +495,7 @@ export function ExpandJobView({ initialRequest = null, jobId = null }: ExpandJob
     [router],
   )
 
-  if (!isProductionMode) return null
+  if (!isProductionMode || !storage) return null
 
   const totalItems = job?.items.length ?? initialRequest?.items.length ?? 0
   const completedItems = job?.items.filter((item) => item.status === 'done').length ?? 0

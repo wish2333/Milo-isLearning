@@ -32,6 +32,7 @@ const MIGRATABLE_PREFIXES = [
 ]
 
 const GLOBAL_STATE_ATTEMPTS_KEY = 'alc:state:attempts'
+const GLOBAL_STATE_PROGRESS_KEY = 'alc:state:progress'
 
 export interface ScannedEntry {
   key: string
@@ -92,6 +93,16 @@ export function collectLegacyEntries(): {
     entries.push({
       key: GLOBAL_STATE_ATTEMPTS_KEY,
       valueRaw: attemptsValue,
+      namespace: 'state',
+    })
+  }
+
+  // 兼容旧版 Zustand progress persist 快照，供模块进度回填使用。
+  const progressValue = localStorage.getItem(GLOBAL_STATE_PROGRESS_KEY)
+  if (progressValue !== null) {
+    entries.push({
+      key: GLOBAL_STATE_PROGRESS_KEY,
+      valueRaw: progressValue,
       namespace: 'state',
     })
   }

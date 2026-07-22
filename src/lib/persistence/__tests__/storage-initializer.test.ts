@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const {
   loadFromServerMock,
   flushNowMock,
+  backfillLegacyStorageMock,
   registerFlushHandlersMock,
   showcaseModeRef,
   storageMock,
@@ -12,6 +13,7 @@ const {
   return {
     loadFromServerMock: vi.fn().mockResolvedValue(undefined),
     flushNowMock: vi.fn().mockResolvedValue(undefined),
+    backfillLegacyStorageMock: vi.fn().mockResolvedValue({ copied: 0, skipped: 0 }),
     registerFlushHandlersMock: vi.fn().mockReturnValue(() => {}),
     showcaseModeRef: { value: false },
     storageMock: {
@@ -79,6 +81,9 @@ vi.mock('@/lib/persistence/client/storage', () => ({
 }))
 vi.mock('@/lib/persistence/client/flush-manager', () => ({
   registerFlushHandlers: registerFlushHandlersMock,
+}))
+vi.mock('@/lib/persistence/client/legacy-storage-backfill', () => ({
+  backfillLegacyStorage: backfillLegacyStorageMock,
 }))
 
 // 控制 isShowcaseMode

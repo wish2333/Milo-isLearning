@@ -193,6 +193,25 @@ describe('ChoiceQuiz', () => {
     expect(container.textContent).not.toContain('✗')
   })
 
+  it('uses the selected option when a legacy caller omits submittedAnswer', () => {
+    lockShuffleIdentity()
+    const quiz = makeChoiceQuiz()
+    const onAnswer = vi.fn()
+
+    act(() => {
+      root.render(<ChoiceQuiz quiz={quiz} disabled={false} onAnswer={onAnswer} />)
+    })
+    act(() => {
+      optionButtons()[0]!.click()
+    })
+    act(() => {
+      root.render(<ChoiceQuiz quiz={quiz} disabled={true} onAnswer={onAnswer} />)
+    })
+
+    expect(optionButtons()[1]!.textContent).toContain('✓')
+    expect(optionButtons()[0]!.textContent).toContain('✗')
+  })
+
   it('calls onAnswer with selected option when submit button is clicked', () => {
     lockShuffleIdentity()
     const quiz = makeChoiceQuiz()

@@ -11,8 +11,14 @@ import { useHydrated } from '@/lib/hooks/useHydrated'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
 import { useTodaySessionStore } from '@/lib/state/today-session-store'
+import { useModuleStore } from '@/lib/state/module-store'
+import { getStorageValueWithLegacyFallback } from '@/lib/persistence/client/storage'
+import { StorageKeys } from '@/lib/persistence/shared/keys'
+import type { Module, Quiz } from '@/types/domain'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
+import { BackgroundPanel } from '@/components/learn/BackgroundPanel'
+import { QuizActionBar } from '@/components/quiz/QuizActionBar'
 
 type Phase = 'answering' | 'evaluating' | 'feedback'
 
@@ -23,6 +29,7 @@ export function TodayReviewView() {
   const session = useTodaySessionStore((state) => state.session)
   const hydrate = useTodaySessionStore((state) => state.hydrate)
   const recordResult = useTodaySessionStore((state) => state.recordResult)
+  const updateResult = useTodaySessionStore((state) => state.updateResult)
   const nextQuestion = useTodaySessionStore((state) => state.nextQuestion)
   const config = useSettingsStore((state) => state.config)
   const addAttempt = useAttemptsStore((state) => state.addAttempt)
@@ -30,10 +37,15 @@ export function TodayReviewView() {
   const getNextAttemptVersion = useAttemptsStore((state) => state.getNextAttemptVersion)
   const markGuessed = useAttemptsStore((state) => state.markGuessed)
   const unmarkGuessed = useAttemptsStore((state) => state.unmarkGuessed)
+  const reevaluateLastAttempt = useAttemptsStore((state) => state.reevaluateLastAttempt)
+  const correctQuizAnswer = useModuleStore((state) => state.correctQuizAnswer)
+  const setModule = useModuleStore((state) => state.setModule)
+  const currentModuleId = useModuleStore((state) => state.currentModule?.id)
   const [phase, setPhase] = useState<Phase>('answering')
   const [feedback, setFeedback] = useState<FeedbackRuntime | null>(null)
   const [isGuessed, setIsGuessed] = useState(false)
   const [submittedAnswer, setSubmittedAnswer] = useState<string | null>(null)
+  const [displayQuiz, setDisplayQuiz] = useState<Quiz | null>(null)
   const quizDisplayStart = useRef(Date.now())
 
   useEffect(() => {
@@ -41,13 +53,21 @@ export function TodayReviewView() {
   }, [hydrated, hydrate])
 
   const currentQueueItem = session ? session.queue[session.currentIndex] : undefined
-  const currentQuiz = currentQueueItem?.quiz
+  const currentQuiz = displayQuiz ?? currentQueueItem?.quiz
   const isFinished = session !== null && session.currentIndex >= session.queue.length
+  const moduleData = currentQueueItem
+    ? getStorageValueWithLegacyFallback<Module>(StorageKeys.module(currentQueueItem.moduleId))
+    : null
+
+  useEffect(() => {
+    if (moduleData && currentModuleId !== moduleData.id) setModule(moduleData)
+  }, [currentModuleId, moduleData, setModule])
 
   useEffect(() => {
     if (!currentQueueItem) return
     quizDisplayStart.current = Date.now()
     const latest = getAttempts(currentQueueItem.slotId).at(-1)
+    setDisplayQuiz(currentQueueItem.quiz)
     setIsGuessed(latest?.guessed === true)
     setPhase('answering')
     setFeedback(null)
@@ -128,6 +148,47 @@ export function TodayReviewView() {
     [currentQueueItem, currentQuiz, getAttempts, markGuessed, unmarkGuessed],
   )
 
+  const canCorrect = moduleData?.origin !== 'showcase'
+
+  const handleCorrectAnswer = useCallback(
+    async (
+      patch: Partial<
+        Pick<
+          Quiz,
+          | 'answer'
+          | 'options'
+          | 'acceptableAnswers'
+          | 'stem'
+          | 'explanation'
+          | 'distractors'
+          | 'answerHint'
+        >
+      >,
+    ) => {
+      if (!currentQueueItem || !currentQuiz) return
+      correctQuizAnswer(currentQuiz.id, patch)
+      const correctedQuiz: Quiz = { ...currentQuiz, ...patch }
+      setDisplayQuiz(correctedQuiz)
+      const provider =
+        config && correctedQuiz.interactionType === 'fill_blank' ? createProvider(config) : null
+      try {
+        const result = await reevaluateLastAttempt(currentQueueItem.slotId, correctedQuiz, provider)
+        updateResult(currentQueueItem.slotId, result.score)
+        synchronizeScheduleForSlot({
+          slotId: currentQueueItem.slotId,
+          moduleId: currentQueueItem.moduleId,
+          conceptId: correctedQuiz.conceptId,
+          quiz: correctedQuiz,
+          attempts: useAttemptsStore.getState().getAttempts(currentQueueItem.slotId),
+        })
+        setFeedback(result)
+      } catch {
+        // 保留已保存的题目修改和原反馈，避免编辑失败时丢失上下文。
+      }
+    },
+    [config, correctQuizAnswer, currentQueueItem, currentQuiz, reevaluateLastAttempt, updateResult],
+  )
+
   const handleNext = useCallback(() => {
     setFeedback(null)
     setPhase('answering')
@@ -182,7 +243,7 @@ export function TodayReviewView() {
 
   return (
     <main className="alc-page">
-      <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 space-y-6">
+      <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 pb-32 space-y-6">
         <header className="flex items-center justify-between">
           <div>
             <p className="alc-label">今日复习</p>
@@ -200,6 +261,7 @@ export function TodayReviewView() {
           </div>
         </header>
 
+        <BackgroundPanel background={currentQuiz.background} />
         <QuizRenderer
           quiz={currentQuiz}
           disabled={phase !== 'answering'}
@@ -218,17 +280,22 @@ export function TodayReviewView() {
               explanation={currentQuiz.explanation}
               misconception={currentQuiz.misconception}
               extendedKnowledge={currentQuiz.extendedKnowledge}
+              canCorrect={canCorrect}
+              quiz={currentQuiz}
+              onCorrectAnswer={handleCorrectAnswer}
               isGuessed={isGuessed}
               onMarkGuessed={() => syncGuessed(true)}
               onUnmarkGuessed={() => syncGuessed(false)}
             />
-            <button
-              type="button"
-              className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm"
-              onClick={handleNext}
-            >
-              {session.currentIndex + 1 >= session.queue.length ? '查看结果' : '下一题'}
-            </button>
+            <QuizActionBar>
+              <button
+                type="button"
+                className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm"
+                onClick={handleNext}
+              >
+                {session.currentIndex + 1 >= session.queue.length ? '查看结果' : '下一题'}
+              </button>
+            </QuizActionBar>
           </>
         )}
       </div>

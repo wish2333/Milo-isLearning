@@ -10,12 +10,27 @@ import { nanoid } from 'nanoid'
 import type { Topic, ContentOrigin } from '@/types/domain'
 import type { StorageRepository } from './shared/repository'
 import { StorageKeys } from './shared/keys'
+import { getStorageValueWithLegacyFallback } from './client/storage'
 
 /** 读取所有主题（按 createdAt 升序） */
 export function listTopics(repo: StorageRepository): Topic[] {
-  const topics = repo.get<Topic[]>(StorageKeys.topicIndex)
+  const topics =
+    getStorageValueWithLegacyFallback<Topic[]>(StorageKeys.topicIndex, mergeTopicIndexes) ??
+    repo.get<Topic[]>(StorageKeys.topicIndex)
   if (!topics || !Array.isArray(topics)) return []
   return [...topics].sort((a, b) => a.createdAt - b.createdAt)
+}
+
+/**
+ * V2.1.3 之前主题索引可能只存在浏览器 LocalStorage；生产 SQLite 也可能已经有
+ * 另一份索引。合并时以当前 repository 为准，补入旧索引中尚未迁移的主题，避免
+ * 旧 TopicSession 指向的主题在题库页被判定为不存在。
+ */
+function mergeTopicIndexes(current: Topic[], legacy: Topic[]): Topic[] {
+  if (!Array.isArray(current) || !Array.isArray(legacy)) return current
+  const merged = new Map<string, Topic>(legacy.map((topic) => [topic.id, topic]))
+  for (const topic of current) merged.set(topic.id, topic)
+  return [...merged.values()]
 }
 
 /** 读取单个主题 */

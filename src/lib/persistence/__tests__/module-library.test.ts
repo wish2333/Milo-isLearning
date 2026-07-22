@@ -231,6 +231,24 @@ describe('listStoredModules', () => {
     expect(result[2]!.id).toBe('m3')
     expect(result[2]!.updatedAt).toBe(0)
   })
+
+  it('falls back to the active global progress snapshot when per-module progress is missing', () => {
+    repo.set(StorageKeys.module('m1'), makeFullModule('m1'))
+    repo.set(StorageKeys.progressState, {
+      state: {
+        moduleId: 'm1',
+        stage: { kind: 'concept', conceptIndex: 0, quizIndex: 1 },
+        updatedAt: 4000,
+      },
+      version: 0,
+    })
+
+    const result = listStoredModules(repo)
+
+    expect(result[0]!.updatedAt).toBe(4000)
+    expect(result[0]!.progressInfo?.started).toBe(true)
+    expect(result[0]!.progressInfo?.positionLabel).toBe('题目 2/2')
+  })
 })
 
 describe('loadStoredModule', () => {

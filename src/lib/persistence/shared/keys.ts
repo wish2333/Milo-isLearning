@@ -28,6 +28,8 @@ export const StorageKeys = {
   feynman: (moduleId: string) => `${STORAGE_NAMESPACE}:feynman:${moduleId}`,
   /** ProgressState：学习状态机当前态 */
   progress: (moduleId: string) => `${STORAGE_NAMESPACE}:progress:${moduleId}`,
+  /** Zustand 全局进度快照（当前活动 Module 的兼容回退） */
+  progressState: `${STORAGE_NAMESPACE}:state:progress`,
   /** Module 范围 attempts 归档（M7.5：按 module 隔离的 attempts） */
   attemptsModule: (moduleId: string) => `${STORAGE_NAMESPACE}:attempts-module:${moduleId}`,
   /** Module 编译质量报告（M7.5） */
