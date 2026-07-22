@@ -411,6 +411,9 @@ test.describe('Topic re-entry preserves progress (V2.0.1 regression)', () => {
     // 刷新页面，让 module-store 清空 currentModule（模拟用户退出后重新打开）
     await page.reload()
 
+    // V2.1.5 主题模块详情默认收起，先展开模块行再继续。
+    await page.getByRole('button', { name: /展开 \d+ 个模块/ }).click()
+
     // 点击模块的"继续"按钮（Library handleOpen，应保留进度）
     await page.locator('button:has-text("继续")').first().click()
     await page.waitForURL('**/learn/module/**', { timeout: 5000 })
@@ -500,6 +503,83 @@ test.describe('Review with filter tabs', () => {
     // Switch to "仅蒙对" tab
     await page.locator('button:has-text("仅蒙对")').click()
     await page.waitForURL(`**/learn/review/${mockModule.id}?filter=guessed`)
+  })
+
+  test('topic review uses one navigation layer, keeps context, and pins the submit action', async ({
+    page,
+  }) => {
+    await page.addInitScript((moduleData) => {
+      const moduleWithContext = {
+        ...moduleData,
+        concepts: moduleData.concepts.map((concept, index) =>
+          index === 0
+            ? {
+                ...concept,
+                quizSeries: {
+                  ...concept.quizSeries,
+                  quizzes: concept.quizSeries.quizzes.map((quiz, quizIndex) =>
+                    quizIndex === 0
+                      ? { ...quiz, background: '一个客服系统正在处理来自不同渠道的请求。' }
+                      : quiz,
+                  ),
+                },
+              }
+            : concept,
+        ),
+      }
+
+      localStorage.setItem(`alc:module:${moduleWithContext.id}`, JSON.stringify(moduleWithContext))
+      localStorage.setItem(
+        'alc:topic-index',
+        JSON.stringify([
+          {
+            id: 'topic-review-ui',
+            name: '重刷 UI 主题',
+            moduleIds: [moduleWithContext.id],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        ]),
+      )
+      localStorage.setItem(
+        'alc:state:attempts',
+        JSON.stringify({
+          state: {
+            attemptsBySlot: {
+              'concept-1:0': [
+                {
+                  id: 'review-ui-wrong',
+                  quizId: 'concept-1:0',
+                  originalQuizId: 'concept-1:0',
+                  attemptVersion: 0,
+                  userAnswer: '干扰项A',
+                  score: 0,
+                  gaps: ['概念定义'],
+                  nextAction: 'retry',
+                  timestamp: Date.now(),
+                },
+              ],
+            },
+          },
+          version: 0,
+        }),
+      )
+    }, mockModule)
+
+    await page.goto('/learn/review/topic/topic-review-ui?filter=wrong')
+    await expect(page.locator('header.alc-nav-top')).toHaveCount(1)
+    await expect(page.getByRole('region', { name: '题目前背景' })).toBeVisible()
+
+    const submitButton = page.getByRole('button', { name: '确认选择' })
+    await expect(submitButton).toBeVisible()
+    await expect
+      .poll(() =>
+        submitButton.evaluate((element) => {
+          const fixedBar = element.parentElement?.parentElement
+          return fixedBar ? getComputedStyle(fixedBar).position : 'missing'
+        }),
+      )
+      .toBe('fixed')
   })
 
   test('review with wrong filter shows only wrong questions and can complete', async ({ page }) => {

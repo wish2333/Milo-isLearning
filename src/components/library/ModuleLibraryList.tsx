@@ -21,10 +21,11 @@ import {
 } from '@/lib/persistence/module-library'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { removeModule } from '@/lib/persistence/quota'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
+import { enterModule } from '@/lib/runtime/enter-module'
 import { hasWrongQuestions } from '@/lib/persistence/wrong-question-book'
 import type { AttemptRecord, ProgressState } from '@/types/domain'
 
@@ -143,7 +144,9 @@ export function ModuleLibraryRow({
                         : 'text-[var(--fg-tertiary)]'
                   }
                 >
-                  {m.progressInfo.label}
+                  {m.progressInfo.positionLabel
+                    ? `${m.progressInfo.label} · ${m.progressInfo.positionLabel}`
+                    : m.progressInfo.label}
                 </span>
                 <span className="text-[var(--fg-tertiary)] tabular-nums">
                   {m.progressInfo.conceptPercent}%
@@ -231,26 +234,28 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
   const setModule = useModuleStore((s) => s.setModule)
   const startModule = useProgressStore((s) => s.startModule)
   const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
+  const repository = getStorage()
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
   // ---------- 打开 / 继续 ----------
 
   const handleOpen = (summary: StoredModuleSummary) => {
-    const storedModule = loadStoredModule(storage, summary.id)
+    const storedModule = loadStoredModule(repository, summary.id)
     if (!storedModule) {
       setToast('Module 不存在或已损坏')
       return
     }
-    setModule(storedModule)
-    const storedProgress = storage.get<ProgressState>(StorageKeys.progress(storedModule.id))
+    const storedProgress = repository.get<ProgressState>(StorageKeys.progress(storedModule.id))
     const activeProgress = useProgressStore.getState()
     const hasActiveProgress =
       activeProgress.moduleId === storedModule.id && activeProgress.stage !== null
-    // 若已完成或无进度 → 跳概览；否则跳学习页继续
+    // 若已完成或无进度 → 跳概览；否则经 enterModule 恢复进度后跳学习页
     if (summary.completed || (!storedProgress && !hasActiveProgress)) {
+      setModule(storedModule)
       router.push('/learn/overview')
     } else {
+      enterModule({ moduleId: storedModule.id, allowResume: true })
       router.push(`/learn/module/${storedModule.id}`)
     }
   }
@@ -258,12 +263,12 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
   // ---------- 重新学习 ----------
 
   const handleRestart = (summary: StoredModuleSummary) => {
-    const storedModule = loadStoredModule(storage, summary.id)
+    const storedModule = loadStoredModule(repository, summary.id)
     if (!storedModule) {
       setToast('Module 不存在或已损坏')
       return
     }
-    resetStoredModuleProgress(storage, summary.id)
+    resetStoredModuleProgress(repository, summary.id)
     setModule(storedModule)
     startModule(storedModule.id)
     router.push('/learn/overview')
@@ -277,7 +282,7 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
 
   const handleDeleteConfirm = () => {
     if (!pendingDeleteId) return
-    removeModule(storage, pendingDeleteId)
+    removeModule(repository, pendingDeleteId)
     // 若当前 module store 持有的就是被删除的，清空
     const currentId = useModuleStore.getState().currentModule?.id
     if (currentId === pendingDeleteId) {
@@ -300,7 +305,7 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
   // ---------- 重命名 ----------
 
   const handleRename = (moduleId: string, newTitle: string) => {
-    const storedModule = loadStoredModule(storage, moduleId)
+    const storedModule = loadStoredModule(repository, moduleId)
     if (!storedModule) {
       setToast('Module 不存在或已损坏')
       return
@@ -310,7 +315,7 @@ export function ModuleLibraryList({ modules, onChanged }: ModuleLibraryListProps
       return
     }
     try {
-      renameModule(storage, moduleId, newTitle)
+      renameModule(repository, moduleId, newTitle)
       // 若当前 module store 持有的就是被重命名的，同步更新内存状态
       const current = useModuleStore.getState().currentModule
       if (current && current.id === moduleId) {
@@ -417,7 +422,7 @@ function ModuleRenameButton({
   const [isShowcase, setIsShowcase] = useState(false)
 
   useEffect(() => {
-    const moduleData = loadStoredModule(storage, module.id)
+    const moduleData = loadStoredModule(getStorage(), module.id)
     setIsShowcase(moduleData?.origin === 'showcase')
   }, [module.id])
 
@@ -461,7 +466,7 @@ function ModuleReviewButton({
   const [hasWrong, setHasWrong] = useState(false)
 
   useEffect(() => {
-    const moduleData = loadStoredModule(storage, moduleId)
+    const moduleData = loadStoredModule(getStorage(), moduleId)
     if (!moduleData) return
     setHasWrong(hasWrongQuestions(moduleData, attemptsBySlot))
   }, [moduleId, attemptsBySlot])

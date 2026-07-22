@@ -21,7 +21,7 @@ import type { CompileStage } from '@/lib/compiler/pipeline/types'
 import { isProductionMode } from '@/lib/runtime/app-mode'
 import { track } from '@/lib/runtime/analytics'
 import { INPUT_MAX_LENGTH, INPUT_MIN_LENGTH } from '@/lib/compiler/pipeline/types'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import { createTopic } from '@/lib/persistence/topic-library'
 import { createCompileJob } from '@/lib/state/compile-job-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
@@ -139,7 +139,7 @@ export default function ImportPage() {
 
     // 创建 compile job，携带 sessionId
     const sourceContent = markdown || sessionStorage.getItem(STORAGE_KEY) || ''
-    const job = createCompileJob(storage, {
+    const job = createCompileJob(getStorage(), {
       sourceContent,
       configSummary: { provider: config?.provider ?? '', model: config?.model ?? '' },
       sessionId: resumeInfo.sessionId,
@@ -178,7 +178,7 @@ export default function ImportPage() {
     sessionStorage.setItem(STORAGE_KEY, markdown)
 
     // M7.5：写入 compile job store，刷新后可恢复
-    const job = createCompileJob(storage, {
+    const job = createCompileJob(getStorage(), {
       sourceContent: markdown,
       configSummary: { provider: config.provider, model: config.model },
     })
@@ -203,7 +203,7 @@ export default function ImportPage() {
     const trimmedTopic = topic.trim()
     sessionStorage.setItem(STORAGE_KEY, trimmedTopic)
 
-    const job = createCompileJob(storage, {
+    const job = createCompileJob(getStorage(), {
       sourceContent: trimmedTopic,
       configSummary: { provider: config.provider, model: config.model },
       compileMode: 'expand',
@@ -232,7 +232,7 @@ export default function ImportPage() {
     const sourceHash = await sha256(
       JSON.stringify({ name, items, constraints: normalizedConstraints ?? '' }),
     )
-    const createdTopic = createTopic(storage, name, normalizedConstraints)
+    const createdTopic = createTopic(getStorage(), name, normalizedConstraints)
     const request: TopicExpandRequest = {
       topicId: createdTopic.id,
       sourceHash,

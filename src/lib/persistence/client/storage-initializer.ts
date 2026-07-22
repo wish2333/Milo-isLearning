@@ -10,6 +10,7 @@ import { useRatingStore } from '@/lib/state/rating-store'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
 
 import { getProductionStorage } from './storage'
+import { backfillLegacyStorage } from './legacy-storage-backfill'
 import { registerFlushHandlers } from './flush-manager'
 import { rebuildAllSchedulesIfNeeded } from '@/lib/runtime/fsrs-migrate'
 
@@ -77,9 +78,13 @@ async function doInit(): Promise<void> {
     const repo = getProductionStorage()
     await repo.loadFromServer()
 
-    // 2. Phase 5 占位：检查 LocalStorage 迁移
-    // TODO(phase-5): 调用 checkAndMigrate()，如有迁移数据则触发迁移流程
-    // 本任务先不实现，避免阻塞 Phase 3
+    // 2. 自动补入旧版 production LocalStorage 数据。
+    // 旧版主编译/导入路径可能绕过 SQLite repository；必须在 stores rehydrate
+    // 前补齐，否则首次进入题库页时会看到“主题有引用但 Module 不存在”。
+    const backfill = await backfillLegacyStorage()
+    if (backfill.copied > 0) {
+      console.info(`[StorageInitializer] 已从旧 LocalStorage 回填 ${backfill.copied} 项到 SQLite`)
+    }
 
     // 3. 依次 rehydrate 6 stores
     // 注意 rehydrate() 是 async（zustand persist API）

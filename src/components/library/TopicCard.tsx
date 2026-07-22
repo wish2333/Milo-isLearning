@@ -20,13 +20,15 @@ import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
 import { enterModule } from '@/lib/runtime/enter-module'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 
 interface TopicCardProps {
   topic: Topic
   modules: StoredModuleSummary[]
   onEdit: (topic: Topic) => void
   onChanged: () => void
+  /** TopicSection owns the collapsible detail list; hide the duplicated preview there. */
+  showModuleList?: boolean
 }
 
 /** 模块状态标记 */
@@ -42,17 +44,27 @@ function getModuleStatusIcon(
   return { icon: '\u25CB', className: 'text-fg-tertiary' }
 }
 
-export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps) {
+export function TopicCard({
+  topic,
+  modules,
+  onEdit,
+  onChanged,
+  showModuleList = true,
+}: TopicCardProps) {
   const router = useRouter()
   const [pendingDelete, setPendingDelete] = useState(false)
   const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
+  const repository = getStorage()
 
-  const completedCount = modules.filter((m) => m.completed).length
+  const completedCount = modules.filter((m) => m.completed || m.progressInfo?.done).length
+  const inProgressCount = modules.filter(
+    (m) => !(m.completed || m.progressInfo?.done) && m.progressInfo?.started,
+  ).length
   const totalCount = modules.length
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
   // F22: 读取上次进度快照
-  const savedProgress: TopicProgress | null = storage.get<TopicProgress>(
+  const savedProgress: TopicProgress | null = repository.get<TopicProgress>(
     StorageKeys.topicProgress(topic.id),
   )
   const savedCompleted = savedProgress?.completedModuleIds.length ?? 0
@@ -69,7 +81,7 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
   }
 
   const handleDeleteConfirm = () => {
-    deleteTopic(storage, topic.id)
+    deleteTopic(repository, topic.id)
     setPendingDelete(false)
     onChanged()
   }
@@ -77,11 +89,11 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
   const handleExportTopic = () => {
     const modulePackages: ReturnType<typeof createModulePackage>[] = []
     for (const moduleId of topic.moduleIds) {
-      const moduleData = loadStoredModule(storage, moduleId)
+      const moduleData = loadStoredModule(repository, moduleId)
       if (!moduleData) continue
-      const source = storage.get<KnowledgeSource>(StorageKeys.source(moduleData.sourceId))
+      const source = repository.get<KnowledgeSource>(StorageKeys.source(moduleData.sourceId))
       if (!source) continue
-      const quality = storage.get<unknown>(StorageKeys.qualityReport(moduleId))
+      const quality = repository.get<unknown>(StorageKeys.qualityReport(moduleId))
       modulePackages.push(
         createModulePackage({ source, module: moduleData, qualityReport: quality }),
       )
@@ -93,7 +105,7 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
 
   const handleExportWrongBook = () => {
     const modulesData = topic.moduleIds
-      .map((id) => loadStoredModule(storage, id))
+      .map((id) => loadStoredModule(repository, id))
       .filter((m): m is Module => m !== null)
     if (modulesData.length === 0) return
     downloadWrongQuestionBookForTopic(topic.name, modulesData, attemptsBySlot)
@@ -109,7 +121,10 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
             {topic.description && <p className="alc-label mt-1 text-xs">{topic.description}</p>}
           </div>
           <span className="text-xs text-fg-tertiary shrink-0">
-            {completedCount === 0 ? '未开始' : `${completedCount}/${totalCount} 已完成`}
+            {completedCount === 0 && inProgressCount === 0
+              ? '未开始'
+              : `${completedCount}/${totalCount} 已完成`}
+            {inProgressCount > 0 && ` · ${inProgressCount} 进行中`}
           </span>
         </div>
 
@@ -129,9 +144,12 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
             上次完成 {savedCompleted}/{totalCount} 个模块
           </p>
         )}
+        {inProgressCount > 0 && (
+          <p className="text-xs text-fg-tertiary">当前有 {inProgressCount} 个模块进行中</p>
+        )}
 
         {/* 模块状态列表 */}
-        {modules.length > 0 && (
+        {showModuleList && modules.length > 0 && (
           <div className="space-y-1.5">
             {modules.map((m) => {
               const status = getModuleStatusIcon(m.completed, m.updatedAt)
@@ -154,7 +172,9 @@ export function TopicCard({ topic, modules, onEdit, onChanged }: TopicCardProps)
                               : 'text-xs text-[var(--fg-tertiary)] shrink-0'
                         }
                       >
-                        {m.progressInfo.label}
+                        {m.progressInfo.positionLabel
+                          ? `${m.progressInfo.label} · ${m.progressInfo.positionLabel}`
+                          : m.progressInfo.label}
                       </span>
                       <div className="w-16 h-1 rounded-full bg-[var(--bg-elevated)] shrink-0">
                         <div

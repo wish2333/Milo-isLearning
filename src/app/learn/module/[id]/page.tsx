@@ -22,6 +22,7 @@ import { getStorageValueWithLegacyFallback } from '@/lib/persistence/client/stor
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useTopicSessionStore } from '@/lib/state/topic-session-store'
+import { enterModule } from '@/lib/runtime/enter-module'
 import type { Module } from '@/types/domain'
 import type { ModuleStage } from '@/types/domain'
 
@@ -57,24 +58,22 @@ export default function ModulePage() {
   const params = useParams<{ id: string }>()
   const hydrated = useHydrated()
   const currentModule = useModuleStore((s) => s.currentModule)
-  const setModule = useModuleStore((s) => s.setModule)
   const stage = useProgressStore((s) => s.stage)
+  const progressModuleId = useProgressStore((s) => s.moduleId)
   const routeModuleId = params.id
 
   useEffect(() => {
     if (!hydrated || !routeModuleId) return
-    if (currentModule?.id === routeModuleId) return
+    // 同时校验 module-store 与 progress-store 都指向当前模块：题库页 handleOpen
+    // 等入口只 setModule 不 resumeModule，若仅凭 currentModule?.id 早返回，
+    // progress-store.moduleId 会停在旧模块，作答 stage 被错写到旧模块 per-module key。
+    if (currentModule?.id === routeModuleId && progressModuleId === routeModuleId) return
 
-    const storedModule = getStorageValueWithLegacyFallback<Module>(
-      StorageKeys.module(routeModuleId),
-    )
-    if (storedModule) {
-      setModule(storedModule)
-      return
+    const entered = enterModule({ moduleId: routeModuleId, allowResume: true })
+    if (!entered) {
+      router.replace('/learn/library')
     }
-
-    router.replace('/learn/library')
-  }, [hydrated, routeModuleId, currentModule?.id, setModule, router])
+  }, [hydrated, routeModuleId, currentModule?.id, progressModuleId, router])
 
   // 无 Module 数据时回到题库页（等 hydration 和 route 恢复完成后再检查）
   useEffect(() => {
@@ -93,12 +92,17 @@ export default function ModulePage() {
     if (stage?.kind !== 'done') return
 
     const topicSession = useTopicSessionStore.getState().session
-    if (topicSession && topicSession.moduleIds[topicSession.currentIndex] === routeModuleId) {
-      useTopicSessionStore.getState().markCurrentModuleDone()
-      router.replace(`/learn/topic/${topicSession.topicId}`)
-    } else {
+    if (!topicSession || !topicSession.moduleIds.includes(routeModuleId)) {
       router.replace('/learn/done')
+      return
     }
+    if (topicSession.moduleIds[topicSession.currentIndex] === routeModuleId) {
+      useTopicSessionStore.getState().markCurrentModuleDone()
+    } else {
+      // 用户偏离主题编排（如从题库直进）学完了主题内其他模块：也标记完成，避免主题进度卡死
+      useTopicSessionStore.getState().markModuleDone(routeModuleId)
+    }
+    router.replace(`/learn/topic/${topicSession.topicId}`)
   }, [stage, router, routeModuleId])
 
   if (!currentModule || !stage) return null

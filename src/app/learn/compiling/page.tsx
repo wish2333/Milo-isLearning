@@ -21,7 +21,7 @@ import { Suspense, useEffect, useRef, useState, useTransition } from 'react'
 
 import type { CompileConfig, CompileEvent } from '@/lib/compiler/pipeline/types'
 
-import { getStorage } from '@/lib/persistence/client/storage'
+import { getProductionStorage, getStorage } from '@/lib/persistence/client/storage'
 import { assignLocalModuleIdentity } from '@/lib/persistence/module-package'
 import { ensureCapacity } from '@/lib/persistence/quota'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
@@ -336,6 +336,26 @@ function CompilingPageInner() {
                     percent: 100,
                   })
                   pruneCompileJobs(storage)
+                }
+
+                // production 写入通过异步队列落到 SQLite。先确认当前编译产物的
+                // Module/Source/Quality 写入完成，再跳转到概览页，避免页面切换或
+                // 关闭导致“页面看得到但 SQLite 没有”。
+                if (isProductionMode) {
+                  const productionStorage = getProductionStorage()
+                  await productionStorage.flushNow()
+                  const failedKeys = new Set(
+                    productionStorage.getFailedTasks().map((task) => task.key),
+                  )
+                  const requiredKeys = [
+                    StorageKeys.module(compiledModule.id),
+                    StorageKeys.source(compiledModule.sourceId),
+                    ...(parsed.qualityReport ? [StorageKeys.qualityReport(compiledModule.id)] : []),
+                  ]
+                  if (requiredKeys.some((key) => failedKeys.has(key))) {
+                    setError('编译结果保存到 SQLite 失败，请点击重试后再继续')
+                    return
+                  }
                 }
                 sessionStorage.removeItem(SOURCE_KEY)
                 sessionStorage.setItem('alc:module-saved-confirmation', '1')

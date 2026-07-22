@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock storage and module-package before importing the module under test
 vi.mock('@/lib/persistence/client/local-storage', () => ({
+  LocalStorageRepository: class {},
   storage: {
     set: vi.fn(),
     get: vi.fn(),

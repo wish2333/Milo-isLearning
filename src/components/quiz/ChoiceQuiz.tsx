@@ -16,6 +16,8 @@ import { useMemo, useState } from 'react'
 
 import type { Quiz } from '@/types/domain'
 
+import { QuizActionBar } from './QuizActionBar'
+
 interface ChoiceQuizProps {
   quiz: Quiz
   disabled: boolean
@@ -108,13 +110,15 @@ export function ChoiceQuiz({ quiz, disabled, onAnswer, submittedAnswer }: Choice
 
       {/* Submit */}
       {!disabled && (
-        <button
-          onClick={handleSubmit}
-          disabled={selected === null}
-          className="alc-button-primary w-full disabled:bg-bg-elevated disabled:text-fg-tertiary"
-        >
-          确认选择
-        </button>
+        <QuizActionBar>
+          <button
+            onClick={handleSubmit}
+            disabled={selected === null}
+            className="alc-button-primary w-full disabled:bg-bg-elevated disabled:text-fg-tertiary"
+          >
+            确认选择
+          </button>
+        </QuizActionBar>
       )}
     </div>
   )

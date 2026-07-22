@@ -22,6 +22,11 @@ import { storage } from '../client/local-storage'
 const store = new Map<string, string>()
 
 vi.mock('../client/local-storage', () => ({
+  LocalStorageRepository: class {
+    get<T>(): T | null {
+      return null
+    }
+  },
   storage: {
     get<T>(key: string): T | null {
       const raw = store.get(key)

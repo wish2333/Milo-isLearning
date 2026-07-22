@@ -38,6 +38,7 @@ export class WriteQueue {
   private readonly failed = new Map<string, WriteTask>()
   private nextOperationId = 0
   private processing = false
+  private scheduledRetries = 0
   private readonly onProcess: WriteQueueOptions['onProcess']
   private readonly retryBackoffMs: readonly number[]
   // flushNow 的等待者：当队列进入 idle 时通知所有等待者
@@ -69,14 +70,15 @@ export class WriteQueue {
   }
 
   /**
-   * 等待所有 pending 完成。失败任务不阻塞 flushNow（它们已经进入 failed 状态）。
+   * 等待当前写入与已安排的自动重试完成。最终失败任务不阻塞 flushNow，
+   * 因为它们会被保留给 UI 显示并支持手动重试。
    *
    * v1.0.0 修复（review M2）：用 Promise resolver 替代 10ms 轮询，
    * 避免在 server 慢时浪费 CPU。
    */
   async flushNow(): Promise<void> {
     // 快速路径：已经 idle
-    if (!this.processing && this.pending.size === 0) return
+    if (!this.processing && this.pending.size === 0 && this.scheduledRetries === 0) return
     // 等待 processNext 在 finally 中触发 notifyIdle
     await new Promise<void>((resolve) => {
       this.flushWaiters.push(resolve)
@@ -85,7 +87,7 @@ export class WriteQueue {
 
   /** 是否有 pending 任务（用于 UI 显示「未保存数据」）。 */
   hasPending(): boolean {
-    return this.pending.size > 0 || this.processing
+    return this.pending.size > 0 || this.processing || this.scheduledRetries > 0
   }
 
   /** 当前失败任务列表。 */
@@ -166,9 +168,16 @@ export class WriteQueue {
       } else {
         // 安排重试：等 backoff 后重新入队
         const backoff = this.retryBackoffMs[task.attempts - 1] ?? 1000
+        const newerTask = this.pending.get(task.key)
+        if (newerTask && newerTask.operationId > task.operationId) return
+        this.scheduledRetries++
         setTimeout(() => {
-          task.status = 'pending'
-          this.pending.set(task.key, task)
+          this.scheduledRetries--
+          const latestTask = this.pending.get(task.key)
+          if (!latestTask || latestTask.operationId <= task.operationId) {
+            task.status = 'pending'
+            this.pending.set(task.key, task)
+          }
           void this.processNext()
         }, backoff)
       }
@@ -193,7 +202,7 @@ export class WriteQueue {
    * v1.0.0 修复（review M2）：替代 10ms 轮询。
    */
   private notifyIdle(): void {
-    if (this.processing || this.pending.size > 0) return
+    if (this.processing || this.pending.size > 0 || this.scheduledRetries > 0) return
     while (this.flushWaiters.length > 0) {
       const resolve = this.flushWaiters.shift()
       if (resolve) resolve()

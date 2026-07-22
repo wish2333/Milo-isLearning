@@ -5,11 +5,12 @@ import { useEffect, useMemo } from 'react'
 
 import { getTopic } from '@/lib/persistence/topic-library'
 import { loadStoredModule } from '@/lib/persistence/module-library'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 import { StorageKeys } from '@/lib/persistence/shared/keys'
 import { enterModule } from '@/lib/runtime/enter-module'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
-import { useTopicSessionStore } from '@/lib/state/topic-session-store'
+import { useProgressStore } from '@/lib/state/progress-store'
+import { mergeModuleTopicStatus, useTopicSessionStore } from '@/lib/state/topic-session-store'
 import { computeTopicMastery } from '@/lib/runtime/topic-mastery'
 import { computeModuleProgress } from '@/lib/runtime/module-progress'
 import { ConfirmInline } from '@/components/common/ConfirmInline'
@@ -30,6 +31,9 @@ const STATUS_ICON: Record<ModuleTopicStatus, { icon: string; className: string }
 export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
   const router = useRouter()
   const session = useTopicSessionStore((s) => s.session)
+  const attemptsBySlot = useAttemptsStore((s) => s.attemptsBySlot)
+  const progressUpdatedAt = useProgressStore((s) => s.updatedAt)
+  const repository = getStorage()
 
   useEffect(() => {
     if (!session || session.topicId !== topicId) {
@@ -37,44 +41,55 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
     }
   }, [session, topicId, router])
 
-  const topic = getTopic(storage, topicId)
+  const topic = getTopic(repository, topicId)
 
   // computeTopicMastery must be before early returns (React hooks rule)
   const topicMastery = useMemo(() => {
+    // progressUpdatedAt is a reactive invalidation signal for feynman/progress
+    // snapshots that are read from the repository below.
+    void progressUpdatedAt
     if (!topic) return null
     const modules: Module[] = topic.moduleIds
-      .map((id) => loadStoredModule(storage, id))
+      .map((id) => loadStoredModule(repository, id))
       .filter((m): m is Module => m !== null)
     if (modules.length === 0) return null
 
-    const attemptsBySlot = useAttemptsStore.getState().attemptsBySlot
     const feynmanAttempts: Record<string, FeynmanAttempt> = {}
     for (const mod of modules) {
-      const feynman = storage.get<FeynmanAttempt>(StorageKeys.feynman(mod.id))
+      const feynman = repository.get<FeynmanAttempt>(StorageKeys.feynman(mod.id))
       if (feynman) {
         feynmanAttempts[mod.id] = feynman
       }
     }
 
     return computeTopicMastery(topic, modules, attemptsBySlot, feynmanAttempts)
-  }, [topic])
+  }, [topic, attemptsBySlot, progressUpdatedAt, repository])
 
   const moduleMap = useMemo(() => {
+    // Rebuild the repository snapshot after advancing a module.
+    void progressUpdatedAt
     const map: Record<string, Module> = {}
     for (const moduleId of session?.moduleIds ?? []) {
-      const mod = loadStoredModule(storage, moduleId)
+      const mod = loadStoredModule(repository, moduleId)
       if (mod) map[moduleId] = mod
     }
     return map
-  }, [session?.moduleIds])
+  }, [session?.moduleIds, progressUpdatedAt, repository])
 
   const progressMap = useMemo(() => {
+    // Re-read per-module progress after every state-machine transition.
+    void progressUpdatedAt
+    const globalProgress = repository.get<{ state?: ProgressState }>(
+      StorageKeys.progressState,
+    )?.state
     const map: Record<string, ProgressState | null> = {}
     for (const moduleId of session?.moduleIds ?? []) {
-      map[moduleId] = storage.get<ProgressState>(StorageKeys.progress(moduleId))
+      map[moduleId] =
+        repository.get<ProgressState>(StorageKeys.progress(moduleId)) ??
+        (globalProgress?.moduleId === moduleId ? globalProgress : null)
     }
     return map
-  }, [session?.moduleIds])
+  }, [session?.moduleIds, progressUpdatedAt, repository])
 
   if (!topic) {
     useTopicSessionStore.getState().exitSession()
@@ -84,7 +99,15 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
 
   if (!session) return null
 
-  const statuses = Object.values(session.moduleStatus)
+  const effectiveStatusByModule: Record<string, ModuleTopicStatus> = {}
+  for (const moduleId of session.moduleIds) {
+    effectiveStatusByModule[moduleId] = mergeModuleTopicStatus(
+      session.moduleStatus[moduleId],
+      progressMap[moduleId],
+    )
+  }
+
+  const statuses = Object.values(effectiveStatusByModule)
   const doneCount = statuses.filter((s) => s === 'done').length
   const skippedCount = statuses.filter((s) => s === 'skipped').length
   const inProgressCount = statuses.filter((s) => s === 'in_progress').length
@@ -164,7 +187,9 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
         <div className="alc-card p-5 space-y-2">
           {session.moduleIds.map((moduleId) => {
             const mod = moduleMap[moduleId]
-            const info = mod ? computeModuleProgress(mod, progressMap[moduleId] ?? null) : null
+            const info = mod
+              ? computeModuleProgress(mod, progressMap[moduleId] ?? null, attemptsBySlot)
+              : null
             return (
               <div key={moduleId} className="flex items-center gap-2 text-sm">
                 <span className="text-success">{'\u2713'}</span>
@@ -241,9 +266,11 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
       <div className="alc-card p-5 space-y-1.5">
         {session.moduleIds.map((moduleId) => {
           const mod = moduleMap[moduleId]
-          const status = session.moduleStatus[moduleId] ?? 'pending'
+          const status = effectiveStatusByModule[moduleId] ?? 'pending'
           const icon = STATUS_ICON[status]
-          const info = mod ? computeModuleProgress(mod, progressMap[moduleId] ?? null) : null
+          const info = mod
+            ? computeModuleProgress(mod, progressMap[moduleId] ?? null, attemptsBySlot)
+            : null
           const isSkipped = status === 'skipped'
 
           if (isSkipped) {
@@ -289,7 +316,11 @@ export function TopicTransitionView({ topicId }: TopicTransitionViewProps) {
                       : 'text-xs text-[var(--fg-tertiary)] shrink-0'
                 }
               >
-                {info?.label ?? '未开始'}
+                {info
+                  ? `${info.label}${info.positionLabel ? ` · ${info.positionLabel}` : ''}`
+                  : status === 'done'
+                    ? '已完成'
+                    : '未开始'}
               </span>
               {mod && (
                 <div className="w-16 h-1 rounded-full bg-[var(--bg-elevated)] shrink-0">

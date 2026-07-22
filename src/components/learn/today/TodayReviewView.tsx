@@ -17,6 +17,8 @@ import { StorageKeys } from '@/lib/persistence/shared/keys'
 import type { Module, Quiz } from '@/types/domain'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
+import { BackgroundPanel } from '@/components/learn/BackgroundPanel'
+import { QuizActionBar } from '@/components/quiz/QuizActionBar'
 
 type Phase = 'answering' | 'evaluating' | 'feedback'
 
@@ -241,7 +243,7 @@ export function TodayReviewView() {
 
   return (
     <main className="alc-page">
-      <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 space-y-6">
+      <div className="flex-1 max-w-2xl w-full mx-auto px-6 py-8 pb-32 space-y-6">
         <header className="flex items-center justify-between">
           <div>
             <p className="alc-label">今日复习</p>
@@ -259,6 +261,7 @@ export function TodayReviewView() {
           </div>
         </header>
 
+        <BackgroundPanel background={currentQuiz.background} />
         <QuizRenderer
           quiz={currentQuiz}
           disabled={phase !== 'answering'}
@@ -284,13 +287,15 @@ export function TodayReviewView() {
               onMarkGuessed={() => syncGuessed(true)}
               onUnmarkGuessed={() => syncGuessed(false)}
             />
-            <button
-              type="button"
-              className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm"
-              onClick={handleNext}
-            >
-              {session.currentIndex + 1 >= session.queue.length ? '查看结果' : '下一题'}
-            </button>
+            <QuizActionBar>
+              <button
+                type="button"
+                className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm"
+                onClick={handleNext}
+              >
+                {session.currentIndex + 1 >= session.queue.length ? '查看结果' : '下一题'}
+              </button>
+            </QuizActionBar>
           </>
         )}
       </div>

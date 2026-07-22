@@ -15,6 +15,8 @@ export interface ModuleProgressInfo {
   started: boolean
   /** 已经产生作答记录的 quiz 槽位数；未传 attemptsBySlot 时省略。 */
   answeredQuizCount?: number
+  /** 与状态机当前位置对应的题目/阶段位置，用于主题与题库进度展示。 */
+  positionLabel?: string
 }
 
 /**
@@ -91,6 +93,24 @@ export function computeModuleProgress(
   if (stage.kind === 'concept_intro' || stage.kind === 'concept') {
     const i = stage.conceptIndex
     const pct = total > 0 ? Math.round(((i + 0.5) / total) * 100) : 0
+    const positionLabel =
+      stage.kind === 'concept_intro'
+        ? '知识导论'
+        : (() => {
+            const concept = module.concepts[i]
+            const quizCount = concept?.quizSeries.quizzes.length ?? 0
+            const reviewSlots = stage.reviewSlots ?? []
+            const totalSlots = quizCount + reviewSlots.length
+            if (stage.quizIndex >= quizCount && reviewSlots.length > 0) {
+              const reviewIndex = Math.min(
+                Math.max(stage.quizIndex - quizCount, 0),
+                reviewSlots.length - 1,
+              )
+              return `复习题 ${reviewIndex + 1}/${reviewSlots.length}`
+            }
+            const quizIndex = Math.min(Math.max(stage.quizIndex, 0), Math.max(totalSlots - 1, 0))
+            return `题目 ${quizIndex + 1}/${Math.max(totalSlots, 1)}`
+          })()
     return withAttemptInfo({
       completedConcepts: i,
       currentConceptIndex: i,
@@ -98,6 +118,56 @@ export function computeModuleProgress(
       label: `概念 ${i + 1}/${total}`,
       done: false,
       started: true,
+      positionLabel,
+    })
+  }
+
+  if (stage.kind === 'challenge') {
+    const challengeCount = module.challengeQuizzes?.length ?? 0
+    return withAttemptInfo({
+      completedConcepts: total,
+      currentConceptIndex: -1,
+      conceptPercent: 95,
+      label: '最后阶段',
+      done: false,
+      started: true,
+      positionLabel: `挑战题 ${stage.quizIndex + 1}/${Math.max(challengeCount, 1)}`,
+    })
+  }
+
+  if (stage.kind === 'feynman_intro') {
+    return withAttemptInfo({
+      completedConcepts: total,
+      currentConceptIndex: -1,
+      conceptPercent: 95,
+      label: '最后阶段',
+      done: false,
+      started: true,
+      positionLabel: '费曼练习',
+    })
+  }
+
+  if (stage.kind === 'feynman_step') {
+    return withAttemptInfo({
+      completedConcepts: total,
+      currentConceptIndex: -1,
+      conceptPercent: 95,
+      label: '最后阶段',
+      done: false,
+      started: true,
+      positionLabel: `费曼步骤 ${stage.stepOrder}/5`,
+    })
+  }
+
+  if (stage.kind === 'feynman_final') {
+    return withAttemptInfo({
+      completedConcepts: total,
+      currentConceptIndex: -1,
+      conceptPercent: 95,
+      label: '最后阶段',
+      done: false,
+      started: true,
+      positionLabel: '最终解释',
     })
   }
 

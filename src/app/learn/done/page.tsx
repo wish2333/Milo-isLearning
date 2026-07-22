@@ -25,7 +25,7 @@ import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { RatingStars } from '@/components/learn/RatingStars'
-import { storage } from '@/lib/persistence/client/local-storage'
+import { getStorage } from '@/lib/persistence/client/storage'
 
 /** conceptMastery 低于此阈值的概念被视为"待复习" */
 const REVIEW_THRESHOLD = 50
@@ -52,8 +52,15 @@ export default function DonePage() {
   }, [hydrated, currentModule, stage, router])
 
   const mastery = useMemo(() => {
-    if (!currentModule) return null
-    return computeMastery(currentModule, attemptsBySlot, feynmanAttempt ?? undefined)
+    if (!currentModule || !attemptsBySlot) return null
+    try {
+      return computeMastery(currentModule, attemptsBySlot, feynmanAttempt ?? undefined)
+    } catch {
+      // A malformed legacy snapshot must not turn the completion route into
+      // a client-side exception. The redirect below still protects unfinished
+      // sessions, while a null report renders a safe fallback.
+      return null
+    }
   }, [currentModule, attemptsBySlot, feynmanAttempt])
 
   const avgConceptMastery = mastery
@@ -92,7 +99,7 @@ export default function DonePage() {
   }
 
   const handleClearAll = () => {
-    storage.clearAll()
+    getStorage().clearAll()
     clearModule()
     resetProgress()
     clearAttempts()

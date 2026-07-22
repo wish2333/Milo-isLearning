@@ -37,6 +37,7 @@ import { QuizRenderer } from '@/components/quiz/QuizRenderer'
 import { BackgroundPanel } from '@/components/learn/BackgroundPanel'
 import { AnswerHistoryList } from '@/components/learn/AnswerHistoryList'
 import { StaircaseProgress } from '@/components/learn/StaircaseProgress'
+import { QuizActionBar } from '@/components/quiz/QuizActionBar'
 
 interface ChallengeViewProps {
   quizIndex: number
@@ -302,7 +303,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
 
   return (
     <div className="text-fg-primary">
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-2xl mx-auto px-6 py-8 pb-32 space-y-6">
         {/* Progress indicator — amber 色调区分 */}
         <div className="flex items-center gap-2 text-xs text-amber-500/70">
           <span>
@@ -397,7 +398,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
             />
 
             {/* Action buttons */}
-            <div className="pt-2">
+            <QuizActionBar>
               {isAdvancing ? (
                 <button
                   onClick={handleAdvance}
@@ -413,7 +414,7 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
                   换一道题
                 </button>
               )}
-            </div>
+            </QuizActionBar>
           </>
         )}
 

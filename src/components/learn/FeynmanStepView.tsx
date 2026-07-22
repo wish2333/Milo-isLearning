@@ -24,6 +24,7 @@ import { ChoiceQuiz } from '@/components/quiz/ChoiceQuiz'
 import { FillBlankQuiz } from '@/components/quiz/FillBlankQuiz'
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { FeynmanHistoryPanel } from '@/components/learn/FeynmanHistoryPanel'
+import { QuizActionBar } from '@/components/quiz/QuizActionBar'
 import { StaircaseProgress } from '@/components/learn/StaircaseProgress'
 import type { QuizEditPatch } from '@/components/quiz/AnswerCorrector'
 
@@ -121,7 +122,7 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
 
   return (
     <div className="text-fg-primary">
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-2xl mx-auto px-6 py-8 pb-32 space-y-6">
         {/* Progress */}
         <div className="flex items-center gap-2 text-xs text-fg-quaternary">
           <span>费曼练习</span>
@@ -182,12 +183,14 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
               onCorrectAnswer={handleCorrectAnswer}
             />
 
-            <button
-              onClick={advance}
-              className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover transition-colors"
-            >
-              {stepOrder < 5 ? '下一步' : '进入最终任务'}
-            </button>
+            <QuizActionBar>
+              <button
+                onClick={advance}
+                className="w-full py-3 rounded-lg bg-accent-primary text-bg-base font-medium text-sm hover:bg-accent-primary-hover transition-colors"
+              >
+                {stepOrder < 5 ? '下一步' : '进入最终任务'}
+              </button>
+            </QuizActionBar>
           </div>
         )}
       </div>

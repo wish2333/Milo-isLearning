@@ -16,6 +16,8 @@ import { useMemo, useRef, useState } from 'react'
 
 import type { Quiz } from '@/types/domain'
 
+import { QuizActionBar } from './QuizActionBar'
+
 interface SortingQuizProps {
   quiz: Quiz
   disabled: boolean
@@ -125,9 +127,11 @@ export function SortingQuiz({ quiz, disabled, onAnswer }: SortingQuizProps) {
 
       {/* Submit */}
       {!disabled && (
-        <button onClick={handleSubmit} className="alc-button-primary w-full">
-          确认排序
-        </button>
+        <QuizActionBar>
+          <button onClick={handleSubmit} className="alc-button-primary w-full">
+            确认排序
+          </button>
+        </QuizActionBar>
       )}
     </div>
   )
