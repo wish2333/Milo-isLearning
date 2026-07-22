@@ -245,3 +245,60 @@ test.describe('ChoiceQuiz three-state visual feedback (V2.1.2)', () => {
     await expect(correctBtn).toHaveClass(/border-success/)
   })
 })
+
+test.describe('Feynman feedback and history (V2.1.4)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript((moduleData) => {
+      localStorage.setItem(
+        'alc:state:module',
+        JSON.stringify({ state: { currentModule: moduleData, currentQuiz: null }, version: 0 }),
+      )
+      localStorage.setItem(
+        'alc:state:progress',
+        JSON.stringify({
+          state: {
+            moduleId: moduleData.id,
+            stage: { kind: 'feynman_step', stepOrder: 1 },
+            updatedAt: Date.now(),
+            feynmanAttempt: { moduleId: moduleData.id, stepResults: [], submittedAt: 0 },
+          },
+          version: 0,
+        }),
+      )
+      localStorage.setItem(`alc:module:${moduleData.id}`, JSON.stringify(moduleData))
+    }, mockModule)
+  })
+
+  test('wrong answer shows the correct option, editable feedback, and Feynman history', async ({
+    page,
+  }) => {
+    await page.goto(`/learn/module/${mockModule.id}`)
+    await expect(page.locator('text=费曼步骤1')).toBeVisible({ timeout: 5000 })
+
+    await page.locator('button:has-text("错误领域A")').click()
+    await page.locator('button:has-text("确认选择")').click()
+
+    const correctButton = page.locator('button:has-text("正确领域")').first()
+    const wrongButton = page.locator('button:has-text("错误领域A")')
+    await expect(correctButton.locator('[aria-label="正确答案"]')).toBeVisible()
+    await expect(wrongButton.locator('[aria-label="你的选择"]')).toBeVisible()
+    await expect(page.getByRole('button', { name: '确认操作' })).toBeVisible()
+
+    await page.getByRole('button', { name: '确认操作' }).click()
+    await page.getByRole('button', { name: '确认' }).click()
+    await page.getByRole('radio', { name: /错误领域A/ }).click()
+    await page.getByRole('button', { name: '保存编辑' }).click()
+
+    await expect(page.getByText('答对了', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: /作答历史/ }).click()
+    const history = page.getByRole('region', { name: '费曼作答历史' })
+    await expect(history).toBeVisible()
+    await expect(history.getByText('错误领域A', { exact: true }).first()).toBeVisible()
+
+    const storedModule = await page.evaluate((moduleId) => {
+      const raw = localStorage.getItem(`alc:module:${moduleId}`)
+      return raw ? JSON.parse(raw) : null
+    }, mockModule.id)
+    expect(storedModule.feynmanTask.steps[0].answer).toBe('错误领域A')
+  })
+})

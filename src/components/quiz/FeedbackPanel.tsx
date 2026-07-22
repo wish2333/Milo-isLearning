@@ -169,12 +169,12 @@ export function FeedbackPanel({
       {/* 注意：forceAdvance 时仍保留编辑入口 —— 用户可能正需要修正 LLM 标错的正解，
           保存后重评可能让 nextAction 变 advance 通过；仅 ignored 题隐藏入口。 */}
       {canCorrect && quiz && !quiz.ignored && onCorrectAnswer && mode === 'idle' && (
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="mt-3 flex items-center gap-3 flex-wrap border-t border-border-subtle/70 pt-3">
           <ConfirmInline
             trigger="编辑此题"
             confirmLabel="确认编辑此题？"
             onConfirm={() => setMode('correcting')}
-            triggerClassName="text-xs text-fg-tertiary hover:text-fg-secondary transition-colors"
+            triggerClassName="inline-flex items-center rounded-md border border-accent-primary/50 bg-accent-primary-soft px-3 py-1.5 text-xs font-medium text-accent-primary transition-colors hover:bg-accent-primary/20"
           />
           {onIgnoreQuiz && (
             <ConfirmInline
@@ -182,7 +182,7 @@ export function FeedbackPanel({
               confirmLabel="确认忽略？将不计入掌握度"
               onConfirm={onIgnoreQuiz}
               destructive
-              triggerClassName="text-xs text-fg-tertiary hover:text-fg-secondary transition-colors"
+              triggerClassName="text-xs text-fg-tertiary transition-colors hover:text-fg-secondary"
             />
           )}
         </div>

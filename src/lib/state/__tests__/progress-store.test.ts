@@ -214,6 +214,21 @@ describe('progress-store resumeModule', () => {
     )
   })
 
+  it('stores the submitted answer for Feynman history and updates it on correction', () => {
+    useProgressStore.getState().startModule(MODULE_ID)
+    useProgressStore.getState().startFeynman()
+
+    useProgressStore.getState().recordFeynmanStep(1, 0, '我的原答案')
+    expect(useProgressStore.getState().feynmanAttempt?.stepResults).toEqual([
+      { stepOrder: 1, score: 0, userAnswer: '我的原答案' },
+    ])
+
+    useProgressStore.getState().recordFeynmanStep(1, 100, '我的原答案')
+    expect(useProgressStore.getState().feynmanAttempt?.stepResults).toEqual([
+      { stepOrder: 1, score: 100, userAnswer: '我的原答案' },
+    ])
+  })
+
   it('clears feynmanAttempt on startModule and reset', () => {
     useProgressStore.setState({
       moduleId: MODULE_ID,

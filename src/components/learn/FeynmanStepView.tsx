@@ -23,8 +23,9 @@ import { useProgressStore } from '@/lib/state/progress-store'
 import { ChoiceQuiz } from '@/components/quiz/ChoiceQuiz'
 import { FillBlankQuiz } from '@/components/quiz/FillBlankQuiz'
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
-import { ReviewPanel } from '@/components/learn/ReviewPanel'
+import { FeynmanHistoryPanel } from '@/components/learn/FeynmanHistoryPanel'
 import { StaircaseProgress } from '@/components/learn/StaircaseProgress'
+import type { QuizEditPatch } from '@/components/quiz/AnswerCorrector'
 
 interface FeynmanStepViewProps {
   stepOrder: 1 | 2 | 3 | 4 | 5
@@ -35,16 +36,27 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
   const feynmanAttempt = useProgressStore((s) => s.feynmanAttempt)
   const recordFeynmanStep = useProgressStore((s) => s.recordFeynmanStep)
   const advance = useProgressStore((s) => s.advance)
+  const updateFeynmanStep = useModuleStore((s) => s.updateFeynmanStep)
 
   const [submitted, setSubmitted] = useState(false)
   const [userAnswer, setUserAnswer] = useState<string | null>(null)
-  const [reviewOpen, setReviewOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   const step = currentModule?.feynmanTask.steps[stepOrder - 1] ?? null
-  const previousStep = stepOrder > 1 ? currentModule?.feynmanTask.steps[stepOrder - 2] : null
-  const previousScore = previousStep
-    ? feynmanAttempt?.stepResults.find((result) => result.stepOrder === previousStep.order)?.score
-    : undefined
+
+  const scoreAnswer = useCallback(
+    (answer: string, targetStep = step) => {
+      if (!targetStep) return 0
+      return targetStep.type === 'fill_blank'
+        ? isFillBlankAnswerAccepted(answer, targetStep.answer, targetStep.acceptableAnswers)
+          ? 100
+          : 0
+        : answer.trim() === targetStep.answer.trim()
+          ? 100
+          : 0
+    },
+    [step],
+  )
 
   const handleAnswer = useCallback(
     (answer: string) => {
@@ -54,25 +66,31 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
 
       // 评分：精确匹配 = 100，否则 = 0（费曼步不调 LLM）
       // fill_blank 使用标准化匹配（大小写/全角/空白）
-      const score =
-        step.type === 'fill_blank'
-          ? isFillBlankAnswerAccepted(answer, step.answer, step.acceptableAnswers)
-            ? 100
-            : 0
-          : answer.trim() === step.answer.trim()
-            ? 100
-            : 0
-      recordFeynmanStep(stepOrder, score)
+      const score = scoreAnswer(answer, step)
+      recordFeynmanStep(stepOrder, score, answer)
       track('feynman_step_submit', { stepOrder, correct: score >= 80 })
     },
-    [step, stepOrder, recordFeynmanStep],
+    [step, stepOrder, recordFeynmanStep, scoreAnswer],
   )
 
   useEffect(() => {
     setSubmitted(false)
     setUserAnswer(null)
-    setReviewOpen(false)
+    setHistoryOpen(false)
   }, [stepOrder])
+
+  const handleCorrectAnswer = useCallback(
+    (patch: QuizEditPatch) => {
+      if (!step) return
+      const correctedStep = { ...step, ...patch }
+      updateFeynmanStep(step.order, patch)
+      if (userAnswer !== null) {
+        const correctedScore = scoreAnswer(userAnswer, correctedStep)
+        recordFeynmanStep(stepOrder, correctedScore, userAnswer)
+      }
+    },
+    [recordFeynmanStep, scoreAnswer, step, stepOrder, updateFeynmanStep, userAnswer],
+  )
 
   if (!currentModule || !step) return null
 
@@ -113,31 +131,34 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
 
         <StaircaseProgress total={5} current={stepOrder - 1} stage="feynman" />
 
-        {previousStep && !reviewOpen && (
+        {feynmanAttempt && feynmanAttempt.stepResults.length > 0 && !historyOpen && (
           <button
             type="button"
-            onClick={() => setReviewOpen(true)}
+            onClick={() => setHistoryOpen(true)}
             className="alc-button-secondary text-xs px-3 py-1.5"
           >
-            回看上一题
+            作答历史 ({feynmanAttempt.stepResults.length})
           </button>
         )}
 
-        {previousStep && reviewOpen && (
-          <ReviewPanel
-            title="上一步"
-            stem={previousStep.stem}
-            userAnswer={previousScore !== undefined ? `得分：${previousScore}` : undefined}
-            answer={previousStep.answer}
-            explanation={previousStep.explanation}
-            onClose={() => setReviewOpen(false)}
+        {historyOpen && (
+          <FeynmanHistoryPanel
+            steps={currentModule.feynmanTask.steps}
+            attempt={feynmanAttempt}
+            currentStepOrder={stepOrder}
+            onClose={() => setHistoryOpen(false)}
           />
         )}
 
         {/* Quiz */}
         <div className="pt-2">
           {step.type === 'choice' ? (
-            <ChoiceQuiz quiz={quiz} disabled={submitted} onAnswer={handleAnswer} />
+            <ChoiceQuiz
+              quiz={quiz}
+              disabled={submitted}
+              onAnswer={handleAnswer}
+              submittedAnswer={submitted ? (userAnswer ?? undefined) : undefined}
+            />
           ) : (
             <FillBlankQuiz quiz={quiz} disabled={submitted} onAnswer={handleAnswer} />
           )}
@@ -156,6 +177,9 @@ export function FeynmanStepView({ stepOrder }: FeynmanStepViewProps) {
               explanation={step.explanation}
               misconception={step.misconception}
               extendedKnowledge={step.extendedKnowledge}
+              canCorrect={currentModule.origin !== 'showcase'}
+              quiz={quiz}
+              onCorrectAnswer={handleCorrectAnswer}
             />
 
             <button

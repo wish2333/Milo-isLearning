@@ -18,6 +18,7 @@ interface TodaySessionState {
   hydrate: () => TodaySession | null
   startSession: (queue: ReviewQueueItem[], date: string) => boolean
   recordResult: (slotId: string, score: number) => void
+  updateResult: (slotId: string, score: number) => void
   nextQuestion: () => void
   clearSession: () => void
 }
@@ -76,6 +77,19 @@ export const useTodaySessionStore = create<TodaySessionState>()((set, get) => ({
     const nextSession: TodaySession = {
       ...session,
       results: [...session.results, result],
+    }
+    persistSession(nextSession)
+    set({ session: nextSession })
+  },
+
+  updateResult: (slotId, score) => {
+    const session = get().session
+    if (!session) return
+    const nextSession: TodaySession = {
+      ...session,
+      results: session.results.map((result) =>
+        result.slotId === slotId ? { ...result, score, passed: score >= 80 } : result,
+      ),
     }
     persistSession(nextSession)
     set({ session: nextSession })

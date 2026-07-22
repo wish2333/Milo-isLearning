@@ -48,7 +48,10 @@ export function ChoiceQuiz({ quiz, disabled, onAnswer, submittedAnswer }: Choice
     onAnswer(selected)
   }
 
-  const isSubmitted = disabled && submittedAnswer !== undefined
+  // 兼容未透传 submittedAnswer 的旧入口：提交回调发生后，selected 仍保留用户选择，
+  // 因此也可以用它渲染“正解 + 用户错选”的三态反馈。
+  const resolvedSubmittedAnswer = submittedAnswer ?? selected
+  const isSubmitted = disabled && resolvedSubmittedAnswer !== null
 
   return (
     <div className="space-y-4">
@@ -60,7 +63,8 @@ export function ChoiceQuiz({ quiz, disabled, onAnswer, submittedAnswer }: Choice
         {shuffledOptions.map((option, i) => {
           const isSelected = selected === option
           const isCorrectAnswer = isSubmitted && option === quiz.answer
-          const isUserWrong = isSubmitted && option === submittedAnswer && option !== quiz.answer
+          const isUserWrong =
+            isSubmitted && option === resolvedSubmittedAnswer && option !== quiz.answer
 
           let optionClassName = 'alc-option w-full text-left text-base flex items-center gap-2 '
           if (isSubmitted) {

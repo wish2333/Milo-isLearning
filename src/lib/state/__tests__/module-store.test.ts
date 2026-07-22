@@ -3,7 +3,7 @@
 // Mock getStorage() via vi.mock to isolate from real localStorage.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Module, Quiz } from '@/types/domain'
+import type { FeynmanStep, Module, Quiz } from '@/types/domain'
 
 // Mock app-mode so skipHydration = true (no SSR hydration in tests)
 vi.mock('@/lib/runtime/app-mode', () => ({
@@ -100,6 +100,17 @@ function makeQuiz(id: string, conceptId: string): Quiz {
   }
 }
 
+function makeFeynmanStep(order: FeynmanStep['order'] = 1): FeynmanStep {
+  return {
+    order,
+    type: 'choice',
+    stem: 'feynman stem',
+    options: ['a', 'b'],
+    answer: 'a',
+    explanation: 'feynman explanation',
+  }
+}
+
 function makeModule(overrides?: Partial<Module>): Module {
   const quiz1 = makeQuiz('module-1:concept-1:slot-1', 'concept-1')
   const quiz2 = makeQuiz('module-1:concept-2:slot-1', 'concept-2')
@@ -137,7 +148,7 @@ function makeModule(overrides?: Partial<Module>): Module {
     challengeQuizzes: [challengeQuiz],
     feynmanTask: {
       moduleId: 'module-1',
-      steps: [],
+      steps: [makeFeynmanStep()],
       finalPrompt: 'prompt',
       rubric: ['rubric'],
     },
@@ -396,5 +407,33 @@ describe('module-store updateKnowledgePage', () => {
     const reloaded = loadStoredModule(mockRepo, 'module-1')
     expect(reloaded).not.toBeNull()
     expect(reloaded!.concepts[1]!.knowledgePage).toBe('knowledge for concept 2')
+  })
+})
+
+describe('module-store updateFeynmanStep', () => {
+  beforeEach(() => {
+    mockRepo.clearAll()
+    useModuleStore.getState().clear()
+  })
+
+  it('updates and persists the matching Feynman step', () => {
+    const testModule = makeModule()
+    useModuleStore.getState().setModule(testModule)
+
+    useModuleStore.getState().updateFeynmanStep(1, { answer: 'b', stem: 'updated stem' })
+
+    const current = useModuleStore.getState().currentModule
+    expect(current!.feynmanTask.steps[0]).toMatchObject({ answer: 'b', stem: 'updated stem' })
+    const persisted = loadStoredModule(mockRepo, 'module-1')
+    expect(persisted!.feynmanTask.steps[0]!.answer).toBe('b')
+  })
+
+  it('does not edit showcase Feynman steps', () => {
+    const testModule = makeModule({ origin: 'showcase' })
+    useModuleStore.getState().setModule(testModule)
+
+    useModuleStore.getState().updateFeynmanStep(1, { answer: 'b' })
+
+    expect(useModuleStore.getState().currentModule!.feynmanTask.steps[0]!.answer).toBe('a')
   })
 })

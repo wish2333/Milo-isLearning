@@ -67,6 +67,18 @@ describe('today-session-store', () => {
     expect(session.currentIndex).toBe(1)
   })
 
+  it('updates an existing result after a corrected answer is re-evaluated', () => {
+    useTodaySessionStore
+      .getState()
+      .startSession([{ quiz, moduleId: 'module-1', slotId: quiz.id }], '2026-07-17')
+    useTodaySessionStore.getState().recordResult('quiz-1', 0)
+    useTodaySessionStore.getState().updateResult('quiz-1', 100)
+
+    expect(useTodaySessionStore.getState().session?.results).toEqual([
+      { slotId: 'quiz-1', score: 100, passed: true },
+    ])
+  })
+
   it('rejects an empty queue', () => {
     expect(useTodaySessionStore.getState().startSession([], '2026-07-17')).toBe(false)
     expect(useTodaySessionStore.getState().session).toBeNull()

@@ -87,8 +87,8 @@ interface ProgressStoreState {
   /** 从 feynman_intro 或 concept 末尾进入 feynman_step(1) */
   startFeynman: () => void
 
-  /** 记录单个 Feynman 步骤的得分 */
-  recordFeynmanStep: (stepOrder: number, score: number) => void
+  /** 记录单个 Feynman 步骤的得分和作答文本（用于作答历史） */
+  recordFeynmanStep: (stepOrder: number, score: number, userAnswer?: string) => void
 
   /** feynman_final 提交最终输出 */
   submitFeynman: (finalOutput: string, finalScore: number, finalGaps: string[]) => void
@@ -384,7 +384,7 @@ export const useProgressStore = create<ProgressStoreState>()(
         })
       },
 
-      recordFeynmanStep: (stepOrder, score) =>
+      recordFeynmanStep: (stepOrder, score, userAnswer) =>
         set((state) => {
           if (!state.feynmanAttempt) return state
           return {
@@ -392,7 +392,7 @@ export const useProgressStore = create<ProgressStoreState>()(
               ...state.feynmanAttempt,
               stepResults: [
                 ...state.feynmanAttempt.stepResults.filter((s) => s.stepOrder !== stepOrder),
-                { stepOrder, score },
+                { stepOrder, score, userAnswer },
               ],
             },
             updatedAt: Date.now(),

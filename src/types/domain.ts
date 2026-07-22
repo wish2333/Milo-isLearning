@@ -233,7 +233,7 @@ export interface StudyStreak {
  */
 export interface FeynmanAttempt {
   moduleId: string
-  stepResults: { stepOrder: number; score: number }[]
+  stepResults: { stepOrder: number; score: number; userAnswer?: string }[]
   finalOutput?: string
   finalScore?: number
   finalGaps?: string[]
