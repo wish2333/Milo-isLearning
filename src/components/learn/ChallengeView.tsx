@@ -9,7 +9,7 @@
  *   - 数据源：module.challengeQuizzes[quizIndex]（非 concept.quizSeries.quizzes）
  *   - slotId：quiz.id（challenge-N 格式）
  *   - 视觉：amber 主色调（与 Concept 页的 neutral 区分，强调综合挑战感）
- *   - retry：合成 Challenge 上下文 Concept 调用 /api/regenerate
+ *   - 答错行为：与 ConceptView 对齐，统一 advance（原题进复习槽位），不再 regenerate 换题
  *
  * 共享逻辑模式与 ConceptView 一致（QuizRenderer + FeedbackPanel + retry-policy）
  */
@@ -30,7 +30,7 @@ import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
-import type { AttemptRecord, Concept, Quiz } from '@/types/domain'
+import type { AttemptRecord, Quiz } from '@/types/domain'
 
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
@@ -38,23 +38,22 @@ import { BackgroundPanel } from '@/components/learn/BackgroundPanel'
 import { AnswerHistoryList } from '@/components/learn/AnswerHistoryList'
 import { StaircaseProgress } from '@/components/learn/StaircaseProgress'
 import { QuizActionBar } from '@/components/quiz/QuizActionBar'
+import { AdaptivePlanPanel } from '@/components/learn/AdaptivePlanPanel'
 
 interface ChallengeViewProps {
   quizIndex: number
 }
 
-type Phase = 'answering' | 'evaluating' | 'feedback' | 'regenerating'
+type Phase = 'answering' | 'evaluating' | 'feedback'
 
 export function ChallengeView({ quizIndex }: ChallengeViewProps) {
   const currentModule = useModuleStore((s) => s.currentModule)
   const currentQuiz = useModuleStore((s) => s.currentQuiz)
   const setCurrentQuiz = useModuleStore((s) => s.setCurrentQuiz)
-  const replaceCurrentQuiz = useModuleStore((s) => s.replaceCurrentQuiz)
   const clearCurrentQuiz = useModuleStore((s) => s.clearCurrentQuiz)
   const config = useSettingsStore((s) => s.config)
 
   const advance = useProgressStore((s) => s.advance)
-  const retry = useProgressStore((s) => s.retry)
 
   const addAttempt = useAttemptsStore((s) => s.addAttempt)
   const getAttempts = useAttemptsStore((s) => s.getAttempts)
@@ -175,67 +174,6 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
     advance()
   }, [clearCurrentQuiz, advance])
 
-  const handleRetry = useCallback(async () => {
-    if (!quiz || !config || !currentModule) return
-
-    setPhase('regenerating')
-    setError(null)
-
-    try {
-      // 合成 Challenge 上下文 Concept（包含全部 Concept 信息供 Quiz Agent 参考）
-      const challengeContext: Concept = {
-        id: 'challenge',
-        moduleId: currentModule.id,
-        name: 'Module Challenge',
-        definition: currentModule.concepts.map((c) => `${c.name}: ${c.definition}`).join('\n'),
-        type: 'theory',
-        keyPoints: currentModule.concepts.flatMap((c) => c.keyPoints),
-        quizSeries: { conceptId: 'challenge', quizzes: [] },
-        order: 0,
-      }
-
-      const response = await fetch('/api/regenerate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          placeholder: {
-            id: slotId,
-            conceptId: 'challenge',
-            ladderLevel: quiz.ladderLevel,
-            expressionLevel: quiz.expressionLevel,
-            interactionType: quiz.interactionType,
-          },
-          concept: challengeContext,
-          moduleContext: { title: currentModule.title, intro: currentModule.intro },
-          originalQuiz: quiz,
-          llmConfig: config,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Regenerate API 失败: ${response.status}`)
-      }
-
-      const data: { quiz: Quiz } = await response.json()
-
-      // 重写 id 和 conceptId 保持 challenge slot 一致性
-      const challengeQuiz: Quiz = {
-        ...data.quiz,
-        id: slotId,
-        conceptId: 'challenge',
-      }
-      replaceCurrentQuiz(challengeQuiz)
-      retry()
-
-      setPhase('answering')
-      setFeedback(null)
-      setForceAdvance(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '题目生成失败，请重试')
-      setPhase('feedback')
-    }
-  }, [quiz, config, currentModule, slotId, replaceCurrentQuiz, retry])
-
   const handleCorrectAnswer = useCallback(
     async (
       patch: Partial<
@@ -349,11 +287,6 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
           <p className="text-sm text-fg-tertiary animate-pulse">正在评估...</p>
         )}
 
-        {/* Regenerating */}
-        {phase === 'regenerating' && (
-          <p className="text-sm text-fg-tertiary animate-pulse">正在生成新题...</p>
-        )}
-
         {/* Feedback */}
         {phase === 'feedback' && feedback && (
           <>
@@ -397,23 +330,18 @@ export function ChallengeView({ quizIndex }: ChallengeViewProps) {
               onUnignoreQuiz={handleUnignoreQuiz}
             />
 
+            {!isAdvancing && (
+              <AdaptivePlanPanel rationale="这题已记录为薄弱点。继续下一道综合题，错题会通过复习重新出现。" />
+            )}
+
             {/* Action buttons */}
             <QuizActionBar>
-              {isAdvancing ? (
-                <button
-                  onClick={handleAdvance}
-                  className="w-full py-3 rounded-lg bg-amber-100 text-amber-950 font-medium text-sm hover:bg-amber-50 transition-colors"
-                >
-                  继续
-                </button>
-              ) : (
-                <button
-                  onClick={handleRetry}
-                  className="w-full py-3 rounded-lg border border-amber-700/50 text-amber-300 font-medium text-sm hover:bg-amber-950/30 transition-colors"
-                >
-                  换一道题
-                </button>
-              )}
+              <button
+                onClick={handleAdvance}
+                className="w-full py-3 rounded-lg bg-amber-100 text-amber-950 font-medium text-sm hover:bg-amber-50 transition-colors"
+              >
+                {isAdvancing ? '继续' : '继续下一步'}
+              </button>
             </QuizActionBar>
           </>
         )}

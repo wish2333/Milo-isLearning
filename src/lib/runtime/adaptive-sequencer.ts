@@ -1,8 +1,10 @@
-import type { AttemptRecord, Module, Quiz } from '@/types/domain'
+import type { AttemptRecord, Module, Quiz, ReviewFilter } from '@/types/domain'
 import { scheduleLibrary } from '@/lib/persistence/schedule-library'
 import { isDue } from '@/lib/runtime/fsrs'
 import { useSettingsStore } from '@/lib/state/settings-store'
 import type { StorageRepository } from '@/lib/persistence/shared/repository'
+import { collectReviewItemsForModules } from '@/lib/runtime/topic-review'
+import type { CollectedReviewItem } from '@/lib/runtime/topic-review'
 
 export interface AdaptiveSlot {
   slotId: string
@@ -273,15 +275,21 @@ export function collectDueSlots(
 /**
  * From the current concept's reviewSlots, find ones that were answered WRONG during review.
  * These should be carried forward to the next concept's reviewSlots.
+ *
+ * 当传入 currentModule 时，跨模块穿插题（不属于 currentModule）不 carry —— 它们靠
+ * FSRS due（开启时）或主题重刷页（关闭时）自然回来，保持穿插轻量（V2.1.6 决策 #3）。
  */
 export function collectCarriedReviewSlots(
   currentReviewSlots: string[] | undefined,
   attemptsBySlot: Record<string, AttemptRecord[]>,
+  currentModule?: Module,
 ): string[] {
   if (!currentReviewSlots || currentReviewSlots.length === 0) return []
 
   const carried: string[] = []
   for (const slotId of currentReviewSlots) {
+    // 跨模块穿插题不 carry
+    if (currentModule && !findQuizInModule(currentModule, slotId)) continue
     const attempts = attemptsBySlot[slotId]
     if (!attempts || attempts.length === 0) {
       carried.push(slotId)
@@ -308,4 +316,82 @@ export function findQuizInModule(module: Module, quizId: string): Quiz | undefin
     if (quiz) return quiz
   }
   return undefined
+}
+
+/**
+ * 跨模块查找 quiz（主题内）。用于 ConceptView 渲染跨模块穿插的复习槽位。
+ * 按 topicModules 顺序找第一个匹配且未 ignored 的 quiz。
+ */
+export function findQuizInTopic(topicModules: Module[], slotId: string): Quiz | undefined {
+  for (const mod of topicModules) {
+    const found = findQuizInModule(mod, slotId)
+    if (found && !found.ignored) return found
+  }
+  return undefined
+}
+
+/**
+ * 对收集到的跨模块复习项排序。
+ * FSRS due 模式：按 schedule.due 升序（缺失 due 排末尾）。
+ * wrong 模式：按最新 attempt timestamp 降序（无 attempts 排末尾）。
+ */
+function sortReviewItems(
+  items: CollectedReviewItem[],
+  attemptsBySlot: Record<string, AttemptRecord[]>,
+  filter: ReviewFilter,
+): CollectedReviewItem[] {
+  if (filter === 'due') {
+    return [...items].sort((a, b) => {
+      const dueA = scheduleLibrary.get(a.slotId)?.due
+      const dueB = scheduleLibrary.get(b.slotId)?.due
+      if (dueA && dueB) return dueA.localeCompare(dueB)
+      if (dueA && !dueB) return -1
+      if (!dueA && dueB) return 1
+      return 0
+    })
+  }
+
+  // wrong / guessed / all: 按最新 attempt 降序
+  return [...items].sort((a, b) => {
+    const attemptsA = attemptsBySlot[a.slotId]
+    const attemptsB = attemptsBySlot[b.slotId]
+    const latestA = attemptsA?.length ? attemptsA[attemptsA.length - 1]!.timestamp : -Infinity
+    const latestB = attemptsB?.length ? attemptsB[attemptsB.length - 1]!.timestamp : -Infinity
+    return latestB - latestA
+  })
+}
+
+/**
+ * 收集主题内其他模块的复习槽位，用于跨模块穿插复习。
+ * 复用 collectReviewItemsForModules 做过滤/聚合，然后按 filter 排序并截断。
+ *
+ * @param topicModules 主题包含的所有模块（按顺序）
+ * @param currentModuleId 当前正在学习的模块（排除）
+ * @param attemptsBySlot 各 slot 的作答记录
+ * @param options.sequencer fsrsEnabled / timezone / now / cap（默认 5）
+ * @returns 排序后的 slotId 列表，最多 cap 个
+ */
+export function collectCrossModuleReviewSlots(
+  topicModules: Module[],
+  currentModuleId: string,
+  attemptsBySlot: Record<string, AttemptRecord[]>,
+  options?: SequencerOptions & { cap?: number },
+): string[] {
+  const cap = options?.cap ?? 5
+  const otherModules = topicModules.filter((m) => m.id !== currentModuleId)
+  if (otherModules.length === 0) return []
+
+  const fsrsEnabled = readFsrsEnabled(options?.fsrsEnabled)
+  const filter: ReviewFilter = fsrsEnabled ? 'due' : 'wrong'
+
+  const items = collectReviewItemsForModules(otherModules, attemptsBySlot, filter, {
+    timezone: options?.timezone ?? localTimezone(),
+    now: options?.now,
+  })
+
+  if (items.length === 0) return []
+
+  return sortReviewItems(items, attemptsBySlot, filter)
+    .slice(0, cap)
+    .map((item) => item.slotId)
 }

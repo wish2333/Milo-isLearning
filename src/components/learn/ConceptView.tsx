@@ -12,24 +12,27 @@
  *   4. advance → progress-store.advance() + 清 currentQuiz
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 
 import type { FeedbackRuntime } from '@/lib/compiler/agents/mappers'
 import { createProvider } from '@/lib/providers'
 import { evaluateAnswerAsync } from '@/lib/runtime/evaluate-answer'
 import { synchronizeScheduleForSlot } from '@/lib/runtime/fsrs-schedule-coordinator'
 import { track } from '@/lib/runtime/analytics'
-import { findQuizInModule } from '@/lib/runtime/adaptive-sequencer'
+import { findQuizInModule, findQuizInTopic } from '@/lib/runtime/adaptive-sequencer'
 import {
   shouldForceAdvance,
   getConsecutiveFailures,
   MAX_CONSECUTIVE_FAILURES,
 } from '@/lib/runtime/retry-policy'
+import { loadStoredModule } from '@/lib/persistence/module-library'
+import { getStorage } from '@/lib/persistence/client/storage'
 import { useAttemptsStore } from '@/lib/state/attempts-store'
 import { useModuleStore } from '@/lib/state/module-store'
 import { useProgressStore } from '@/lib/state/progress-store'
 import { useSettingsStore } from '@/lib/state/settings-store'
-import type { AttemptRecord, Quiz } from '@/types/domain'
+import { useTopicSessionStore } from '@/lib/state/topic-session-store'
+import type { AttemptRecord, Module, Quiz } from '@/types/domain'
 
 import { FeedbackPanel } from '@/components/quiz/FeedbackPanel'
 import { QuizRenderer } from '@/components/quiz/QuizRenderer'
@@ -79,15 +82,35 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
   const activeSlotIdRef = useRef<string | null>(null)
 
   // 获取当前应该显示的 quiz
+  const session = useTopicSessionStore((s) => s.session)
+  const topicModules: Module[] = useMemo(() => {
+    if (!currentModule) return []
+    if (!session) return [currentModule]
+    const mods: Module[] = []
+    for (const id of session.moduleIds) {
+      const m = loadStoredModule(getStorage(), id)
+      if (m) mods.push(m)
+    }
+    return mods.length > 0 ? mods : [currentModule]
+  }, [currentModule, session])
+
   const concept = currentModule?.concepts[conceptIndex]
   const quizCount = concept?.quizSeries.quizzes.length ?? 0
   const reviewSlots = stage?.kind === 'concept' ? (stage.reviewSlots ?? []) : []
   const reviewSlotIndex = quizIndex - quizCount
   const isReviewQuiz = reviewSlotIndex >= 0 && reviewSlotIndex < reviewSlots.length
   const reviewSlotId = isReviewQuiz ? reviewSlots[reviewSlotIndex] : undefined
-  const foundReviewQuiz =
-    reviewSlotId && currentModule ? findQuizInModule(currentModule, reviewSlotId) : undefined
+  const foundReviewQuiz = reviewSlotId ? findQuizInTopic(topicModules, reviewSlotId) : undefined
   const reviewQuiz = foundReviewQuiz?.ignored ? undefined : foundReviewQuiz
+
+  const crossModuleSourceName = useMemo(() => {
+    if (!isReviewQuiz || !reviewSlotId || !currentModule) return undefined
+    if (findQuizInModule(currentModule, reviewSlotId)) return undefined
+    const owner = topicModules.find(
+      (m) => m.id !== currentModule.id && findQuizInModule(m, reviewSlotId) !== undefined,
+    )
+    return owner?.title
+  }, [isReviewQuiz, reviewSlotId, currentModule, topicModules])
 
   const slotQuiz = quizIndex < quizCount ? concept?.quizSeries.quizzes[quizIndex] : undefined
   const expectedQuiz: Quiz | undefined = isReviewQuiz ? reviewQuiz : slotQuiz
@@ -350,7 +373,7 @@ export function ConceptView({ conceptIndex, quizIndex }: ConceptViewProps) {
 
         {/* Quiz */}
         <div className="pt-2 space-y-4">
-          {isReviewQuiz && <ReviewSlotBadge />}
+          {isReviewQuiz && <ReviewSlotBadge moduleName={crossModuleSourceName} />}
           <BackgroundPanel background={quiz.background} />
           <QuizRenderer
             quiz={quiz}

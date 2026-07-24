@@ -11,7 +11,16 @@ const adaptiveMocks = vi.hoisted(() => ({
   collectReviewSlots: vi.fn().mockReturnValue([]),
   collectCarriedReviewSlots: vi.fn().mockReturnValue([]),
   collectConfirmSlots: vi.fn().mockReturnValue([]),
+  collectCrossModuleReviewSlots: vi.fn().mockReturnValue([]),
 }))
+
+const mockTopicSession = vi.hoisted(() => ({
+  session: null as { topicId: string; moduleIds: string[] } | null,
+}))
+
+const mockLoadStoredModule = vi.hoisted(() =>
+  vi.fn<(repo: unknown, moduleId: string) => Module | null>(),
+)
 
 vi.mock('@/lib/persistence/client/storage', () => ({
   getStorage: () => mockStorage,
@@ -46,6 +55,14 @@ vi.mock('../module-store', () => ({
 
 vi.mock('../settings-store', () => ({
   useSettingsStore: { getState: () => ({ confirmReviewEnabled: true }) },
+}))
+
+vi.mock('../topic-session-store', () => ({
+  useTopicSessionStore: { getState: () => ({ session: mockTopicSession.session }) },
+}))
+
+vi.mock('@/lib/persistence/module-library', () => ({
+  loadStoredModule: mockLoadStoredModule,
 }))
 
 const MODULE_ID = 'module-test-123'
@@ -460,5 +477,124 @@ describe('progress-store resumeModule', () => {
       expect((value as ProgressState).moduleId).toBe(OTHER_MODULE_ID)
     }
     expect(mockStorageSet).not.toHaveBeenCalledWith(`alc:progress:${MODULE_ID}`, expect.anything())
+  })
+})
+
+describe('progress-store advance — 跨模块穿插注入 (V2.1.6)', () => {
+  beforeEach(() => {
+    mockModuleState.currentModule = makeModule()
+    useProgressStore.setState({
+      moduleId: MODULE_ID,
+      stage: {
+        kind: 'concept',
+        conceptIndex: 0,
+        quizIndex: 1,
+        reviewSlots: ['concept-0:slot-0'],
+      },
+      updatedAt: 100,
+      feynmanAttempt: null,
+    })
+    vi.clearAllMocks()
+    mockStorageGet.mockReturnValue(null)
+    adaptiveMocks.collectReviewSlots.mockReturnValue([])
+    adaptiveMocks.collectCarriedReviewSlots.mockReturnValue([])
+    adaptiveMocks.collectConfirmSlots.mockReturnValue([])
+    adaptiveMocks.collectCrossModuleReviewSlots.mockReturnValue([])
+    mockTopicSession.session = null
+    mockLoadStoredModule.mockReturnValue(null)
+  })
+
+  function makeOtherModule(): Module {
+    return {
+      id: 'module-other',
+      sourceId: 'src-other',
+      title: 'Other Module',
+      intro: 'i',
+      goal: 'g',
+      order: 2,
+      concepts: [
+        {
+          id: 'other-c0',
+          moduleId: 'module-other',
+          name: 'OC',
+          definition: 'd',
+          type: 'fact' as const,
+          keyPoints: [],
+          quizSeries: {
+            conceptId: 'other-c0',
+            quizzes: [makeQuiz('cross-slot-x', 'other-c0')],
+          },
+          order: 1,
+        },
+      ],
+      feynmanTask: { moduleId: 'module-other', steps: [], finalPrompt: 'p', rubric: [] },
+    }
+  }
+
+  it('(a) 主题激活 + 跨模块收集器返回 slot → 下一 concept reviewSlots 含跨模块 slot', () => {
+    mockTopicSession.session = { topicId: 'topic-1', moduleIds: [MODULE_ID, 'module-other'] }
+    mockLoadStoredModule.mockImplementation((_repo, id) =>
+      id === MODULE_ID ? makeModule() : id === 'module-other' ? makeOtherModule() : null,
+    )
+    adaptiveMocks.collectCrossModuleReviewSlots.mockReturnValue(['cross-slot-x'])
+
+    useProgressStore.getState().advance()
+
+    const stage = useProgressStore.getState().stage
+    expect(stage?.kind).toBe('concept')
+    if (stage?.kind === 'concept') {
+      expect(stage.conceptIndex).toBe(1)
+      expect(stage.reviewSlots).toContain('cross-slot-x')
+    }
+    expect(adaptiveMocks.collectCrossModuleReviewSlots).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ id: MODULE_ID }),
+        expect.objectContaining({ id: 'module-other' }),
+      ]),
+      MODULE_ID,
+      expect.anything(),
+      expect.anything(),
+    )
+  })
+
+  it('(b) 非主题流 session=null → collectCrossModuleReviewSlots 未调用，行为同 V2.1.5', () => {
+    mockTopicSession.session = null
+    useProgressStore.getState().advance()
+    expect(adaptiveMocks.collectCrossModuleReviewSlots).not.toHaveBeenCalled()
+    const stageB = useProgressStore.getState().stage
+    expect(stageB?.kind).toBe('concept')
+    if (stageB?.kind === 'concept') expect(stageB.conceptIndex).toBe(1)
+  })
+
+  it('(c) 主题激活但收集器返回空 → 下一 concept 无跨模块 slot（优雅降级）', () => {
+    mockTopicSession.session = { topicId: 'topic-1', moduleIds: [MODULE_ID, 'module-other'] }
+    mockLoadStoredModule.mockImplementation((_repo, id) =>
+      id === MODULE_ID ? makeModule() : id === 'module-other' ? makeOtherModule() : null,
+    )
+    adaptiveMocks.collectCrossModuleReviewSlots.mockReturnValue([])
+
+    useProgressStore.getState().advance()
+
+    const stage = useProgressStore.getState().stage
+    if (stage?.kind === 'concept') {
+      expect(stage.conceptIndex).toBe(1)
+      expect(stage.reviewSlots ?? []).not.toContain('cross-slot-x')
+    }
+  })
+
+  it('(d) 跨模块 slot 与模块内 slot 去重（normalizeReviewSlots 不重复）', () => {
+    mockTopicSession.session = { topicId: 'topic-1', moduleIds: [MODULE_ID, 'module-other'] }
+    mockLoadStoredModule.mockImplementation((_repo, id) =>
+      id === MODULE_ID ? makeModule() : id === 'module-other' ? makeOtherModule() : null,
+    )
+    // 模块内 wrong slot 与跨模块 slot 同 id（极端情况）→ 结果只出现一次
+    adaptiveMocks.collectReviewSlots.mockReturnValue(['cross-slot-x'])
+    adaptiveMocks.collectCrossModuleReviewSlots.mockReturnValue(['cross-slot-x'])
+
+    useProgressStore.getState().advance()
+
+    const stage = useProgressStore.getState().stage
+    const reviewSlots = stage && stage.kind === 'concept' ? (stage.reviewSlots ?? []) : []
+    expect(reviewSlots.filter((id: string) => id === 'cross-slot-x')).toHaveLength(1)
   })
 })
