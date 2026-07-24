@@ -31,10 +31,13 @@ import {
   collectReviewSlots,
   collectCarriedReviewSlots,
   collectConfirmSlots,
+  collectCrossModuleReviewSlots,
 } from '@/lib/runtime/adaptive-sequencer'
+import { loadStoredModule } from '@/lib/persistence/module-library'
 import { useAttemptsStore } from './attempts-store'
 import { useModuleStore } from './module-store'
 import { useSettingsStore } from './settings-store'
+import { useTopicSessionStore } from './topic-session-store'
 
 /**
  * Storage Invariant (V2.0.1): per-module progress keys
@@ -105,7 +108,11 @@ interface ProgressStoreState {
  * at the state-machine boundary so an invalid slot cannot become a render-only
  * state that has no way to advance.
  */
-function normalizeReviewSlots(module: Module, reviewSlots: string[] | undefined): string[] {
+function normalizeReviewSlots(
+  module: Module,
+  reviewSlots: string[] | undefined,
+  extraValidIds?: Set<string>,
+): string[] {
   if (!reviewSlots || reviewSlots.length === 0) return []
 
   const activeQuizIds = new Set(
@@ -117,8 +124,34 @@ function normalizeReviewSlots(module: Module, reviewSlots: string[] | undefined)
   )
 
   return reviewSlots.filter(
-    (slotId, index, slots) => activeQuizIds.has(slotId) && slots.indexOf(slotId) === index,
+    (slotId, index, slots) =>
+      (activeQuizIds.has(slotId) || (extraValidIds?.has(slotId) ?? false)) &&
+      slots.indexOf(slotId) === index,
   )
+}
+
+function getTopicContext(): { topicId: string; modules: Module[] } | null {
+  const session = useTopicSessionStore.getState().session
+  if (!session) return null
+  const modules: Module[] = []
+  for (const moduleId of session.moduleIds) {
+    const mod = loadStoredModule(getStorage(), moduleId)
+    if (mod) modules.push(mod)
+  }
+  return modules.length > 0 ? { topicId: session.topicId, modules } : null
+}
+
+function collectTopicQuizIds(topicModules: Module[]): Set<string> {
+  const ids = new Set<string>()
+  for (const mod of topicModules) {
+    for (const concept of mod.concepts) {
+      for (const quiz of concept.quizSeries.quizzes) ids.add(quiz.id)
+    }
+    if (mod.challengeQuizzes) {
+      for (const quiz of mod.challengeQuizzes) ids.add(quiz.id)
+    }
+  }
+  return ids
 }
 
 /**
@@ -324,9 +357,18 @@ export const useProgressStore = create<ProgressStoreState>()(
             const concept = currentModule.concepts[conceptIndex]
             if (!concept) return
 
+            const topicContext = getTopicContext()
+            const topicQuizIds = topicContext
+              ? collectTopicQuizIds(topicContext.modules)
+              : undefined
+
             const quizCount = concept.quizSeries.quizzes.length
             const rawReviewSlots = stage.reviewSlots ?? []
-            const currentReviewSlots = normalizeReviewSlots(currentModule, rawReviewSlots)
+            const currentReviewSlots = normalizeReviewSlots(
+              currentModule,
+              rawReviewSlots,
+              topicQuizIds,
+            )
             const totalSlots = quizCount + currentReviewSlots.length
 
             // A persisted cursor may still point at an invalid review ID.
@@ -378,7 +420,11 @@ export const useProgressStore = create<ProgressStoreState>()(
             if (conceptIndex + 1 < currentModule.concepts.length) {
               const attemptsBySlot = useAttemptsStore.getState().attemptsBySlot
               const wrongSlots = collectReviewSlots(currentModule, conceptIndex, attemptsBySlot)
-              const carriedSlots = collectCarriedReviewSlots(currentReviewSlots, attemptsBySlot)
+              const carriedSlots = collectCarriedReviewSlots(
+                currentReviewSlots,
+                attemptsBySlot,
+                currentModule,
+              )
 
               // "确认掌握题"仅在用户未关闭时注入
               const { confirmReviewEnabled } = useSettingsStore.getState()
@@ -386,11 +432,21 @@ export const useProgressStore = create<ProgressStoreState>()(
                 ? collectConfirmSlots(currentModule, conceptIndex - 1, attemptsBySlot)
                 : []
 
-              const nextReviewSlots = normalizeReviewSlots(currentModule, [
-                ...wrongSlots,
-                ...carriedSlots,
-                ...confirmSlots,
-              ])
+              // 主题学习流：追加跨模块 due/错题（V2.1.6）
+              const crossModuleSlots = topicContext
+                ? collectCrossModuleReviewSlots(
+                    topicContext.modules,
+                    currentModule.id,
+                    attemptsBySlot,
+                    { cap: 5 },
+                  )
+                : []
+
+              const nextReviewSlots = normalizeReviewSlots(
+                currentModule,
+                [...wrongSlots, ...carriedSlots, ...confirmSlots, ...crossModuleSlots],
+                topicQuizIds,
+              )
 
               const nextConceptIdx = conceptIndex + 1
               const nextConcept = currentModule.concepts[nextConceptIdx]

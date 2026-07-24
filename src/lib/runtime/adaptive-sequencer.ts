@@ -275,15 +275,21 @@ export function collectDueSlots(
 /**
  * From the current concept's reviewSlots, find ones that were answered WRONG during review.
  * These should be carried forward to the next concept's reviewSlots.
+ *
+ * 当传入 currentModule 时，跨模块穿插题（不属于 currentModule）不 carry —— 它们靠
+ * FSRS due（开启时）或主题重刷页（关闭时）自然回来，保持穿插轻量（V2.1.6 决策 #3）。
  */
 export function collectCarriedReviewSlots(
   currentReviewSlots: string[] | undefined,
   attemptsBySlot: Record<string, AttemptRecord[]>,
+  currentModule?: Module,
 ): string[] {
   if (!currentReviewSlots || currentReviewSlots.length === 0) return []
 
   const carried: string[] = []
   for (const slotId of currentReviewSlots) {
+    // 跨模块穿插题不 carry
+    if (currentModule && !findQuizInModule(currentModule, slotId)) continue
     const attempts = attemptsBySlot[slotId]
     if (!attempts || attempts.length === 0) {
       carried.push(slotId)

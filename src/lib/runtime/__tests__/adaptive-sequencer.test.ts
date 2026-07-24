@@ -258,6 +258,32 @@ describe('collectCarriedReviewSlots', () => {
     const carried = collectCarriedReviewSlots([], {})
     expect(carried).toEqual([])
   })
+
+  it('提供 currentModule 时排除跨模块穿插 slot（V2.1.6 决策 #3）', () => {
+    const mod = makeModule(2, 1)
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      'concept-0:slot-0': [attempt('concept-0:slot-0', 30, 1)],
+      'cross-module-slot': [attempt('cross-module-slot', 30, 1)],
+    }
+    const carried = collectCarriedReviewSlots(
+      ['concept-0:slot-0', 'cross-module-slot'],
+      attemptsBySlot,
+      mod,
+    )
+    expect(carried).toEqual(['concept-0:slot-0'])
+  })
+
+  it('未提供 currentModule 时保持旧行为（carry 全部 wrong slot）', () => {
+    const attemptsBySlot: Record<string, AttemptRecord[]> = {
+      'concept-0:slot-0': [attempt('concept-0:slot-0', 30, 1)],
+      'cross-module-slot': [attempt('cross-module-slot', 30, 1)],
+    }
+    const carried = collectCarriedReviewSlots(
+      ['concept-0:slot-0', 'cross-module-slot'],
+      attemptsBySlot,
+    )
+    expect(carried).toEqual(['concept-0:slot-0', 'cross-module-slot'])
+  })
 })
 
 describe('buildAdaptiveQueue — ignored quiz filtering', () => {
